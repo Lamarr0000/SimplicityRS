@@ -1,0 +1,31 @@
+# Recovery media and generated disk images
+*.iso
+*.wim
+*.vhd
+*.vhdx
+*.vmdk
+*.vmem
+*.vmss
+*.vmsn
+*.vmx
+*.nvram
+build/
+output/
+mount/
+logs/
+*.log
+
+# Downloaded upstream dependencies; retain provenance and integrity records
+vendor/*
+!vendor/SOURCES.md
+!vendor/manifest.json
+
+# Local/editor state and credentials
+.vs/
+.env
+.env.*
+!.env.example
+*.user
+*.tmp
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta http-equiv="X-UA-Compatible" content="IE=9"><title>RecoveryPE</title>
+<hta:application id="recovery" applicationname="RecoveryPE" border="thin" caption="yes" singleinstance="yes" scroll="no" />
+<style>body{background:#152333;color:#edf3fa;font-family:Segoe UI;padding:32px}h1{font-size:32px;margin-bottom:4px}p{color:#b9c9da}button{display:block;width:100%;text-align:left;padding:15px;margin:12px 0;background:#243b52;color:white;border:1px solid #53718c;font:18px Segoe UI;cursor:pointer}.note{font-size:13px;margin-top:24px}</style>
+<script language="JScript">
+var shell=new ActiveXObject('WScript.Shell');
+function run(command){try{shell.Run(command,1,false);}catch(e){alert('Unable to open tool: '+e.message);}}
+function diskReport(){run('cmd.exe /k diskpart.exe /s X:\\RecoveryPE\\list-disks.txt');}
+window.onload=function(){window.resizeTo(720,620);};
+</script></head><body><h1>RecoveryPE</h1><p>Recovery workspace &middot; Prototype 0.1</p>
+<button onclick="diskReport()">Inspect disks and volumes</button>
+<button onclick="run('cmd.exe /k ipconfig /all')">Network information</button>
+<button onclick="run('notepad.exe')">Notepad</button>
+<button onclick="run('cmd.exe')">Command prompt</button>
+<button onclick="if(confirm('Shut down this recovery environment?'))run('wpeutil.exe shutdown')">Shut down</button>
+<p class="note">Disk inspection only lists information. Commands entered manually in the command prompt can modify disks.</p></body></html>

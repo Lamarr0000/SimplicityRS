@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "RecoveryPE: Check source",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/Test-Source.ps1"],
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "RecoveryPE: Download dependencies",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/Get-Dependencies.ps1"],
+      "problemMatcher": []
+    }
+  ]
+}

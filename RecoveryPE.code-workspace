@@ -1,0 +1,13 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    "files.encoding": "utf8",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.tabSize": 4,
+    "terminal.integrated.defaultProfile.windows": "Windows PowerShell",
+    "search.exclude": { "**/vendor/WinXShell/**": true, "**/vendor/ExplorerPP/**": true },
+    "files.watcherExclude": { "**/vendor/WinXShell/**": true, "**/vendor/ExplorerPP/**": true }
+  },
+  "extensions": { "recommendations": ["ms-vscode.powershell"] }
+}

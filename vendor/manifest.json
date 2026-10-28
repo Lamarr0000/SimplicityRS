@@ -1,0 +1,58 @@
+{
+  "winxshellCommit": "45b9fa4b257ff67658f9365b8a4c95bbaf4e0673",
+  "explorerPlusPlusVersion": "1.4.0",
+  "files": [
+    {
+      "path": "vendor/WinXShell/wallpaper.jpg",
+      "sha256": "FFC2ABEBF09F55A481870D4172FDEF1E82B751DC0777C1B260B5FDD6E5C7F7E5"
+    },
+    {
+      "path": "vendor/WinXShell/WinXShell_x64.exe",
+      "sha256": "AE1F221DEC2A39B790336628EDD5BED5CCC53B402CDADE10341A242E97B52895"
+    },
+    {
+      "path": "vendor/WinXShell/WinXShell.jcfg",
+      "sha256": "4CE16059FA39D70E2F5A303948E4BC2F3D50E70D3D37C3C79C7F89D1B3484478"
+    },
+    {
+      "path": "vendor/WinXShell/WinXShell.lua",
+      "sha256": "64ECC36D7A84835193E15B0ECF0F23DB4DEA5B380F7BACE47DE03F6EC98EBE9F"
+    },
+    {
+      "path": "vendor/WinXShell/wxsStub.dll",
+      "sha256": "A60E268CC9FD746594417B5DDFFE109FE604B076409EF4A9429CDCA0263AB32B"
+    },
+    {
+      "path": "vendor/WinXShell/wxsUI/UI_Calendar.zip",
+      "sha256": "3439992D878B51CD7F9AE50ED620C8B5350132774EA4191DC9F83FD18ED6A5C5"
+    },
+    {
+      "path": "vendor/WinXShell/wxsUI/UI_Shutdown.lua",
+      "sha256": "08197E6E9FA2B801888E7B5603C2DDF8CC927EFE09D2AA7C9DC651AB576F6044"
+    },
+    {
+      "path": "vendor/WinXShell/wxsUI/UI_Shutdown.zip",
+      "sha256": "C3977C55E53B06E4248317ECFBE59E0EB4544C40FA71225197CC736CEA290AD3"
+    },
+    {
+      "path": "vendor/ExplorerPP/Explorer++ Help.chm",
+      "sha256": "D97BAF57C399278F70E75DB2CFAE72110706A8C5236DA818D5BA085B9171F51C"
+    },
+    {
+      "path": "vendor/ExplorerPP/Explorer++.exe",
+      "sha256": "22AC20341C5525658EBE5E9C4B9AC9F7C152B18080FF347861FAC3F04D56A2D6"
+    },
+    {
+      "path": "vendor/ExplorerPP/History.txt",
+      "sha256": "95A3036DFECA27D4AC40192D0334D537C62F5F404A5401ADE8E8BFEB8897456B"
+    },
+    {
+      "path": "vendor/ExplorerPP/License.txt",
+      "sha256": "57D8EF40B72569EF4C2782B3CDCE3056215E05562D57C3D396AE088B99CCF3D4"
+    },
+    {
+      "path": "vendor/ExplorerPP/Readme.txt",
+      "sha256": "D484E79F7E2AE475D0E758082DC3F50351D9A31752BC16A2A9EB3E7A3128BD10"
+    }
+  ]
+}
