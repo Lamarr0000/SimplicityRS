@@ -12,7 +12,11 @@ Run scripts/Build-Desktop.ps1 from administrator PowerShell. It creates a fresh 
 
 The output is C:\RecoveryPE-Desktop\RecoveryPE-Desktop.iso. Attach it to the powered-off VM's CD/DVD drive, with Connect at power on enabled, and boot.
 
-Expected: WinXShell desktop/taskbar, shortcuts and Start menu entries, and the RecoveryPE launcher. Test File Manager, Win+E, launcher reopening, switching between windows, disk inspection, and shutdown. Runtime compatibility is pending this VM test.
+The user verified the first desktop build boots with a taskbar and launcher, and the desktop/tool checks work. It also exposed a startup console whose closure ends the WinPE session.
+
+The updated startup uses winpeshl.ini and a windowless script host instead of the default command shell. Initialization completes before the launcher and desktop start; the host waits for the desktop shell to exit. This fix awaits a new VM test.
+
+Test: no persistent startup command prompt, File Manager, Win+E, launcher reopening, switching between windows, disk inspection, and shutdown. Open and close a Command Prompt from the launcher and confirm the desktop remains running.
 
 Explorer++ supports file changes and deletion. Use the disposable virtual disk for testing.
 

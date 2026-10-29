@@ -10,7 +10,7 @@ Open RecoveryPE.code-workspace in VS Code. Accept workspace trust only if you tr
 - vendor/manifest.json and vendor/SOURCES.md: upstream versions and checksums
 - vendor/WinXShell and vendor/ExplorerPP: ignored downloaded dependencies
 
-The launcher baseline was tested successfully by the user in VMware. The desktop variant is prepared and awaiting VM validation. Checks of script syntax do not establish WinPE compatibility.
+The launcher baseline and initial desktop variant were tested successfully by the user in VMware. The desktop startup-console lifetime fix awaits a new VM test. Checks of script syntax do not establish WinPE compatibility.
 
 ## Normal edit cycle
 

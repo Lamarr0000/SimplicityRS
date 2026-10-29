@@ -35,7 +35,7 @@ try {
     $recovery = Join-Path $mount 'RecoveryPE'
     New-Item -ItemType Directory -Path $recovery -Force | Out-Null
     Copy-Item (Join-Path $project 'launcher\RecoveryPE.hta'),(Join-Path $project 'launcher\list-disks.txt') $recovery
-    Copy-Item (Join-Path $project 'desktop\InitDesktop.vbs') $recovery
+    Copy-Item (Join-Path $project 'desktop\InitDesktop.vbs'),(Join-Path $project 'desktop\StartDesktop.vbs') $recovery
     # Only the desktop variant gets a File Manager button.
     $htaPath = Join-Path $recovery 'RecoveryPE.hta'
     $hta = Get-Content $htaPath -Raw
@@ -43,7 +43,7 @@ try {
     $hta = $hta.Replace('<button onclick="diskReport()">','<button onclick="run(''&quot;X:\\Program Files\\ExplorerPP\\Explorer++.exe&quot;'')">File Manager</button><button onclick="diskReport()">')
     $hta = $hta.Replace('720,620','720,720')
     Set-Content $htaPath $hta -Encoding ASCII
-    Copy-Item (Join-Path $project 'desktop\startnet.cmd') (Join-Path $mount 'Windows\System32\startnet.cmd') -Force
+    Copy-Item (Join-Path $project 'desktop\winpeshl.ini') (Join-Path $mount 'Windows\System32\winpeshl.ini') -Force
     $shell = Join-Path $mount 'Program Files\WinXShell'
     $explorer = Join-Path $mount 'Program Files\ExplorerPP'
     New-Item -ItemType Directory -Path $shell,$explorer -Force | Out-Null
