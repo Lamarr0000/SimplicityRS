@@ -9,6 +9,9 @@ $packages = Join-Path $adk 'Windows Preinstallation Environment\amd64\WinPE_OCs'
 $BuildRoot = [IO.Path]::GetFullPath($BuildRoot)
 if ($BuildRoot.Contains('"')) { throw 'Build path cannot contain a quote.' }
 if (Test-Path -LiteralPath $BuildRoot) { throw "Build directory already exists: $BuildRoot. Use -BuildRoot with a new directory." }
+foreach ($asset in @('SimplicityBRS-background.jpg','SimplicityBRS.ico')) {
+    if (!(Test-Path -LiteralPath (Join-Path $project "assets\$asset"))) { throw "Missing branding asset: $asset" }
+}
 $manifest = Get-Content (Join-Path $project 'vendor\manifest.json') -Raw | ConvertFrom-Json
 foreach ($file in $manifest.files) {
     $path = Join-Path $project $file.path
@@ -35,6 +38,7 @@ try {
     $recovery = Join-Path $mount 'RecoveryPE'
     New-Item -ItemType Directory -Path $recovery -Force | Out-Null
     Copy-Item (Join-Path $project 'launcher\RecoveryPE.hta'),(Join-Path $project 'launcher\list-disks.txt') $recovery
+    Copy-Item (Join-Path $project 'assets\SimplicityBRS.ico'),(Join-Path $project 'assets\SimplicityBRS-background.jpg') $recovery
     Copy-Item (Join-Path $project 'desktop\InitDesktop.vbs'),(Join-Path $project 'desktop\StartDesktop.vbs') $recovery
     # Only the desktop variant gets a File Manager button.
     $htaPath = Join-Path $recovery 'RecoveryPE.hta'
@@ -55,6 +59,8 @@ try {
     $config.JS_FILEEXPLORER | Add-Member -NotePropertyName '3rd_filename' -NotePropertyValue 'X:\Program Files\ExplorerPP\Explorer++.exe' -Force
     $config.JS_FILEEXPLORER.'WIN+E' | Add-Member -NotePropertyName '3rd_filename' -NotePropertyValue 'X:\Program Files\ExplorerPP\Explorer++.exe' -Force
     $config.JS_DESKTOP.bkcolor = @(21,35,51)
+    $config.JS_DESKTOP.'::WP' = 'X:\RecoveryPE\SimplicityBRS-background.jpg'
+    $config.JS_DESKTOP.'::WP_MODE' = 0
     $config.'::STARTMENU'.noconnections = $true
     $config.JS_DAEMON.clockarea_dbclick.command = 'cmd.exe'
     $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding UTF8
@@ -64,7 +70,9 @@ try {
 } finally {
     if ($mounted) { & dism.exe /Unmount-Image "/MountDir:$mount" /Discard }
 }
-$output = Join-Path $BuildRoot 'RecoveryPE-Desktop.iso'
+Copy-Item (Join-Path $project 'assets\SimplicityBRS.ico') (Join-Path $BuildRoot 'media\SimplicityBRS.ico')
+@('[autorun]','icon=SimplicityBRS.ico','label=SimplicityBRS - Backup and Recovery Suite') | Set-Content (Join-Path $BuildRoot 'media\autorun.inf') -Encoding ASCII
+$output = Join-Path $BuildRoot 'SimplicityBRS-Desktop.iso'
 $isoCommand = 'call "{0}" && MakeWinPEMedia /ISO "{1}" "{2}"' -f $environment,$BuildRoot,$output
 & $env:ComSpec /d /c $isoCommand
 if ($LASTEXITCODE -ne 0) { throw 'Desktop ISO creation failed.' }

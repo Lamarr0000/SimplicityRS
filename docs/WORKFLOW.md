@@ -35,6 +35,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\lamar\OneDrive
 
 The default build folder is C:\RecoveryPE-Desktop. To keep an earlier build, append `-BuildRoot C:\RecoveryPE-Desktop-02` (choose an unused directory). The script refuses an existing build folder.
 
+For the branded build, use a fresh folder such as `-BuildRoot C:\RecoveryPE-Desktop-03`. The output is `SimplicityBRS-Desktop.iso` inside that folder. `assets/` contains the wallpaper, banner, and multiresolution icon copied from the user-approved artwork; the wallpaper and icon are included in the desktop build. The banner is retained for future use.
+
 ## Git and GitHub
 
 Source control excludes ISO/WIM images, virtual disks, and downloaded binaries. Keep VMware machines and build output outside this source folder. Commit source and dependency records so builds can be recreated.

@@ -18,7 +18,7 @@ sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell 
 sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Desktop", desktop, "REG_SZ"
 sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Programs", programs, "REG_EXPAND_SZ"
 sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Programs", programs, "REG_SZ"
-AddLink "RecoveryPE", "X:\Windows\System32\mshta.exe", "X:\RecoveryPE\RecoveryPE.hta"
+AddLink "SimplicityBRS", "X:\Windows\System32\mshta.exe", "X:\RecoveryPE\RecoveryPE.hta"
 AddLink "File Manager", "X:\Program Files\ExplorerPP\Explorer++.exe", ""
 AddLink "Command Prompt", "X:\Windows\System32\cmd.exe", ""
 AddLink "Notepad", "X:\Windows\System32\notepad.exe", ""
@@ -34,6 +34,7 @@ Sub AddLink(name, target, arguments)
     link.TargetPath = target
     link.Arguments = arguments
     link.WorkingDirectory = "X:\RecoveryPE"
+    If name = "SimplicityBRS" Then link.IconLocation = "X:\RecoveryPE\SimplicityBRS.ico,0"
     link.Save
   Next
 End Sub

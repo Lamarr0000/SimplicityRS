@@ -29,3 +29,9 @@ vendor/*
 *.tmp
 Thumbs.db
 Desktop.ini
+
+# Temporary artwork transfer helpers and intermediate copies
+.icon-transfer/
+icon-source/
+/Simplicity.ico
+/simplicity-source.png

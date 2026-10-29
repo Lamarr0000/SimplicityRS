@@ -6,12 +6,14 @@ $mount = Join-Path $work 'mount'
 $wim = Join-Path $work 'media\sources\boot.wim'
 $output = Join-Path $work 'RecoveryPE-Launcher.iso'
 $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'launcher'
+$assets = Join-Path (Split-Path $PSScriptRoot -Parent) 'assets'
 $packages = Join-Path $adkRoot 'Windows Preinstallation Environment\amd64\WinPE_OCs'
 function Invoke-Dism([string[]]$Arguments) {
     & dism.exe @Arguments
     if ($LASTEXITCODE -ne 0) { throw "DISM failed with exit code $LASTEXITCODE" }
 }
 if (!(Test-Path $wim)) { throw "Missing base image: $wim" }
+if (!(Test-Path -LiteralPath (Join-Path $assets 'SimplicityBRS.ico'))) { throw 'Missing SimplicityBRS icon.' }
 if (Test-Path $output) { throw "Output already exists: $output. Rename it before rebuilding." }
 $backup = Join-Path $work 'boot-baseline.wim'
 if (!(Test-Path $backup)) { Copy-Item $wim $backup }
@@ -26,6 +28,7 @@ try {
     $destination = Join-Path $mount 'RecoveryPE'
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
     Copy-Item "$source\RecoveryPE.hta","$source\list-disks.txt" $destination
+    Copy-Item (Join-Path $assets 'SimplicityBRS.ico') $destination
     Copy-Item "$source\startnet.cmd" (Join-Path $mount 'Windows\System32\startnet.cmd') -Force
     Invoke-Dism @('/Unmount-Image',"/MountDir:$mount",'/Commit')
     $mounted = $false
@@ -33,6 +36,8 @@ try {
     if ($mounted) { & dism.exe /Unmount-Image "/MountDir:$mount" /Discard }
 }
 $environment = Join-Path $adkRoot 'Deployment Tools\DandISetEnv.bat'
+Copy-Item (Join-Path $assets 'SimplicityBRS.ico') (Join-Path $work 'media\SimplicityBRS.ico')
+@('[autorun]','icon=SimplicityBRS.ico','label=SimplicityBRS - Backup and Recovery Suite') | Set-Content (Join-Path $work 'media\autorun.inf') -Encoding ASCII
 $buildCommand = 'call "{0}" && MakeWinPEMedia /ISO "{1}" "{2}"' -f $environment,$work,$output
 & $env:ComSpec /d /c $buildCommand
 if ($LASTEXITCODE -ne 0) { throw 'ISO creation failed.' }

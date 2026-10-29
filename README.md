@@ -1,5 +1,13 @@
 # RecoveryPE
 
+## SimplicityBRS branding
+
+The desktop build now uses the SimplicityBRS (Backup and Recovery Suite) name, custom wallpaper, and swoosh launcher icon. Branding assets are kept in `assets/` so builds do not depend on a Pictures folder. This branding does not add backup or restore functionality.
+
+The new desktop ISO is named `SimplicityBRS-Desktop.iso`. Build into a fresh folder, for example `-BuildRoot C:\RecoveryPE-Desktop-03`, from administrator PowerShell. Previous builds are not updated. Boot the new ISO in VMware to verify wallpaper scaling, the launcher title/icon, and desktop/Start Menu/taskbar shortcut icons. The media root includes an icon and `autorun.inf` for the mounted drive; Windows policy and caching may affect display. The ISO file's own Explorer icon is controlled by file association.
+
+Source validation passes. The user verified the branded desktop build and, on the follow-up build in `C:\RecoveryPE-Desktop-04`, confirmed the custom icon works. The icon uses bitmap-encoded frames at 16, 24, 32, 48, 64, 128, and 256 pixels for WinPE compatibility. The launcher uses an explicit icon path. Mounted-media icon display has not been separately verified.
+
 Learning project: an amd64 WinPE recovery environment, launcher, and desktop prototype.
 
 ## Verified baseline

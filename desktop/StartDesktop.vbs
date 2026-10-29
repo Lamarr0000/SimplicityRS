@@ -20,7 +20,7 @@ result = sh.Run("""X:\Program Files\WinXShell\WinXShell.exe"" -winpe", 1, True)
 If result <> 0 Then StartupFailure "Desktop shell exited with an error: " & result
 
 Sub StartupFailure(message)
-    MsgBox message & vbCrLf & "A diagnostic command prompt will open.", 16, "RecoveryPE startup"
+    MsgBox message & vbCrLf & "A diagnostic command prompt will open.", 16, "SimplicityBRS startup"
     sh.Run "cmd.exe /k", 1, True
     WScript.Quit 1
 End Sub
