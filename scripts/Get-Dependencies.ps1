@@ -35,3 +35,15 @@ foreach ($file in $manifest.files) {
     if ((Get-FileHash $target -Algorithm SHA256).Hash -ne $file.sha256) { throw "Dependency checksum mismatch: $($file.path)" }
 }
 Write-Host 'Dependencies are present and match the recorded SHA-256 checksums.' -ForegroundColor Green
+$catalog = Get-Content (Join-Path $project 'apps\catalog.json') -Raw | ConvertFrom-Json
+foreach ($app in $catalog.apps) {
+    $archive = Join-Path $vendor ($app.downloadUrl.Split('/')[-1])
+    if (!(Test-Path $archive) -or ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $app.archiveSha256)) {
+        Invoke-WebRequest -UseBasicParsing $app.downloadUrl -OutFile $archive
+    }
+    if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $app.archiveSha256) { throw "App checksum mismatch: $($app.name)" }
+    $destination = Join-Path $vendor $app.vendorDirectory
+    New-Item -ItemType Directory -Path $destination -Force | Out-Null
+    Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force
+    Write-Host "$($app.name) $($app.version) downloaded and checksum verified."
+}

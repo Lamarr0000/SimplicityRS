@@ -1,11 +1,24 @@
 #Requires -RunAsAdministrator
 [CmdletBinding()]
-param([string]$BuildRoot = 'C:\RecoveryPE-Desktop')
+param(
+    [string]$BuildRoot = 'C:\RecoveryPE-Desktop',
+    [string]$IconCodecSource = "$env:SystemRoot\System32\IconCodecService.dll",
+    [string]$WindowsComponentSource = $env:SystemRoot
+)
 $ErrorActionPreference = 'Stop'
 $project = Split-Path $PSScriptRoot -Parent
 $adk = 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit'
 $environment = Join-Path $adk 'Deployment Tools\DandISetEnv.bat'
 $packages = Join-Path $adk 'Windows Preinstallation Environment\amd64\WinPE_OCs'
+$appCatalog = Get-Content (Join-Path $project 'apps\catalog.json') -Raw | ConvertFrom-Json
+foreach ($app in $appCatalog.apps) {
+    $appSource = Join-Path $project ('vendor\' + $app.vendorDirectory)
+    if (!(Test-Path -LiteralPath (Join-Path $appSource $app.executable))) { throw 'App dependencies missing. Run scripts\Get-Dependencies.ps1 first.' }
+    $archive = Join-Path $project ('vendor\' + ($app.downloadUrl.Split('/')[-1]))
+    if (!(Test-Path -LiteralPath $archive)) { throw "App archive missing: $archive" }
+    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $app.archiveSha256) { throw "App archive checksum mismatch: $($app.name)" }
+}
+$mediaId = [guid]::NewGuid().ToString()
 $BuildRoot = [IO.Path]::GetFullPath($BuildRoot)
 if ($BuildRoot.Contains('"')) { throw 'Build path cannot contain a quote.' }
 if (Test-Path -LiteralPath $BuildRoot) { throw "Build directory already exists: $BuildRoot. Use -BuildRoot with a new directory." }
@@ -35,17 +48,62 @@ try {
         Invoke-Dism @("/Image:$mount",'/Add-Package',"/PackagePath:$packages\$name.cab")
         Invoke-Dism @("/Image:$mount",'/Add-Package',"/PackagePath:$packages\en-us\${name}_en-us.cab")
     }
+    # Modern Notepad++ embeds PNG-compressed icons. LoadIcon needs this decoder,
+    # which can be absent from the minimal ADK image even with WinPE-HTA installed.
+    $codecDestination = Join-Path $mount 'Windows\System32\IconCodecService.dll'
+    if (!(Test-Path -LiteralPath $codecDestination)) {
+        if (!(Test-Path -LiteralPath $IconCodecSource)) { throw "Icon decoder missing. Supply -IconCodecSource from matching x64 Windows media." }
+        $codec = Get-Item -LiteralPath $IconCodecSource
+        $peKernel = Get-Item -LiteralPath (Join-Path $mount 'Windows\System32\kernel32.dll')
+        if ($codec.VersionInfo.FileBuildPart -ne $peKernel.VersionInfo.FileBuildPart -or $codec.VersionInfo.FileMajorPart -ne $peKernel.VersionInfo.FileMajorPart -or $codec.VersionInfo.FileMinorPart -ne $peKernel.VersionInfo.FileMinorPart) {
+            throw 'Icon decoder Windows build does not match WinPE. Supply -IconCodecSource from matching Windows media.'
+        }
+        if ((Get-AuthenticodeSignature -LiteralPath $IconCodecSource).Status -ne 'Valid') { throw 'Icon decoder signature is not valid.' }
+        $codecBytes = [IO.File]::ReadAllBytes($codec.FullName)
+        $peOffset = [BitConverter]::ToInt32($codecBytes, 60)
+        if ([BitConverter]::ToUInt16($codecBytes, $peOffset + 4) -ne 0x8664) { throw 'Icon decoder must be x64.' }
+        Copy-Item -LiteralPath $codec.FullName -Destination $codecDestination
+        Write-Host "Added Windows icon decoder $($codec.VersionInfo.FileVersion) for Notepad++ icon support."
+    }
+    # WinXShell's upstream NewBrowseDlg integration supplies these for modern
+    # COM-based Open/Save dialogs. Keep existing PE binaries and add only gaps.
+    $kernelVersion = (Get-Item -LiteralPath (Join-Path $mount 'Windows\System32\kernel32.dll')).VersionInfo
+    # File-dialog creation also explicitly requires System32\ShellStyle.dll;
+    # when absent it returns CLASS_E_CLASSNOTAVAILABLE before any dialog appears.
+    foreach ($relative in @('System32\comctl32.dll','System32\ExplorerFrame.dll','System32\en-US\ExplorerFrame.dll.mui','SystemResources\ExplorerFrame.dll.mun','System32\shellstyle.dll','System32\en-US\shellstyle.dll.mui')) {
+        $target = Join-Path $mount ('Windows\' + $relative)
+        if (Test-Path -LiteralPath $target) { continue }
+        $sourceFile = Join-Path $WindowsComponentSource $relative
+        if (!(Test-Path -LiteralPath $sourceFile)) { throw "Required dialog component missing: $sourceFile" }
+        $version = (Get-Item -LiteralPath $sourceFile).VersionInfo
+        if ($version.ProductBuildPart -ne $kernelVersion.ProductBuildPart -or $version.ProductMajorPart -ne $kernelVersion.ProductMajorPart -or $version.ProductMinorPart -ne $kernelVersion.ProductMinorPart) {
+            throw "Windows build mismatch for dialog component: $sourceFile. Supply -WindowsComponentSource from matching Windows media."
+        }
+        if ((Get-AuthenticodeSignature -LiteralPath $sourceFile).Status -ne 'Valid') { throw "Dialog component signature not valid: $sourceFile" }
+        if ($relative.EndsWith('.dll')) {
+            $componentBytes = [IO.File]::ReadAllBytes($sourceFile)
+            $componentPeOffset = [BitConverter]::ToInt32($componentBytes, 60)
+            if ([BitConverter]::ToUInt16($componentBytes, $componentPeOffset + 4) -ne 0x8664) { throw "Dialog component must be x64: $sourceFile" }
+        }
+        New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+        Copy-Item -LiteralPath $sourceFile -Destination $target
+        Write-Host "Added modern file-dialog component: $relative"
+    }
     $recovery = Join-Path $mount 'RecoveryPE'
     New-Item -ItemType Directory -Path $recovery -Force | Out-Null
     Copy-Item (Join-Path $project 'launcher\RecoveryPE.hta'),(Join-Path $project 'launcher\list-disks.txt') $recovery
     Copy-Item (Join-Path $project 'assets\SimplicityBRS.ico'),(Join-Path $project 'assets\SimplicityBRS-background.jpg') $recovery
     Copy-Item (Join-Path $project 'desktop\InitDesktop.vbs'),(Join-Path $project 'desktop\StartDesktop.vbs') $recovery
+    Copy-Item (Join-Path $project 'desktop\LaunchApp.vbs'),(Join-Path $project 'desktop\ExternalApps.vbs') $recovery
+    Set-Content (Join-Path $recovery 'media-id.txt') $mediaId -Encoding ASCII
     # Only the desktop variant gets a File Manager button.
     $htaPath = Join-Path $recovery 'RecoveryPE.hta'
     $hta = Get-Content $htaPath -Raw
     $hta = $hta.Replace('Prototype 0.1','Desktop prototype 0.2')
     $hta = $hta.Replace('<button onclick="diskReport()">','<button onclick="run(''&quot;X:\\Program Files\\ExplorerPP\\Explorer++.exe&quot;'')">File Manager</button><button onclick="diskReport()">')
     $hta = $hta.Replace('720,620','720,720')
+    $hta = $hta.Replace('<button onclick="run(''notepad.exe'')">Notepad</button>', '<button onclick="run(''notepad.exe'')">Notepad</button><button onclick="run(''wscript.exe //nologo X:\\RecoveryPE\\LaunchApp.vbs notepadpp'')">Notepad++</button>')
+    $hta = $hta.Replace('scroll="no"','scroll="yes"')
     Set-Content $htaPath $hta -Encoding ASCII
     Copy-Item (Join-Path $project 'desktop\winpeshl.ini') (Join-Path $mount 'Windows\System32\winpeshl.ini') -Force
     $shell = Join-Path $mount 'Program Files\WinXShell'
@@ -71,6 +129,14 @@ try {
     if ($mounted) { & dism.exe /Unmount-Image "/MountDir:$mount" /Discard }
 }
 Copy-Item (Join-Path $project 'assets\SimplicityBRS.ico') (Join-Path $BuildRoot 'media\SimplicityBRS.ico')
+Set-Content (Join-Path $BuildRoot 'media\SimplicityBRS.media') $mediaId -Encoding ASCII
+foreach ($app in $appCatalog.apps) {
+    $appDestination = Join-Path $BuildRoot ('media\Programs\' + $app.vendorDirectory)
+    New-Item -ItemType Directory -Path $appDestination -Force | Out-Null
+    # Extract the verified archive afresh so locally modified vendor files cannot enter the ISO.
+    $archive = Join-Path $project ('vendor\' + ($app.downloadUrl.Split('/')[-1]))
+    Expand-Archive -LiteralPath $archive -DestinationPath $appDestination
+}
 @('[autorun]','icon=SimplicityBRS.ico','label=SimplicityBRS - Backup and Recovery Suite') | Set-Content (Join-Path $BuildRoot 'media\autorun.inf') -Encoding ASCII
 $output = Join-Path $BuildRoot 'SimplicityBRS-Desktop.iso'
 $isoCommand = 'call "{0}" && MakeWinPEMedia /ISO "{1}" "{2}"' -f $environment,$BuildRoot,$output

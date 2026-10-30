@@ -1,4 +1,16 @@
-# RecoveryPE
+# SimplicityBRS
+
+## Current Windows 11 baseline
+
+Compatibility ISO 04 was user-verified in VMware: readable Explorer desktop, Simplicity launcher, Notepad++ launch, all save features, File > Open, and File Manager double-click reopening. Version 05 adds a clean desktop (This PC, Recycle Bin, Simplicity), cobalt launcher buttons, black background, and approximately 85% whole-window opacity. The user approved the appearance; editor regression testing on 05 has not been explicitly reported.
+
+See [baseline preparation, findings and test history](docs/COMPATIBILITY-BASELINE.md). `scripts/Prepare-Compatibility.ps1` prepares the separate Win10XPE workspace. `scripts/Build-CleanCompatibility.ps1` applies the appearance preset to an existing compatibility-04 staging tree; it is not a fresh Windows-to-ISO builder. Required Windows sources, upstream builder, toolchains, downloaded applications and generated media are not committed. Current local appearance ISO: `C:\SimplicityBRS-Compatibility\Simplicity-Compatibility-05.iso`.
+
+The ADK/WinXShell instructions below describe the earlier prototype. Its modern Notepad++ file-dialog integration remains incomplete; the successful compatibility baseline uses a separate Windows 11/Explorer foundation.
+
+## External apps
+
+Notepad++ is now packaged outside boot.wim in the ISO's Programs directory. Desktop and launcher entries locate the correct media by a per-build marker and use RAM-backed settings. See [external app integration](docs/EXTERNAL-APPS.md) and [roadmap](docs/ROADMAP.md).
 
 ## SimplicityBRS branding
 

@@ -1,0 +1,18 @@
+{
+  "apps": [
+    {
+      "id": "notepadpp",
+      "name": "Notepad++",
+      "version": "8.9.8.1",
+      "architecture": "x64",
+      "license": "GPL-3.0-or-later",
+      "source": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/tag/v8.9.8.1",
+      "downloadUrl": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.portable.x64.zip",
+      "archiveSha256": "beddf5548e75c97930d1575ba1c7d113e6e2b33d0a200310e734ca08e225f414",
+      "vendorDirectory": "NotepadPP",
+      "executable": "notepad++.exe",
+      "settingsDirectory": "NotepadPP",
+      "status": "User-verified on Windows 11 compatibility ISO 04: launch, all save features, File > Open and File Manager double-click reopening pass. Original ADK baseline remains unresolved."
+    }
+  ]
+}
