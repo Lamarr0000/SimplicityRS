@@ -1,4 +1,28 @@
-# Model comparison found a hardware restriction � November 1 afternoon
+# Power-mode speed recovery verified; voice pilot ready — November 1
+
+User selected Plugged in / Best performance, followed by an unidentified Lenovo
+popup. Overlay verified. GPU normal80W limit/boost restored; SW Thermal Slowdown
+Not Active at test end. Same Qwen8B prompt and identical41tokens:6.190s->1.111s,
+firstsegment2.372s->0.444s, generation~7->40t/s. Significant power-mode contribution
+confirmed for this case; not proof of every earlier delay or popup wording.
+
+RAM synthetic speech still misheard as our AM and wrong-intent answer: NOT a pass.
+Plain memory/storage synthetic question decoded correctly, appropriate reply;
+transcript0.718s, firsttext2.569s, usefulaudioavailable4.828s, Kokoro2.257s.
+Still misses2–3s target. No real microphone or physical playback tested by agent.
+See streaming/MODEL-RUNTIME-COMPARISON.md newest section for results and limits.
+
+Separate desktop SimplicityAI Voice Pilot.lnk created, not launched. Target
+streaming/Start-Voice-Pilot.cmd opens isolated port8770 Qwen3:8b think=False.
+Normal installation/shortcut and default20B unchanged; original20B allocation
+restored after headless tests. User should keep selected performance mode for
+pilot, open new shortcut, wait Ready, Talk and ask memory/storage question.
+Report actual transcription and reply delay.7checks and compilation pass.
+No script changed power limits, settings or thermal protections. No test running.
+
+---
+
+# Model comparison found a hardware restriction — November 1 afternoon
 
 User closed SimplicityAI and authorized bounded model/runtime comparisons.
 See `simplicityai/streaming/MODEL-RUNTIME-COMPARISON.md` for full observations,

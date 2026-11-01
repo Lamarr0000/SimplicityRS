@@ -119,3 +119,10 @@ No repairs, host networking, security settings, VM configuration or BRS files ch
 Follow-up comparison and observed GPU restriction: see MODEL-RUNTIME-COMPARISON.md.
 The working model remains unchanged; investigate the normal power/cooling mode
 before drawing normal-speed conclusions.
+
+Power-mode follow-up: the user-selected normal performance profile relieved the
+observed restriction; identical Qwen text case6.19s->1.11s. A correct plain-language
+synthetic voice answer had audio available4.83s. Still misses2–3s. Separate
+Start-Voice-Pilot.cmd/desktop Voice Pilot shortcut selects Qwen8B only for a
+live development test; normal installation/default20B unchanged. Read the newest
+MODEL-RUNTIME-COMPARISON.md section before interpreting restricted results.
