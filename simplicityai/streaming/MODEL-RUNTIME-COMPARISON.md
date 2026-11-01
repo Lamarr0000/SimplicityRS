@@ -1,3 +1,50 @@
+# Follow-up: user power-mode change verified — November 1
+
+User selected Plugged in / Best performance and saw an unidentified Lenovo popup.
+Its wording was not captured; do not claim what the notification meant. Read-only
+verification returned overlay ded574b5-45a0-4f42-8737-46345c09c238. Current GPU
+limit80W now matches requested/default80W. During inference clocks reached1560MHz
+SM/6000MHz memory, P0. End-of-run SW Thermal Slowdown was Not Active. SW Power Cap
+was still Active at the normal80W ceiling; this alone is not a fault.
+
+Exactly the same Qwen3:8b non-thinking unknown-scope prompt and identical41-token
+reply, with the same warmup sequence, changed from6.190s to1.111s. First segment
+changed2.372s to0.444s. Generation changed5.873s to1.019s, about7 to40tokens/s.
+This is one before/after case, not a universal speedup. The original fully-GPU
+candidate run had no simultaneous download. It supports a substantial performance
+contribution from the operating power restriction; it does not identify every
+firmware/thermal policy involved or explain all prior sessions' delays.
+
+Two synthetic full voice follow-ups, neither using a real microphone or playback:
+
+- RAM was misrecognized as “our AM”; the model answered about “our aim.” Audio
+  available4.95s is NOT a successful answer to the intended question. The harness
+  now names its automatic metric first_non_acknowledgment_audio and explicitly
+  requires manual semantic review. An acknowledgment filter cannot judge accuracy.
+- “Explain the difference between memory and storage” transcribed correctly and
+  yielded an appropriate general explanation. Final transcript0.718s after end of
+  speech; first text2.569s; first useful audio available4.828s. Model3.077s total,
+  including1.426s prompt evaluation and65tokens/1.626s generation. First Kokoro
+  segment2.257s, overlapping later generation. Physical heard latency is untested.
+
+The2–3s useful-speech target is still missed. Kokoro/segmentation and recognition
+accuracy remain separate concerns. No further broad model sweep is indicated now.
+Qwen8B qualifies only for a live development pilot, not general recovery validation
+or replacement of the working installation.
+
+Created a separate desktop shortcut `SimplicityAI Voice Pilot.lnk`, opening the
+isolated port8770 window with --model qwen3:8b. It was NOT launched. Existing normal
+shortcut/host0.6.3 remains unchanged. Keep the user-selected Best performance mode
+for this pilot; no script altered any power/thermal setting or bypassed protection.
+The default source/working app still uses20B; all headless tests restored its
+normal allocation afterward. Seven checks and Python compilation passed.
+
+New local evidence: logs/power-mode-comparison.json,
+logs/voice-streaming-qwen3-8b.json (misrecognition), and
+logs/voice-streaming-qwen3-8b-plain-language.json beneath StreamingPrototype.
+
+---
+
 # Model/runtime comparison — November 1, 2026
 
 ## Decision

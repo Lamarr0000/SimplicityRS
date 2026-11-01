@@ -166,7 +166,7 @@ async def benchmark():
     target.write_text(json.dumps(results,indent=2),encoding='utf-8');print(json.dumps(results,indent=2))
 
 
-async def voice_benchmark(model='gpt-oss:20b'):
+async def voice_benchmark(model='gpt-oss:20b',prompt='Explain RAM in one short sentence.',label=''):
     """Real-time synthetic PCM input through the complete server. No mic/playback."""
     import array
     import server
@@ -184,7 +184,6 @@ async def voice_benchmark(model='gpt-oss:20b'):
                     if value['type']=='ready':break
                 session=app['session']
                 session.agent.state.execute=lambda call:(_ for _ in ()).throw(RuntimeError('Windows tools disabled in benchmark'))
-                prompt='Explain RAM in one short sentence.'
                 audio=await asyncio.to_thread(session.speaker.synthesize,prompt)
                 with wave.open(io.BytesIO(audio),'rb') as wav:
                     rate=wav.getframerate();source=array.array('h',wav.readframes(wav.getnframes()))
@@ -212,11 +211,12 @@ async def voice_benchmark(model='gpt-oss:20b'):
                 await feeder
                 await ws.send_json({'type':'listen','enabled':False})
                 result={'model':model,'synthetic_input':prompt,'first_audio_available_after_speech_end_seconds':first_audio,
-                        'first_useful_audio_after_speech_end_seconds':useful_audio,
+                        'first_non_acknowledgment_audio_after_speech_end_seconds':useful_audio,
+                        'semantic_correctness':'Requires manual comparison of transcript and reply with intended input',
                         'physical_playback_tested':False,'events':events}
                 await ws.send_json({'type':'close'})
     finally:await runner.cleanup()
-    target=server.ASSETS/'logs'/('voice-streaming-'+model.replace(':','-')+'.json');target.write_text(json.dumps(result,indent=2),encoding='utf-8')
+    target=server.ASSETS/'logs'/('voice-streaming-'+model.replace(':','-')+label+'.json');target.write_text(json.dumps(result,indent=2),encoding='utf-8')
     print(json.dumps(result,indent=2))
 
 

@@ -1,5 +1,6 @@
 """User-invoked pilot launcher; owns only its new server/window process trees."""
 import json
+import argparse
 from pathlib import Path
 import socket
 import subprocess
@@ -20,14 +21,14 @@ def request(path,token=None):
     with opener.open(req,timeout=3) as response:return json.load(response)
 
 
-def main():
+def main(model='gpt-oss:20b'):
     # Fail on any occupied port; never attach to or stop another process.
     with socket.socket() as probe:probe.bind(('127.0.0.1',8770))
     (ASSETS/'logs').mkdir(exist_ok=True)
     server=None;guard=None
     try:
         with (ASSETS/'logs/server.log').open('ab') as output:
-            server=subprocess.Popen([sys.executable,str(ROOT/'server.py')],cwd=ROOT,
+            server=subprocess.Popen([sys.executable,str(ROOT/'server.py'),'--model',model],cwd=ROOT,
                 stdout=output,stderr=output,stdin=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW)
         guard=_guard_process(server)
         for _ in range(80):
@@ -52,4 +53,6 @@ def main():
         if guard:guard()
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    parser=argparse.ArgumentParser();parser.add_argument('--model',choices=['gpt-oss:20b','qwen3:8b'],default='gpt-oss:20b')
+    main(parser.parse_args().model)
