@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from desktop import Calculator, BUTTONS
 from health import collect_health, network_report, dns_timeout_simulation
+from integrity import collect_integrity, integrity_report
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -141,7 +142,7 @@ class State:
                 raise ValueError("A task is already running")
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
                 raise ValueError("Enter a task between 1 and 4000 characters")
-            if mode not in {"health", "calculator", "network", "dns_simulation"}:
+            if mode not in {"health", "calculator", "network", "dns_simulation", "integrity"}:
                 raise ValueError("Unknown task mode")
             self.mode = mode
             self.health_snapshot = None
@@ -276,6 +277,13 @@ class State:
     def run(self, prompt):
         try:
             self.emit("user", prompt)
+            if self.mode == 'integrity':
+                result = collect_integrity(self.emit, self.check_stop)
+                if self.log:
+                    self.log.with_suffix('.integrity.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+                self.emit('assistant_chunk', integrity_report(result))
+                self.emit('status', 'Finished — review Windows verification results and any checks that could not run. No repairs requested.')
+                return
             if self.mode == 'dns_simulation':
                 self.emit('action', 'SIMULATION: reading built-in synthetic DNS-timeout evidence. No Windows tools or model calls.')
                 fixture = dns_timeout_simulation()
@@ -412,7 +420,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument("--task", help="Run a task without the web UI, then exit")
-    parser.add_argument("--mode", choices=["health", "calculator", "network", "dns_simulation"], default="health")
+    parser.add_argument("--mode", choices=["health", "calculator", "network", "dns_simulation", "integrity"], default="health")
     args = parser.parse_args()
     if args.task:
         STATE.start(args.task, args.mode)
