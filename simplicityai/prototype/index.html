@@ -119,8 +119,20 @@ function stopLiveSession(){liveSession?.stop();liveSession=null;queuedVoiceText=
 async function beginLiveSession(){
  if(!globalThis.LiveSession||!navigator.mediaDevices?.getUserMedia){await listen();return;}
  liveSession=new LiveSession(context,{api,token,measure,status:message=>{voiceNotice=message;el('status').textContent=message;},error:error=>{voiceSession=false;continuousVoice=false;queuedVoiceText=null;voiceNotice=error.message+' You can still type.';updateVoiceToggle();},
- interrupt:async()=>{queuedVoiceText=null;const wasSpeaking=speaking;autoNext=false;const completed=spokenPrefix;const stopped=stopSpeech();if(wasSpeaking)api('/voice/interrupted',{completed_speech:completed.slice(0,2000)}).catch(()=>{});if(busy)await api('/stop',{});await stopped;},
- text:async(text,limited)=>{if(!voiceSession||micMuted)return;if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test(text.trim())){voiceSession=false;continuousVoice=false;stopLiveSession();await stopSpeech();updateVoiceToggle();return;}if(limited){el('message').value=text;voiceNotice='Please review the long message before sending.';voiceSession=false;continuousVoice=false;stopLiveSession();updateVoiceToggle();return;}queuedVoiceText=text;voiceQueuedAt=clock();voiceNotice='';await flushVoiceText();}});
+ interrupt:async()=>{
+  queuedVoiceText=null;
+  // An energy onset is not yet a new message. Stop audible/preparing playback
+  // promptly, but preserve a pending answer until actual words replace it.
+  if(speaking){autoNext=false;const completed=spokenPrefix;const stopped=stopSpeech();api('/voice/interrupted',{completed_speech:completed.slice(0,2000)}).catch(()=>{});await stopped;}
+ },
+ text:async(text,limited)=>{
+  if(!voiceSession||micMuted||!text.trim())return;
+  if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test(text.trim())){voiceSession=false;continuousVoice=false;autoNext=false;stopLiveSession();await stopSpeech();if(busy)await api('/stop',{});updateVoiceToggle();return;}
+  if(limited){el('message').value=text;voiceNotice='Please review the long message before sending.';voiceSession=false;continuousVoice=false;stopLiveSession();updateVoiceToggle();return;}
+  queuedVoiceText=text;voiceQueuedAt=clock();voiceNotice='';
+  if(busy){autoNext=false;const stopped=stopSpeech();await api('/stop',{});await stopped;}
+  await flushVoiceText();
+ }});
  await liveSession.start(micMuted);
 }
 async function flushVoiceText(){if(sendingVoice||busy||!queuedVoiceText||!voiceSession||micMuted)return;sendingVoice=true;measure('model_queue_wait',clock()-voiceQueuedAt);const text=queuedVoiceText;queuedVoiceText=null;try{await sendMessage(text,true);}finally{sendingVoice=false;}}

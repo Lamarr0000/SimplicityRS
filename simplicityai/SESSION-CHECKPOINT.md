@@ -1,3 +1,19 @@
+# Missing speech scheduling fix staged — November 1
+
+User tested 0.6.2: transcription/text still slow but closer to acceptable; no
+voice. Log 20261101-124402-5fe528 shows model8s/text completed but NO speech request.
+Found/reproduced UI onset callback clearing autoNext even when awaiting a reply
+and no replacement words recognized. New test fails against old HTML, passes
+against fix. Preserve pending auto-speech until nonempty replacement transcript;
+playing audio still stops promptly on onset. Confirmed words cancel old model
+then queue. See VOICE-SCHEDULING-FIX.md. Both JS suites pass. HTML/test staged with
+backup; backend stays0.6.2. User must Exit/reopen to load corrected client; no
+scripted restart because prior automatic review blocked it. Live confirmation
+pending; no microphone/audible playback in developer checks. No model/voice engine
+change in this fix. Do not conflate unqualified sherpa research with deployed app.
+
+---
+
 # Efficiency architecture selected — November 1
 
 User asked us to make the efficiency choice. Selected CPU-first streaming speech
