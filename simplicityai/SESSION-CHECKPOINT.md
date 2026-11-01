@@ -1,3 +1,26 @@
+# Faster CPU transcription host pilot staged — November 1, 0.6.3
+
+User confirms missing voice is fixed, still delayed but slightly faster. Tested
+stronger English Zipformer20230626 (73.4MB) in isolated sherpa2.0.1 CPU runtime.
+New zipformer_worker uses bounded WAV input, 0.8s numeric silence boundary flush,
+and lazy isolated Whisper for unfamiliar single-word results. Synthetic Cancel
+misheard counsel by fast model, recovered as Cancel by fallback; no silent alias.
+Long phrases/negations/key-vs-no-key preserved in 10 synthetic clips, worker0.26–
+0.48s vs Whisper~3s; cold fallback4.36s. Silence/noise returned empty. Real job
+cleanup test removed all three observed descendants. 86 Python tests + both JS
+suites pass. NO real microphone or audible playback used in developer checks.
+
+See FAST-TRANSCRIPTION-0.6.3.md. Host source + explicit fixed backend.json marker
+staged with backup. Running app remains prior loaded0.6.2 until USER EXIT/REOPEN.
+No scripted launch because prior automatic review blocked restart. Live pilot
+accuracy/speed pending. No live partial transcripts yet: streaming-capable model
+still consumes one WAV after each utterance. gpt-oss/Kokoro/energyVAD unchanged.
+No new voice settings. VM package stays0.5.2. Whisper fallback/default retained;
+disable marker while stopped to roll back. Provenance is tracked, weights/deps
+outsideGit at C:/SimplicityAI-Lab/SpeechStreaming. No paid/cloud setup.
+
+---
+
 # Missing speech scheduling fix staged — November 1
 
 User tested 0.6.2: transcription/text still slow but closer to acceptable; no

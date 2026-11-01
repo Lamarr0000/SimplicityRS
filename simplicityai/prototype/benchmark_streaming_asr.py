@@ -14,6 +14,8 @@ def main():
     parser.add_argument('--assets',type=Path,required=True)
     parser.add_argument('--fixtures',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--model-dir',default='zipformer20m',choices=['zipformer20m','zipformer20230626'])
+    parser.add_argument('--decoding-method',default='greedy_search',choices=['greedy_search','modified_beam_search'])
     parser.add_argument('--padding',type=float,default=0.0,
                         help='Synthetic silence before/after the clip, seconds (0 to 2)')
     args=parser.parse_args()
@@ -21,13 +23,14 @@ def main():
     sys.path.insert(0,str(args.assets/'deps'))
     import numpy as np
     import sherpa_onnx
-    model=args.assets/'models/zipformer20m'
+    model=args.assets/'models'/args.model_dir
+    suffix='-chunk-16-left-128' if args.model_dir=='zipformer20230626' else ''
     started=time.monotonic()
     recognizer=sherpa_onnx.OnlineRecognizer.from_transducer(
-        tokens=str(model/'tokens.txt'),encoder=str(model/'encoder-epoch-99-avg-1.int8.onnx'),
-        decoder=str(model/'decoder-epoch-99-avg-1.onnx'),
-        joiner=str(model/'joiner-epoch-99-avg-1.int8.onnx'),num_threads=2,
-        decoding_method='greedy_search',provider='cpu',enable_endpoint_detection=False)
+        tokens=str(model/'tokens.txt'),encoder=str(model/f'encoder-epoch-99-avg-1{suffix}.int8.onnx'),
+        decoder=str(model/f'decoder-epoch-99-avg-1{suffix}.onnx'),
+        joiner=str(model/f'joiner-epoch-99-avg-1{suffix}.int8.onnx'),num_threads=2,
+        decoding_method=args.decoding_method,provider='cpu',enable_endpoint_detection=False)
     load=time.monotonic()-started
     results=[]
     for fixture in json.loads(args.fixtures.read_text(encoding='utf-8')):
@@ -59,6 +62,8 @@ def main():
                 'first_partial_after_input_seconds':first_partial}
         results.append(result)
         args.output.write_text(json.dumps({'runtime':sherpa_onnx.__version__,
+            'model':args.model_dir,
+            'decoding_method':args.decoding_method,
             'load_seconds':load,'model_bytes':sum(p.stat().st_size for p in model.iterdir()),
             'note':'Unpaced synthetic chunks: throughput, not live end-to-end latency.',
             'results':results},indent=2),encoding='utf-8')
