@@ -18,7 +18,7 @@ from health import collect_health, network_report, dns_timeout_simulation
 from integrity import collect_integrity, integrity_report
 from voice import VoiceInput
 from kokoro_speech import KokoroSpeech
-from conversation import Conversation, CHAT_TOOLS, reply_issues
+from conversation import Conversation, CHAT_TOOLS, reply_issues, application_explanation
 from neural_voice import NeuralVoiceInput
 from calculator_task import calculate,validate as validate_calculation,EXPRESSION
 from model_connection import ModelConnection
@@ -421,6 +421,15 @@ class State:
 
     def run_chat(self, prompt):
         self.messages,start=self.chat.begin(prompt)
+        explanation=application_explanation(prompt)
+        if explanation:
+            self.check_stop()
+            self.messages.append({'role':'assistant','content':explanation})
+            self.chat.finish(self.messages,start)
+            self.emit('action','Explaining documented application behavior; no model call or Windows check.')
+            self.emit('assistant_chunk',explanation)
+            self.emit('status','Finished — application behavior explanation.')
+            return
         self.messages[0]['content']+='\nThis message was '+('transcribed from local microphone audio.' if self.input_source=='voice' else 'typed text; do not claim to have heard audio.')
         if self.input_source=='voice':
             self.messages[0]['content']+='\nFor this spoken turn, use one or two short sentences, usually under 40 words. Ask one useful question. Keep necessary qualifications; expand when the user asks for detail.'

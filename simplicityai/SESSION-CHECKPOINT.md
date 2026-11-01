@@ -1,3 +1,18 @@
+# Application session-facts correction staged — November 1
+
+Screenshot showed model falsely saying each reply starts fresh. Requestlog130946
+contained recent history; this was inaccurate self-description. Added clear
+bounded-context/interruption facts to prompt, narrow false-claim reporting check,
+and direct application-owned help for exact interruption/memory questions. No
+model/Windows tool for those questions; activity labels scripted app explanation.
+Real problem queries/additional actions are not hijacked. Generic self-reporting
+still not guaranteed; see SESSION-FACTS-FIX.md. 24 component/boundary tests pass.
+app.py/conversation.py/test staged with backups; manual Exit/reopen needed to
+load changed modules. No new engine/model/settings change. User asked us to tell
+them when next action ready; next test is the specific interruption help question.
+
+---
+
 # Host 0.6.3 live pilot confirmed — November 1
 
 User confirms very quick transcription and text/voice arriving together; perceived

@@ -4,7 +4,7 @@ import io
 import runpy
 from pathlib import Path
 from unittest.mock import Mock,patch
-from conversation import Conversation,reply_issues
+from conversation import Conversation,reply_issues,application_explanation
 from app import State
 
 
@@ -38,6 +38,32 @@ class ConversationTests(unittest.TestCase):
         following,_=c.begin('This morning')
         self.assertTrue(any(m.get('content')=='When did this start?' for m in following))
         self.assertIn('Websites fail',str(following))
+
+    def test_runtime_facts_distinguish_active_chat_from_new_session(self):
+        messages,_=Conversation().begin('How do you handle interruptions?')
+        facts=messages[0]['content']
+        self.assertIn('you DO receive recent messages',facts)
+        self.assertIn('up to five',facts)
+        self.assertIn('Each reply does NOT',facts)
+        self.assertIn('An action already in progress may finish',facts)
+        self.assertIn('saved logs',facts)
+        self.assertTrue(reply_issues('Each reply starts fresh.'))
+        self.assertFalse(reply_issues('A new chat starts fresh. I use recent messages in this chat.'))
+
+    def test_specific_application_help_does_not_intercept_real_problems(self):
+        for text in ('How do you handle interruptions?', 'Hey and how do you handle the interruptions',
+                     'Do you remember earlier messages in this chat?'):
+            self.assertIn('recent messages',application_explanation(text))
+        for text in ('How do you handle interruptions during a Windows update?',
+                     'My network keeps getting interrupted.', 'Do you remember earlier messages? Run a network check.'):
+            self.assertIsNone(application_explanation(text))
+
+    def test_application_help_retains_context_without_using_model_or_tools(self):
+        state=State();state.mode='chat';state.emit=Mock();state.ensure_runtime=Mock();state.execute=Mock()
+        state.run('How do you handle interruptions?')
+        state.ensure_runtime.assert_not_called();state.execute.assert_not_called()
+        self.assertIn('recent messages',state.chat.transcript[-1]['content'])
+        self.assertEqual(len(state.chat.turns),1)
 
     def test_target_requires_explicit_current_environment(self):
         for text in ['yes','my PC','not this VM','the host, not this VM']:

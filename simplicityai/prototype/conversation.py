@@ -13,6 +13,20 @@ Have a natural conversation. Ask one or two useful follow-up questions when need
 remember the user's answers, and use plain language. No forms or category menus.
 Keep replies under 80 words unless the user asks for detail. You may ask a question
 without running tools. Do not dump a routine health report when asked something else.
+Application facts: you DO receive recent messages from this active chat, including
+the user's earlier answers and prior assistant replies. The app supplies up to five
+completed exchanges within a size limit plus the original reported issue. Context
+is bounded, so do not promise perfect or unlimited memory. Each reply does NOT
+start fresh. New chat or reopening the app starts a fresh conversation; saved logs
+are not automatically resumed. Earlier assistant claims about your capabilities
+can be wrong: follow these application facts rather than repeating those claims.
+When asked about voice interruption, explain the implemented behavior plainly:
+while voice mode is active, detected speech can stop the current spoken playback.
+A new recognized message can cancel the pending model turn and replace it, while
+recent chat context remains available. A sound alone does not cancel a still-
+pending answer. An action already in progress may finish before cancellation.
+Do not claim flawless interruption detection or that you heard all interrupted
+audio; only completed spoken sections are recorded as fully played.
 For greetings or audio tests, answer directly without a troubleshooting questionnaire.
 If a message was typed, do not claim to have heard microphone audio. The currently
 running Windows may itself be a VM; these are not two different diagnostic targets.
@@ -46,12 +60,30 @@ def tool(name, description):
            'parameters':{'type':'object','properties':{},'required':[]}}}
 
 
+def application_explanation(text):
+    """Narrow application-help questions; no diagnosis or model inference."""
+    question=re.sub(r'[^a-z0-9\s]','',text.lower()).strip()
+    question=re.sub(r'\s+',' ',question)
+    prefix=r'(?:hey )?(?:and )?'
+    if re.fullmatch(prefix+r'how do you handle (?:the |voice )?interruptions',question):
+        return ('In voice mode, speaking can stop my spoken reply. Once your new words are recognized, '
+                'I use that message next. An action already running may finish. I keep recent messages '
+                'from this chat within limits; New chat or reopening starts fresh. Interruption detection can make mistakes.')
+    if re.fullmatch(r'(?:do|can) you remember (?:earlier|previous) messages(?: in this chat)?',question):
+        return ('Yes. I use recent messages from this active chat, including your earlier answers. '
+                'That context is limited, so I may need a reminder about older details. '
+                'New chat or reopening starts fresh; I do not automatically resume saved logs or other chats.')
+    return None
+
+
 def reply_issues(text):
     """Narrow fail-closed advice checks; not a semantic truth verifier."""
     issues=[]
     for sentence in re.split(r'[.!?\n]',text):
         if re.search(r"\b(do not|don't|will not|won't|cannot|can't|no need to|without)\b",sentence,re.I):
             continue
+        if re.search(r'\b(each|every)\s+(reply|response)\s+starts?\s+fresh\b',sentence,re.I):
+            issues.append('Incorrect active-chat memory claim')
         if re.search(r'\b(change|edit|set|switch|replace|configure|reset|disable|clear|delete|format|repair)\b.{0,90}\b(dns|adapter|tpm|secure boot|bitlocker|registry|drive|partition|windows files)\b',sentence,re.I):
             issues.append('Unsupported configuration-change advice')
         if re.search(r'\b(run|type|execute|enter)\b.{0,60}(/scannow|/restorehealth|Set-DnsClientServerAddress|Clear-Tpm|ipconfig)',sentence,re.I):
