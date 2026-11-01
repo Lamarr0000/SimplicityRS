@@ -42,4 +42,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        sys.stdout.buffer.write(json.dumps({'error':type(error).__name__+': '+str(error)[:400]}).encode()+b'\n')
+        sys.stdout.buffer.flush()

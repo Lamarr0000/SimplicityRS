@@ -18,6 +18,8 @@ from health import collect_health, network_report, dns_timeout_simulation
 from integrity import collect_integrity, integrity_report
 from voice import VoiceInput
 from kokoro_speech import KokoroSpeech
+from conversation import Conversation, CHAT_TOOLS, reply_issues
+from neural_voice import NeuralVoiceInput
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -26,7 +28,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent
-VOICE = VoiceInput()
+VOICE = NeuralVoiceInput()
 SPEECH = KokoroSpeech()
 LAB = ROOT.parent / "HostTest"
 OLLAMA = "http://127.0.0.1:11434"
@@ -115,7 +117,7 @@ the task. Guidance is allowed, but never claim unperformed actions or unsupporte
 
 
 class State:
-    def __init__(self):
+    def __init__(self, persist_chat=False):
         self.lock = threading.RLock()
         self.cancel = threading.Event()
         self.busy = False
@@ -128,6 +130,7 @@ class State:
         self.mode = "calculator"
         self.health_snapshot = None
         self.model_connection = None
+        self.chat = Conversation(ROOT/'logs'/'chat-state.json' if persist_chat else None)
 
     def emit(self, kind, text, **extra):
         with self.lock:
@@ -146,7 +149,7 @@ class State:
                 raise ValueError("A task is already running")
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
                 raise ValueError("Enter a task between 1 and 4000 characters")
-            if mode not in {"health", "calculator", "network", "dns_simulation", "integrity"}:
+            if mode not in {"health", "calculator", "network", "dns_simulation", "integrity", "chat"}:
                 raise ValueError("Unknown task mode")
             self.mode = mode
             self.health_snapshot = None
@@ -203,9 +206,9 @@ class State:
             raise RuntimeError("gpt-oss:20b is not installed in the running Ollama instance")
 
     def ask(self):
-        data = json.dumps({"model": MODEL, "messages": self.messages, "tools": HEALTH_TOOLS if self.mode == "health" else TOOLS,
+        data = json.dumps({"model": MODEL, "messages": self.messages, "tools": CHAT_TOOLS if self.mode == 'chat' else HEALTH_TOOLS if self.mode == "health" else TOOLS,
                            "stream": True, "think": "low", "keep_alive": "15m",
-                           "options": {"num_ctx": 8192, "num_predict": 900 if self.mode == "health" else 350, "temperature": 0}}).encode()
+                           "options": {"num_ctx": 8192, "num_predict": 900 if self.mode == "health" else 450 if self.mode == 'chat' else 350, "temperature": 0}}).encode()
         request = urllib.request.Request(OLLAMA + "/api/chat", data=data,
                                          headers={"Content-Type": "application/json"})
         started = time.monotonic()
@@ -224,7 +227,7 @@ class State:
                 chunk = message.get("content", "")
                 if chunk:
                     content += chunk
-                    if self.mode != "health":
+                    if self.mode not in {"health", "chat"}:
                         self.emit("assistant_chunk", chunk)
                 calls.extend(message.get("tool_calls", []))
                 if part.get("done"):
@@ -246,10 +249,31 @@ class State:
                    "press_calculator_button": {"button_id", "observation"}}
         if self.mode == "health":
             allowed = {"get_health_snapshot": set()}
+        if self.mode == 'chat':
+            allowed = {entry['function']['name']:set() for entry in CHAT_TOOLS}
         if name not in allowed or set(args) != allowed[name]:
             raise ValueError("Unsupported tool or arguments")
         self.check_stop()
         self.emit("tool_request", json.dumps({"name": name, "arguments": args}))
+        if self.mode == 'chat':
+            if name == 'confirm_running_windows':
+                return self.chat.confirm()
+            self.chat.require_target()
+            if name == 'verify_windows_files':
+                self.chat.require_file_request()
+                result = collect_integrity(self.emit, self.check_stop)
+                if self.log:
+                    self.log.with_suffix('.integrity.json').write_text(json.dumps(result, ensure_ascii=False, indent=2),encoding='utf-8')
+                return {'report':integrity_report(result),'scope':'current Windows only','repairs_requested':False}
+            if name == 'get_network_snapshot':
+                self.emit('action','Checking the confirmed running Windows network settings and a DNS lookup. No settings will change.')
+                self.health_snapshot=collect_health()
+                if self.log:
+                    self.log.with_suffix('.health.json').write_text(json.dumps(self.health_snapshot,ensure_ascii=False,indent=2),encoding='utf-8')
+                result=self.health_snapshot.get('network_status') or {'error':'Network evidence unavailable'}
+                self.emit('observation',json.dumps(result,ensure_ascii=False))
+                self.check_stop()
+                return result
         if name == "get_health_snapshot":
             self.emit("action", "Checking Windows, memory, drive space, and recent System errors to identify useful next checks. This does not make repairs.")
             if self.health_snapshot is None:
@@ -259,6 +283,12 @@ class State:
                         json.dumps(self.health_snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
             self.emit("observation", json.dumps(self.health_snapshot, ensure_ascii=False))
             self.check_stop()
+            if self.mode == 'chat':
+                result=dict(self.health_snapshot)
+                if result.get('system_events'):
+                    result['system_events']={**result['system_events'],'details':result['system_events'].get('details',[])[:3],
+                                             'chat_detail_limit':3}
+                return result
             return self.health_snapshot
         if self.calc is None:
             self.calc = Calculator()
@@ -281,6 +311,9 @@ class State:
     def run(self, prompt):
         try:
             self.emit("user", prompt)
+            if self.mode == 'chat':
+                self.run_chat(prompt)
+                return
             if self.mode == 'integrity':
                 result = collect_integrity(self.emit, self.check_stop)
                 if self.log:
@@ -345,8 +378,10 @@ class State:
             else:
                 self.emit("status", "Stopped at the 24-step limit. Task completion is unverified.")
         except InterruptedError as error:
+            if self.mode == 'chat': self.chat.fail(str(error))
             self.emit("status", str(error))
         except Exception as error:
+            if self.mode == 'chat': self.chat.fail('I could not finish that turn. '+str(error))
             self.emit("error", str(error))
             self.emit("status", "Stopped with an error. Completion is unverified.")
         finally:
@@ -357,13 +392,52 @@ class State:
                 self.busy = False
                 self.response = None
 
+    def run_chat(self, prompt):
+        self.messages,start=self.chat.begin(prompt)
+        self.ensure_runtime()
+        rewrites=0
+        for step in range(8):
+            self.check_stop()
+            self.emit('status','Thinking…' if step==0 else 'Reviewing the tool results…')
+            message=self.ask()
+            self.messages.append(message)
+            calls=message.get('tool_calls',[])
+            if not calls:
+                if not message.get('content','').strip():
+                    raise RuntimeError('The local model returned no reply. Please try again.')
+                issues=reply_issues(message['content'])
+                if issues:
+                    if rewrites:
+                        raise RuntimeError('The local model could not produce a suitable evidence-based reply. Please ask a narrower question. No repair was performed.')
+                    rewrites+=1
+                    self.messages.pop()
+                    self.messages.append({'role':'system','content':'The draft was withheld: '+', '.join(issues)+'. Rewrite using only verified observations, clearly state uncertainty, and ask one short follow-up question. Do not recommend settings changes or manual commands. Do not repeat the rejected draft.'})
+                    self.emit('status','Reviewing the reply before presenting it…')
+                    continue
+                self.chat.finish(self.messages,start)
+                self.emit('assistant_chunk',message['content'])
+                self.emit('status','Finished — reply ready.')
+                return
+            for index,call in enumerate(calls):
+                try:
+                    if index: raise ValueError('Use one tool at a time and review its result.')
+                    result=self.execute(call)
+                except InterruptedError:
+                    raise
+                except Exception as error:
+                    result={'ok':False,'error':str(error)}
+                    self.emit('error',str(error))
+                self.messages.append({'role':'tool','tool_name':call.get('function',{}).get('name','unknown'),
+                                      'content':json.dumps(result,ensure_ascii=False)})
+        raise RuntimeError('The local model reached this turn’s tool limit. No further checks were started.')
+
     def stop(self):
         self.cancel.set()
         # Action calls already in progress may finish; no new ones may start.
         self.emit("status", "Stop requested — waiting for the current call to return. No new actions will start.")
 
 
-STATE = State()
+STATE = State(persist_chat=True)
 TOKEN = secrets.token_urlsafe(32)
 
 
@@ -392,14 +466,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.2.0", "scope": "Read-only health assessment and Calculator"})
+            self.reply(200, {"app": "ThemHands", "version": "0.4.0", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
             with STATE.lock:
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
-                                 "mode": STATE.mode, "health_snapshot": STATE.health_snapshot})
+                                 "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
+                                 "chat_transcript": list(STATE.chat.transcript)})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -411,10 +486,24 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length < 12000:
                 raise ValueError("Invalid body length")
             data = json.loads(self.rfile.read(length))
-            if self.path == '/speech/read':
+            if self.path == '/chat/reset':
+                if STATE.busy:
+                    raise ValueError('Stop the active turn before starting a new chat.')
+                SPEECH.stop()
+                VOICE.stop()
+                STATE.chat=Conversation(STATE.chat.storage_path,restore=False)
+                STATE.chat.save()
+                STATE.health_snapshot=None
+                STATE.events=[]
+                STATE.status='Ready'
+            elif self.path == '/speech/read':
                 if STATE.busy or VOICE.snapshot()['state'] in {'starting', 'listening'}:
                     raise ValueError('Finish the current task or voice input before reading a reply aloud.')
-                audio = SPEECH.synthesize(data.get('text'))
+                try:
+                    audio = SPEECH.synthesize(data.get('text'))
+                except ValueError:
+                    STATE.emit('speech_error',SPEECH.last_error or 'Voice preparation did not complete.')
+                    raise
                 self.send_response(200)
                 self.send_header('Content-Type', 'audio/wav')
                 self.send_header('Content-Length', str(len(audio)))
@@ -451,7 +540,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument("--task", help="Run a task without the web UI, then exit")
-    parser.add_argument("--mode", choices=["health", "calculator", "network", "dns_simulation", "integrity"], default="health")
+    parser.add_argument("--mode", choices=["health", "calculator", "network", "dns_simulation", "integrity", "chat"], default="chat")
     args = parser.parse_args()
     if args.task:
         STATE.start(args.task, args.mode)

@@ -59,3 +59,4 @@ connection-check.txt
 *.onnx
 *.integrity.json
 /simplicityai/**/kokoro/
+/simplicityai/**/whisper/

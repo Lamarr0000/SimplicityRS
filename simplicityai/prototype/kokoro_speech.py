@@ -15,6 +15,7 @@ class KokoroSpeech:
         self.process = None
         self.guard = None
         self.busy = False
+        self.last_error = ''
 
     def stop(self):
         with self.lock:
@@ -51,6 +52,7 @@ class KokoroSpeech:
                     raise ValueError('Local voice process could not be secured. Text remains available.')
             process = self.process
             self.busy = True
+            self.last_error = ''
         expired = threading.Event()
         def timeout():
             expired.set()
@@ -64,6 +66,9 @@ class KokoroSpeech:
             process.stdin.write(json.dumps({'text': text.strip()}).encode('utf-8')+b'\n')
             process.stdin.flush()
             value = json.loads(process.stdout.readline(24_000_000))
+            if value.get('error'):
+                self.last_error=value['error']
+                raise ValueError('Voice worker initialization failed')
             audio = base64.b64decode(value['audio'], validate=True)
             if not audio.startswith(b'RIFF') or audio[8:12] != b'WAVE':
                 raise ValueError('Invalid voice output')
@@ -71,7 +76,8 @@ class KokoroSpeech:
                 if self.process is not process or expired.is_set():
                     raise ValueError('Playback stopped')
             return audio
-        except Exception:
+        except Exception as error:
+            if not self.last_error:self.last_error=type(error).__name__+': '+str(error)[:400]
             with self.lock:
                 if self.process is process:
                     self.stop()

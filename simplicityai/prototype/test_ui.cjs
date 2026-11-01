@@ -1,2 +1,2 @@
-// Compatibility entry point for UI regression checks.
-require('./test_chat_ui.cjs');
+// Compatibility entry point: conversational interface replaces guided forms.
+require('./test_conversation_ui.cjs');

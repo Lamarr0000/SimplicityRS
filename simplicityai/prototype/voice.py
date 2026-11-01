@@ -40,6 +40,7 @@ def _guard_process(process):
 
 
 class VoiceInput:
+    capture_timeout = 40
     def __init__(self):
         self.lock = threading.RLock()
         self.process = None
@@ -49,6 +50,11 @@ class VoiceInput:
     def snapshot(self):
         with self.lock:
             return {**self.state, 'capture_id': self.generation}
+
+    def command(self, mode):
+        exe = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+        return [str(exe), '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy',
+                'Bypass', '-File', str(ROOT / 'Voice-Input.ps1'), '-Mode', mode]
 
     def start(self, mode='Listen'):
         if mode not in {'Listen', 'Probe'}:
@@ -73,12 +79,10 @@ class VoiceInput:
         try:
             env = dict(os.environ)
             env = {key: value for key, value in env.items() if key.lower() != 'psmodulepath'}
-            exe = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
             with self.lock:
                 if generation != self.generation:
                     return
-                process = subprocess.Popen([str(exe), '-NoLogo', '-NoProfile', '-NonInteractive',
-                    '-ExecutionPolicy', 'Bypass', '-File', str(ROOT / 'Voice-Input.ps1'), '-Mode', mode],
+                process = subprocess.Popen(self.command(mode),
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8-sig', errors='replace',
                     creationflags=subprocess.CREATE_NO_WINDOW, env=env)
                 self.process = process
@@ -88,7 +92,7 @@ class VoiceInput:
                     if generation == self.generation and process.poll() is None:
                         process.terminate()
                         self.state = {'state': 'timeout', 'message': 'Voice capture reached its time limit. Try a shorter sentence or type instead.'}
-            timer = threading.Timer(40, expire)
+            timer = threading.Timer(self.capture_timeout, expire)
             timer.daemon = True
             timer.start()
             for line in process.stdout:

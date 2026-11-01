@@ -76,3 +76,5 @@ Guided UI offers browsing/crash/startup problem choices, explicit current-Window
 Optional voice prototype: see VOICE.md for local Windows input, review-before-use, local playback selection, requirements, test evidence and guest limitations. No microphone was used during host development. Guest voice testing pending.
 
 Latest interface: one message composer with optional microphone, contextual follow-up questions and explicit Run this check. Advanced modes/evidence are collapsed. Playback is one fixed local Kokoro voice, with no selection menu. See VOICE.md and model provenance. Forty-one Python tests and conversational UI checks pass; guest appearance/audio review pending.
+
+Current main interface is a true local-model conversation, replacing the guided forms. Optional Talk sessions use local Whisper input and automatic Kokoro replies; chat saves locally. See CONVERSATION.md for scope gates, dependency pins, test results and remaining model/guest limitations. The model is still gpt-oss, not the Codex assistant. No autonomous repair capability is claimed.

@@ -1,3 +1,5 @@
+CURRENT VERSION: The conversational replacement is documented in CONVERSATION.md. The guided UI and Windows dictation described below are historical and no longer the main interface.
+
 # Voice and conversational interface
 
 The current application uses one fixed Kokoro playback voice (af_heart). There is no voice selector and no Windows-voice or cloud-voice fallback. Microphone input remains the working installed Windows System.Speech recognizer. The user confirmed accurate dictation and audible Windows playback before requesting a more natural fixed voice.
