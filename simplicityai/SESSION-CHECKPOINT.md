@@ -1,3 +1,28 @@
+# Installed voice architecture audit complete — November 1
+
+User explicitly requested inspecting this app's install for offline adaptation,
+concerned about allowance spent on small fixes. Read-only inspected running
+OpenAI.Codex26.1027.3384 app package and selected static ASAR bundles (22423 files).
+Found buffered input worklet, frame processors, SileroV6/ONNX loader, DSP,
+voice-session/realtime controllers, prewarm module. No full offline reasoning/
+speech model found in inspected package; this is scoped, not exhaustive cache/
+binary analysis. No auth/profile access, installed-code execution/transplant,
+mic, playback, app change or restart. Evidence outsideGit under Diagnostics/
+AppArchitecture. See INSTALLED-APP-VOICE-ARCHITECTURE.md for exact observations,
+limits and significant offline session/streaming adaptation blueprint.
+
+Recommendation: one bounded all-streaming controller prototype, preserving
+UI/ThemHands/Kokoro; short PCM frames to persistent online ASR, speech-aware VAD,
+streamed useful text/audio, independent task/voice state and readiness. Current
+code still oneWAV-per-utterance, complete-reply buffering, whole-section TTS.
+2–3s useful firstspeech is a test target, not guarantee; actual model firstcontent
+3.24s in one warm replay may itself prevent that target. Do not resume cosmetic/
+prompt changes as if they implement this architecture. No adaptation implemented
+in audit; no user action/test needed for inspection. Next work requires actual
+bounded architecture prototype, not more installed-file spelunking.
+
+---
+
 # Reply speed prioritized; role correction staged — November 1
 
 User's main concern is reply speed, not Calculator or cosmetic behavior. See
