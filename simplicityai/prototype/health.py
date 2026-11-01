@@ -7,11 +7,25 @@ import subprocess
 ROOT = Path(__file__).resolve().parent
 
 
+def dns_timeout_simulation():
+    """Synthetic fixture, deliberately never collected from the running machine."""
+    return {'network_status': {
+        'simulation': True,
+        'adapters': [{'description': 'SIMULATED adapter (not this computer)',
+                      'addresses': ['192.0.2.10'], 'gateways': ['192.0.2.254'],
+                      'dns_servers': ['192.0.2.1']}],
+        'dns_test': {'name': 'example.test', 'server': '192.0.2.1', 'success': False,
+                     'checked_utc': 'Synthetic fixture; no query performed'},
+        'errors': [], 'changes_made': False}}
+
+
 def network_report(snapshot):
     """Deterministic evidence report; this is not a model diagnosis."""
     network = snapshot.get('network_status') or {}
     test = network.get('dns_test')
     lines = ['Network check — generated directly from tool evidence, not AI diagnosis.']
+    if network.get('simulation'):
+        lines.insert(0, 'SIMULATION ONLY — synthetic evidence. No adapter inspection, DNS query, model call or network changes performed.')
     for adapter in network.get('adapters', []):
         lines.append('Adapter: ' + adapter.get('description', 'Unknown'))
         for label, key in [('Addresses', 'addresses'), ('Gateways', 'gateways'), ('Configured DNS', 'dns_servers')]:
@@ -21,6 +35,8 @@ def network_report(snapshot):
         lines.append('This result alone gives no reason to change DNS settings.')
     elif test:
         lines.append('The DNS query failed or timed out. Its cause is not established; correlate with symptoms before changing settings.')
+        lines.append('Not established: server unreachability, a routing/firewall fault, complete internet failure, or failure of every DNS query.')
+        lines.append('Suggested read-only comparison, not executed: in the affected Windows environment, query the same name through an independently known working resolver, if available and permitted, without changing adapter settings. Success would show that alternate query path worked at that time; it would not establish why the original query failed. Failure would leave both paths uncertain, not prove a common cause.')
     else:
         lines.append('DNS query result: Unknown. No successful query was verified.')
     lines.extend('Unknown: ' + error for error in network.get('errors', []))

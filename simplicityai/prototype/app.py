@@ -14,7 +14,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from desktop import Calculator, BUTTONS
-from health import collect_health, network_report
+from health import collect_health, network_report, dns_timeout_simulation
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -141,7 +141,7 @@ class State:
                 raise ValueError("A task is already running")
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
                 raise ValueError("Enter a task between 1 and 4000 characters")
-            if mode not in {"health", "calculator", "network"}:
+            if mode not in {"health", "calculator", "network", "dns_simulation"}:
                 raise ValueError("Unknown task mode")
             self.mode = mode
             self.health_snapshot = None
@@ -276,6 +276,14 @@ class State:
     def run(self, prompt):
         try:
             self.emit("user", prompt)
+            if self.mode == 'dns_simulation':
+                self.emit('action', 'SIMULATION: reading built-in synthetic DNS-timeout evidence. No Windows tools or model calls.')
+                fixture = dns_timeout_simulation()
+                self.check_stop()
+                self.emit('observation', json.dumps(fixture, ensure_ascii=False))
+                self.emit('assistant_chunk', network_report(fixture))
+                self.emit('status', 'Finished — SIMULATION ONLY; scripted interpretation, no live checks or repairs.')
+                return
             if self.mode == 'network':
                 self.emit('action', 'Running the fixed read-only collector. This mode produces a network-only evidence report without calling the model.')
                 self.health_snapshot = collect_health()
@@ -404,7 +412,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument("--task", help="Run a task without the web UI, then exit")
-    parser.add_argument("--mode", choices=["health", "calculator", "network"], default="health")
+    parser.add_argument("--mode", choices=["health", "calculator", "network", "dns_simulation"], default="health")
     args = parser.parse_args()
     if args.task:
         STATE.start(args.task, args.mode)

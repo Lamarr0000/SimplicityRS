@@ -3,10 +3,27 @@ import io
 import json
 from unittest.mock import Mock, patch
 from app import State
-from health import screening, network_report
+from health import screening, network_report, dns_timeout_simulation
 
 
 class HealthChecks(unittest.TestCase):
+    @patch('app.collect_health', side_effect=AssertionError('No Windows collection allowed'))
+    def test_simulation_never_collects_live_data_or_calls_model(self, collect):
+        state = State()
+        state.mode = 'dns_simulation'
+        state.ensure_runtime = Mock(side_effect=AssertionError('No model allowed'))
+        state.ask = Mock(side_effect=AssertionError('No model allowed'))
+        state.emit = Mock()
+        state.run('Simulation')
+        collect.assert_not_called()
+        state.ask.assert_not_called()
+        answers = [c.args[1] for c in state.emit.call_args_list if c.args[0]=='assistant_chunk']
+        self.assertEqual(len(answers), 1)
+        self.assertIn('SIMULATION ONLY', answers[0])
+        self.assertIn('Not established: server unreachability', answers[0])
+        self.assertIn('not executed', answers[0])
+        self.assertIsNone(state.health_snapshot)
+
     def test_network_success_does_not_claim_web_access(self):
         text = network_report({'network_status': {'dns_test': {'success': True, 'name': 'microsoft.com', 'server': '192.0.2.1', 'checked_utc': 'test'}}})
         self.assertIn('Succeeded: Windows resolved', text)
