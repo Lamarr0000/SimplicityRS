@@ -4,6 +4,7 @@ from pathlib import Path
 import ssl
 import urllib.parse
 import urllib.request
+import urllib.error
 
 
 class ModelConnection:
@@ -36,4 +37,11 @@ class ModelConnection:
         if data is not None:
             headers['Content-Type'] = 'application/json'
         request = urllib.request.Request(self.endpoint + path, data=data, headers=headers)
-        return self.opener.open(request, timeout=timeout)
+        try:
+            return self.opener.open(request, timeout=timeout)
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, TimeoutError) as error:
+            if self.remote:
+                raise RuntimeError('The connection to the host model did not finish. Check that the host model server and encrypted VM relay are running and ready, then try again. The first start after a reboot can take longer.') from error
+            raise RuntimeError('The local model connection did not finish. Check that the model server is running and ready, then try again.') from error

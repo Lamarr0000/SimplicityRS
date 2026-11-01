@@ -1,3 +1,13 @@
+# Voice conversation update — November 1, morning, 0.5.1
+
+User confirmed the native app window/menu look good. Guest messages timed out because host Ollama and TLS relay were off after reboot. Restarted only the known host services with original configuration; GPU discovery took about 58 seconds. Authenticated TLS version/model checks pass; only gpt-oss:20b exposed, missing token/wrong model/untrusted CA rejected. Actual guest inference recovery awaits user's typed retry. No firewall, network, or VM settings changed.
+
+Added Voice on/off toggle for continuous turn-taking, separate Talk for one spoken message. Voice mode listens again after replies and retries initial no-speech silence; Stop, New chat, error or turning off ends listening. No speaking over playback yet. Raw model connection failures now explain the host services/initialization check without asserting a cause. 63 Python tests plus UI tests pass, including one-shot vs continuous playback/relisten and toggle cancellation. Microphone not activated by developer tests. Guest live voice/toggle verification remains pending.
+
+Shared Install-AppWindow-Update.cmd installs the refreshed 0.5.1 payload after Exit. Logs/assets/private model config are preserved. Text/speech latency and foreground Calculator remain separate unfinished work.
+
+---
+
 # Latest update — November 1 morning: dedicated app window 0.5.0
 
 Completed native WinForms/WebView2 app window and anchored chat composer. Activity/evidence, collected facts and voice/connection panels are now Tools menu items (three dots), as requested. Exit, title-bar X and Alt+F4 stop the owned local Python server and descendants. Real host window tested; real Windows job test preserved unrelated sibling. 60 Python tests and UI checks pass. Source/build instructions: simplicityai/APP-WINDOW.md. VM installation not yet confirmed; voice and clipboard in native guest window need verification. No model/microphone test performed on host. Latency and Calculator foreground remain unresolved.

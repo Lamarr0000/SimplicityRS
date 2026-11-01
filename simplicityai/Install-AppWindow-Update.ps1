@@ -26,6 +26,6 @@ foreach($item in $manifest.files.PSObject.Properties){
     New-Item -ItemType Directory -Force -Path (Split-Path $destination) | Out-Null
     Copy-Item -LiteralPath (Join-Path $source $item.Name) -Destination $destination
 }
-Write-Host "Installed SimplicityAI app window 0.5.0. Previous files: $backup"
+Write-Host "Installed SimplicityAI app window 0.5.1. Previous files: $backup"
 Write-Host 'Open Start-ThemHands.cmd as before. Exit or the window X stops the app and its local service.'
 Write-Host 'The window requires the Microsoft Edge WebView2 Runtime normally included with Windows 11. No model download, microphone recording or network/security setting changes were performed.'

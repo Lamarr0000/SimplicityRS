@@ -488,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.5.0", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.5.1", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -496,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.0'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.1'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 

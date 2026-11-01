@@ -40,3 +40,18 @@ running. No microphone or
 model inference was used for the window smoke tests. VM deployment and live voice
 playback in the native window still need user verification. Text/speech latency and
 foreground Calculator behavior are unchanged by this update.
+
+## Voice controls — 0.5.1
+
+Talk captures one message. Voice on/off toggles continued listening between
+spoken replies, including retrying initial silence. Both modes pause recording
+while processing or playing speech. Stop cancels capture/playback and requests
+turn cancellation; turning voice off stops listening without cancelling an
+already-running text turn. Sound remains a separate playback preference.
+No barge-in or full-duplex speech is implemented.
+
+After host reboot, the existing host Ollama and TLS relay must be started and
+ready before guest chat can connect. A listening port alone did not establish
+readiness during the roughly 58-second GPU initialization observed today.
+Connection error text now names the services to check. Startup services are
+still manual; no Windows startup settings were changed.
