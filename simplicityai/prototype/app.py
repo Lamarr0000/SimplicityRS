@@ -131,6 +131,7 @@ class State:
         self.health_snapshot = None
         self.model_connection = None
         self.chat = Conversation(ROOT/'logs'/'chat-state.json' if persist_chat else None)
+        self.input_source = 'text'
 
     def emit(self, kind, text, **extra):
         with self.lock:
@@ -143,7 +144,7 @@ class State:
                     f.write(json.dumps(event, ensure_ascii=False) + "\n")
             print(f"[{event['time']}] {kind}: {text}", flush=True)
 
-    def start(self, prompt, mode="health"):
+    def start(self, prompt, mode="health", input_source='text'):
         with self.lock:
             if self.busy:
                 raise ValueError("A task is already running")
@@ -151,6 +152,8 @@ class State:
                 raise ValueError("Enter a task between 1 and 4000 characters")
             if mode not in {"health", "calculator", "network", "dns_simulation", "integrity", "chat"}:
                 raise ValueError("Unknown task mode")
+            if input_source not in {'text','voice'}:raise ValueError('Unknown message source')
+            self.input_source=input_source
             self.mode = mode
             self.health_snapshot = None
             self.messages = []
@@ -394,6 +397,7 @@ class State:
 
     def run_chat(self, prompt):
         self.messages,start=self.chat.begin(prompt)
+        self.messages[0]['content']+='\nThis message was '+('transcribed from local microphone audio.' if self.input_source=='voice' else 'typed text; do not claim to have heard audio.')
         self.ensure_runtime()
         rewrites=0
         for step in range(8):
@@ -500,7 +504,9 @@ class Handler(BaseHTTPRequestHandler):
                 if STATE.busy or VOICE.snapshot()['state'] in {'starting', 'listening'}:
                     raise ValueError('Finish the current task or voice input before reading a reply aloud.')
                 try:
+                    started=time.monotonic()
                     audio = SPEECH.synthesize(data.get('text'))
+                    STATE.emit('timing',f'Kokoro audio preparation: {time.monotonic()-started:.1f} seconds')
                 except ValueError:
                     STATE.emit('speech_error',SPEECH.last_error or 'Voice preparation did not complete.')
                     raise
@@ -520,13 +526,17 @@ class Handler(BaseHTTPRequestHandler):
                 VOICE.start()
             elif self.path == '/voice/check':
                 VOICE.start('Probe')
+            elif self.path == '/voice/level':
+                if STATE.busy:raise ValueError('Wait for the active turn to finish.')
+                SPEECH.stop()
+                VOICE.start('Level')
             elif self.path == '/voice/stop':
                 VOICE.stop()
             elif self.path == "/start":
                 if VOICE.snapshot()['state'] in {'starting', 'listening'}:
                     raise ValueError('Finish or stop voice input and review your words before starting a task.')
                 SPEECH.stop()
-                STATE.start(data.get("prompt"), data.get("mode", "health"))
+                STATE.start(data.get("prompt"), data.get("mode", "health"), data.get('input_source','text'))
             elif self.path == "/stop":
                 STATE.stop()
             else:

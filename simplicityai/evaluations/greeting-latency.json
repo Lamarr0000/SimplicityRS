@@ -1,0 +1,22 @@
+{
+  "elapsed_seconds": 8.31,
+  "transcript": [
+    {
+      "id": 0,
+      "role": "user",
+      "content": "Can you hear me?"
+    },
+    {
+      "id": 1,
+      "role": "assistant",
+      "content": "Hi! I can read what you type. How can I help you today?"
+    }
+  ],
+  "timings": [
+    {
+      "kind": "timing",
+      "text": "Model response: 8.2 seconds"
+    }
+  ],
+  "tool_requests": []
+}

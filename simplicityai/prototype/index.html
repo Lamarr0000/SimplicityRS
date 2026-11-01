@@ -9,7 +9,7 @@
 <div id="empty"><h2>What’s happening with your computer?</h2><p class="muted">Tell me in your own words. We’ll take it one step at a time.</p></div>
 <details id="facts-panel" hidden><summary>Collected facts</summary><button id="copy-facts">Copy facts</button><pre id="facts"></pre></details>
 <details><summary>Activity and tool evidence</summary><button id="copy-activity">Copy activity</button><pre id="activity"></pre></details>
-<details><summary>Connection and voice status</summary><button id="voice-check">Check microphone support</button><p class="muted">Voice uses local Whisper input and one Kokoro playback voice. Typing works without a microphone. Chat is saved locally across restarts. New chat starts a fresh conversation; previous diagnostic logs remain. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></details>
+<details><summary>Connection and voice status</summary><button id="voice-check">Check microphone support</button> <button id="voice-test">Test microphone for five seconds</button><p class="muted">Voice uses local Whisper input and one Kokoro playback voice. Typing works without a microphone. Chat is saved locally across restarts. New chat starts a fresh conversation; previous diagnostic logs remain. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></details>
 <div class="composer"><p id="status" class="muted status" role="status">Ready</p><p id="speech-status" class="muted status" role="status"></p><div class="input-box"><textarea id="message" maxlength="1800" aria-label="Message SimplicityAI" placeholder="Message SimplicityAI…"></textarea><div class="actions"><button id="talk">🎙 Talk</button><button id="stop" hidden>Stop</button><button id="send">Send</button></div></div><p id="copy-status" class="feedback" role="status"></p></div>
 <script>
 const token=location.hash.slice(1)||sessionStorage.getItem('themhands-token')||'';if(token)sessionStorage.setItem('themhands-token',token);history.replaceState(null,'',location.pathname);
@@ -59,7 +59,7 @@ async function sendMessage(text,fromVoice=false){
  voiceNotice='';
  autoNext=true;
  await stopSpeech();
- try{await api('/start',{mode:'chat',prompt:text.trim()});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();}
+ try{await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text'});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();}
  catch(error){voiceSession=false;el('status').textContent=error.message;}
 }
 el('send').onclick=()=>sendMessage(el('message').value);
@@ -69,6 +69,7 @@ el('stop').onclick=async()=>{voiceSession=false;autoNext=false;await stopSpeech(
 el('sound').onclick=async()=>{sound=!sound;el('sound').textContent=sound?'Sound on':'Sound off';el('sound').setAttribute('aria-pressed',String(sound));if(sound)unlockAudio();else await stopSpeech();};
 el('new-chat').onclick=async()=>{voiceSession=false;autoNext=false;voiceNotice='';el('speech-status').textContent='';await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/chat/reset',{});signature='';initialized=false;await poll();}catch(error){el('status').textContent=error.message;}};
 el('voice-check').onclick=()=>api('/voice/check',{}).catch(error=>el('voice-detail').textContent=error.message);
+el('voice-test').onclick=async()=>{voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/voice/level',{});}catch(error){el('voice-detail').textContent=error.message;}};
 async function copy(text){try{await navigator.clipboard.writeText(text);el('copy-status').textContent='Copied.';}catch{el('copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';}}
 el('copy-facts').onclick=()=>copy(factsText);el('copy-activity').onclick=()=>copy(activityText);
 function render(state){
@@ -88,7 +89,8 @@ async function poll(){
   const action=state.events.filter(event=>event.kind==='action').at(-1);if(busy&&action)el('status').textContent=action.text;
   activityText=state.events.map(event=>event.time+' · '+event.kind+'\n'+event.text).join('\n\n');el('activity').textContent=activityText;
   factsText=state.health_snapshot?JSON.stringify(state.health_snapshot,null,2):'';el('facts-panel').hidden=!factsText;el('facts').textContent=factsText;
-  const voice=await api('/voice/state');el('voice-detail').textContent=voice.message||voice.state;
+  const voice=await api('/voice/state');el('voice-detail').textContent=(voice.message||voice.state)+(voice.detail?' Technical detail: '+voice.detail:'');
+  const capturing=['starting','listening'].includes(voice.state);if(capturing)el('stop').hidden=false;el('talk').disabled=busy||voiceSession||capturing;el('voice-test').disabled=busy||capturing;el('voice-check').disabled=busy||capturing;
   if(voiceSession&&['starting','listening'].includes(voice.state))el('status').textContent=voice.message;
   if(voiceSession&&voice.state==='transcribed'&&voice.capture_id!==captureId){captureId=voice.capture_id;el('message').value=voice.text||'';if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test((voice.text||'').trim())){voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{});voiceNotice='Voice conversation stopped.';}else if(voice.review_required){voiceSession=false;voiceNotice='The recording reached its limit. Review the words in the message box, then press Send.';}else if(voice.text)sendMessage(voice.text,true);}
   if(voiceSession&&!voiceStarting&&['unavailable','no_speech','timeout','cancelled'].includes(voice.state)){voiceSession=false;voiceNotice=voice.message;}

@@ -7,6 +7,7 @@ ROOT=Path(__file__).resolve().parent
 
 class NeuralVoiceInput(VoiceInput):
     capture_timeout=65
+    modes={'Listen','Probe','Level'}
 
     def __init__(self):
         super().__init__()

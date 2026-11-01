@@ -41,6 +41,7 @@ def _guard_process(process):
 
 class VoiceInput:
     capture_timeout = 40
+    modes = {'Listen','Probe'}
     def __init__(self):
         self.lock = threading.RLock()
         self.process = None
@@ -57,7 +58,7 @@ class VoiceInput:
                 'Bypass', '-File', str(ROOT / 'Voice-Input.ps1'), '-Mode', mode]
 
     def start(self, mode='Listen'):
-        if mode not in {'Listen', 'Probe'}:
+        if mode not in self.modes:
             raise ValueError('Unsupported voice operation')
         with self.lock:
             if self.state['state'] in {'starting', 'listening'}:
