@@ -1,3 +1,21 @@
+# Balanced performance decision — November 1
+
+User clarified model switching was an idea, not an instruction; wants balanced
+CPU/GPU operation suitable for ordinary PCs. See BALANCED-PERFORMANCE.md. Measured
+automatic vs 4 vs 8 model threads with two synthetic questions per setting:
+all approximately 8.3–8.7 tokens/sec, first text 3.6–3.8 sec warm. No useful
+thread-setting improvement; restored automatic options and confirmed successful
+reply. No production profile/model changed. Next priority is measured speech
+pipeline overlap and speech-aware detection, not a heavier model or assumed cloud
+migration. Pipeline improvements and CPU-only validation are still pending.
+
+User has reopened host 0.6.1 and tested voice since the older closed-app note
+below. New client logs show zero model queue delay in recent sampled turns, but
+ASR/model/TTS sequential latency remains. Cough false messages and hit-or-miss
+interruptions reported. Do not repeat the stale instruction that app is closed.
+
+---
+
 # Host latency follow-up — November 1, 0.6.1
 
 User verified speech interruption is prompt, but resuming takes too long. Reported ~10 s transcription, 20–30 s text, 5–10 s speech; server measured shorter stage times, so client endpointing/queue metrics were added. See simplicityai/LATENCY-2026-11-01.md. Baseline gpt-oss remains selected. Granite 4:3b downloaded only for comparison: warm 1–2 s but failed unknown-target tool behavior; not promoted.
