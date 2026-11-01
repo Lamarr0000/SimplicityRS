@@ -20,6 +20,7 @@ from voice import VoiceInput
 from kokoro_speech import KokoroSpeech
 from conversation import Conversation, CHAT_TOOLS, reply_issues
 from neural_voice import NeuralVoiceInput
+from calculator_task import calculate,validate as validate_calculation,EXPRESSION
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -254,16 +255,23 @@ class State:
             allowed = {"get_health_snapshot": set()}
         if self.mode == 'chat':
             allowed = {entry['function']['name']:set() for entry in CHAT_TOOLS}
+            allowed['calculate_in_calculator']={'expression'}
         if name not in allowed or set(args) != allowed[name]:
             raise ValueError("Unsupported tool or arguments")
         self.check_stop()
         self.emit("tool_request", json.dumps({"name": name, "arguments": args}))
         if self.mode == 'chat':
+            if name=='calculate_in_calculator':
+                if self.chat.target=='other':raise ValueError('The physical host or another computer is not connected to these controls.')
+                validate_calculation(args.get('expression'))
+                if self.calc is None:self.calc=Calculator()
+                result=calculate(self.calc,args['expression'],self.emit,self.check_stop)
+                self.emit('observation',json.dumps(result,ensure_ascii=False))
+                return result
             if name == 'confirm_running_windows':
                 return self.chat.confirm()
             self.chat.require_target()
             if name == 'verify_windows_files':
-                self.chat.require_file_request()
                 result = collect_integrity(self.emit, self.check_stop)
                 if self.log:
                     self.log.with_suffix('.integrity.json').write_text(json.dumps(result, ensure_ascii=False, indent=2),encoding='utf-8')
@@ -398,6 +406,16 @@ class State:
     def run_chat(self, prompt):
         self.messages,start=self.chat.begin(prompt)
         self.messages[0]['content']+='\nThis message was '+('transcribed from local microphone audio.' if self.input_source=='voice' else 'typed text; do not claim to have heard audio.')
+        if self.chat.target=='other' and self.chat.calculator_requested:
+            self.messages.append({'role':'assistant','content':'I can’t control the physical host PC from inside this VM. I can open Calculator in the Windows running SimplicityAI. Would you like me to do it here in this VM?'})
+            self.chat.finish(self.messages,start);self.emit('assistant_chunk',self.messages[-1]['content']);self.emit('status','Finished — host controls are not connected.');return
+        matches=list(re.finditer(r'(?<![0-9.\-])'+EXPRESSION+r'(?![0-9.])',prompt)) if re.search(r'calculator',prompt,re.I) else []
+        match=matches[0] if len(matches)==1 else None
+        if re.search(r'[0-9.]\s*[+*/×÷-]\s*[0-9.]\s*[+*/×÷-]',prompt):match=None
+        if match and self.chat.target!='other':
+            result=self.execute({'function':{'name':'calculate_in_calculator','arguments':{'expression':match.group(0)}}})
+            self.messages.append({'role':'assistant','content':'I used Calculator in the Windows running SimplicityAI. Its display shows '+str(result['display'])+'. I reread the display to verify it.'})
+            self.chat.finish(self.messages,start);self.emit('assistant_chunk',self.messages[-1]['content']);self.emit('status','Finished — Calculator display verified by ThemHands.');return
         self.ensure_runtime()
         rewrites=0
         for step in range(8):
@@ -441,7 +459,7 @@ class State:
         self.emit("status", "Stop requested — waiting for the current call to return. No new actions will start.")
 
 
-STATE = State(persist_chat=True)
+STATE = State()
 TOKEN = secrets.token_urlsafe(32)
 
 
@@ -470,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.4.0", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.4.2", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -478,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript)})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.4.2'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 

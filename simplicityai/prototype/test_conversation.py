@@ -1,5 +1,7 @@
 import unittest
 import tempfile
+import io
+import runpy
 from pathlib import Path
 from unittest.mock import Mock,patch
 from conversation import Conversation,reply_issues
@@ -44,10 +46,23 @@ class ConversationTests(unittest.TestCase):
             state.execute({'function':{'name':'get_network_snapshot','arguments':{}}})
         collect.assert_not_called()
 
-    def test_long_file_check_requires_request(self):
-        c=Conversation();c.begin('It keeps crashing')
-        with self.assertRaises(ValueError):c.require_file_request()
-        c.begin('Please verify the system files');c.require_file_request()
+    @patch('app.collect_integrity',return_value={'windows_directory':'C:\\Windows','errors':[],'checks':[]})
+    def test_agent_can_choose_file_check_without_tool_activation(self,collect):
+        state=State();state.mode='chat';state.emit=Mock();state.chat.begin('This VM keeps crashing')
+        state.execute({'function':{'name':'verify_windows_files','arguments':{}}})
+        collect.assert_called_once()
+
+    def test_new_app_state_starts_with_empty_dialog(self):
+        first=State();first.chat.begin('Old conversation')
+        second=State()
+        self.assertEqual(second.chat.transcript,[])
+        self.assertIsNone(second.chat.storage_path)
+
+    def test_reopening_launcher_resets_idle_chat_before_opening_window(self):
+        with patch('urllib.request.urlopen',side_effect=[io.BytesIO(b'{"app":"ThemHands"}'),io.BytesIO(b'{"ok":true}')]) as request,patch('pathlib.Path.read_text',return_value='http://127.0.0.1:8769/#test-token'),patch('pathlib.Path.is_file',return_value=False),patch('webbrowser.open') as browser:
+            runpy.run_path(str(Path(__file__).with_name('launcher.py')))
+            self.assertEqual(request.call_args_list[1].args[0].full_url,'http://127.0.0.1:8769/chat/reset')
+            browser.assert_called_once()
 
     @patch('app.collect_health',return_value={'network_status':{'changes_made':False}})
     def test_chat_can_choose_supported_tool_and_retain_evidence(self,collect):
