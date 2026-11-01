@@ -17,6 +17,7 @@ from desktop import Calculator, BUTTONS
 from health import collect_health, network_report, dns_timeout_simulation
 from integrity import collect_integrity, integrity_report
 from voice import VoiceInput
+from kokoro_speech import KokoroSpeech
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -26,6 +27,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 ROOT = Path(__file__).resolve().parent
 VOICE = VoiceInput()
+SPEECH = KokoroSpeech()
 LAB = ROOT.parent / "HostTest"
 OLLAMA = "http://127.0.0.1:11434"
 MODEL = "gpt-oss:20b"
@@ -409,9 +411,23 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length < 12000:
                 raise ValueError("Invalid body length")
             data = json.loads(self.rfile.read(length))
-            if self.path == '/voice/start':
+            if self.path == '/speech/read':
+                if STATE.busy or VOICE.snapshot()['state'] in {'starting', 'listening'}:
+                    raise ValueError('Finish the current task or voice input before reading a reply aloud.')
+                audio = SPEECH.synthesize(data.get('text'))
+                self.send_response(200)
+                self.send_header('Content-Type', 'audio/wav')
+                self.send_header('Content-Length', str(len(audio)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(audio)
+                return
+            elif self.path == '/speech/stop':
+                SPEECH.stop()
+            elif self.path == '/voice/start':
                 if STATE.busy:
                     raise ValueError('Wait for the current task to finish before using voice input.')
+                SPEECH.stop()
                 VOICE.start()
             elif self.path == '/voice/check':
                 VOICE.start('Probe')
@@ -420,6 +436,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/start":
                 if VOICE.snapshot()['state'] in {'starting', 'listening'}:
                     raise ValueError('Finish or stop voice input and review your words before starting a task.')
+                SPEECH.stop()
                 STATE.start(data.get("prompt"), data.get("mode", "health"))
             elif self.path == "/stop":
                 STATE.stop()

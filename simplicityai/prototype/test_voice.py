@@ -88,6 +88,17 @@ class VoiceEndpointTests(unittest.TestCase):
         error.exception.close()
         self.state.start.assert_not_called()
 
+    def test_kokoro_audio_uses_authenticated_endpoint(self):
+        self.voice.snapshot.return_value = {'state': 'idle'}
+        audio=b'RIFF\x00\x00\x00\x00WAVEaudio'
+        with patch.object(app.SPEECH, 'synthesize', return_value=audio) as synth:
+            request=urllib.request.Request(self.url+'/speech/read',data=b'{"text":"Hello"}',
+                     headers={'X-ThemHands-Token':app.TOKEN,'Content-Type':'application/json'})
+            with self.opener.open(request) as response:
+                self.assertEqual(response.headers['Content-Type'],'audio/wav')
+                self.assertEqual(response.read(),audio)
+            synth.assert_called_once_with('Hello')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -56,3 +56,6 @@ firewall-ready.json
 *.conversation.json
 *.jsonl
 connection-check.txt
+*.onnx
+*.integrity.json
+/simplicityai/**/kokoro/

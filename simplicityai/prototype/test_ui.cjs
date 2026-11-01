@@ -1,23 +1,2 @@
-const fs=require('fs'),vm=require('vm'),assert=require('assert');
-const html=fs.readFileSync(require('path').join(__dirname,'index.html'),'utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('poll();setInterval(poll,1000);','');
-const elements={};const elem=id=>elements[id]??=( {textContent:'',replaceChildren(){},append(){},style:{}} );
-let copied='';const context=vm.createContext({document:{getElementById:elem,createElement:()=>({style:{},append(){}})},navigator:{clipboard:{writeText:async text=>{copied=text}}},location:{hash:'',pathname:'/'},sessionStorage:{getItem(){return ''}},history:{replaceState(){}},console});
-vm.runInContext(script,context);
-(async()=>{
- elem('symptoms').value='';elem('voice-draft').value='Websites do not load';elem('voice-use').onclick();
- assert.equal(elem('symptoms').value,'Websites do not load');assert.match(elem('voice-status').textContent,/No check has started/);
- let spoken=null;
- context.speechSynthesis={getVoices:()=>[{localService:true,voiceURI:'local',name:'Local',lang:'en-US'},{localService:false,voiceURI:'remote',name:'Remote',lang:'en-US'}],cancel(){},speak(u){spoken=u}};
- context.SpeechSynthesisUtterance=function(text){this.text=text};
- vm.runInContext('loadVoices()',context);elem('speech-voice').value='remote';vm.runInContext("speakText('hello')",context);assert.equal(spoken,null);
- elem('speech-voice').value='local';vm.runInContext("speakText('hello')",context);assert.equal(spoken.voice.voiceURI,'local');
- console.log('Voice review adds text only; remote playback voices rejected.');
- for(const [id,variable,text] of [['copy-reply','replyText','ANSWER ONLY'],['copy-facts','factsText','FACTS ONLY'],['copy-evidence','evidenceText','RAW TOOL EVIDENCE']]){
-  vm.runInContext(`${variable}=${JSON.stringify(text)}`,context);await elem(id).onclick();assert.equal(copied,text);
- }
- context.navigator.clipboard.writeText=async()=>{throw Error('denied')};
- await elem('copy-facts').onclick();assert.match(elem('facts-copy-status').textContent,/Copy unavailable/);
- assert.equal((html.match(/class="panel-header"/g)||[]).length,3);
- elem('problem').value='web';elem('target').value='other';elem('prepare-guide').onclick();assert.equal(elem('start').disabled,true);assert.match(elem('guide-plan').textContent,/cannot inspect/);elem('target').value='current';elem('symptoms').value='Test symptom';elem('prepare-guide').onclick();assert.equal(elem('mode').value,'network');assert.equal(elem('start').disabled,false);elem('problem').value='crash';elem('prepare-guide').onclick();assert.equal(elem('mode').value,'integrity');console.log('Guided target restriction and check routing passed.'); console.log('Three isolated copy actions, clipboard failure feedback, and three panel headers passed.');
-})().catch(e=>{console.error(e);process.exitCode=1});
+// Compatibility entry point for UI regression checks.
+require('./test_chat_ui.cjs');

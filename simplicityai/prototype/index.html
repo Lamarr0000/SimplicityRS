@@ -3,47 +3,56 @@
 <title>SimplicityAI — Local recovery assistant</title>
 <style>
 :root{color-scheme:dark;font-family:Segoe UI,system-ui,sans-serif;background:#10141e;color:#edf2ff}body{max-width:1000px;margin:40px auto;padding:0 22px}h1{font-size:42px;margin:0}header p{color:#a9b7d2;font-size:18px}section{background:#192131;border:1px solid #303e58;border-radius:14px;padding:24px;margin:22px 0}.badge{color:#9cc6ff;font-size:14px}textarea{box-sizing:border-box;width:100%;padding:14px;background:#101724;color:inherit;border:1px solid #50617e;border-radius:8px;font:inherit;min-height:100px}button{font:inherit;font-weight:600;padding:12px 22px;border:0;border-radius:8px;background:#84b7ff;color:#101827;margin:12px 8px 0 0;cursor:pointer}button:disabled{opacity:.4;cursor:default}#stop{background:#f2ae9d}#status{font-size:20px;font-weight:600}#elapsed,.muted{color:#a9b7d2}#events{max-height:580px;overflow:auto}.event{border-bottom:1px solid #303e58;padding:12px 0;white-space:pre-wrap;overflow-wrap:anywhere}.event small{color:#92a7cb;display:block;margin-bottom:5px}.error{color:#ffb5a9}.action{color:#9adfc5}.observation{font:13px Consolas,monospace;color:#b0c4e6}details{margin:10px 0}summary{cursor:pointer}footer{color:#94a5c2;font-size:13px}a{color:#9cc6ff}
-.panel-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;background:#192131;padding:8px 0;z-index:1}.panel-header button{margin:0;flex-shrink:0;padding:8px 14px}.copy-feedback{display:block;min-height:1.4em;color:#a9b7d2;font-size:14px;margin-top:6px}</style>
-<header><span class="badge">SimplicityAI · Offline prototype</span><h1>SimplicityAI</h1><p>Local reasoning with gpt-oss · Windows interaction through ThemHands.</p></header>
-<section aria-label="Guided troubleshooting"><h2>What do you need help with?</h2>
-<p>Tell us what is happening. We’ll explain a relevant check before you start it.</p>
-<p><label for="problem">Problem </label><select id="problem" style="font:inherit;padding:8px"><option value="">Choose a problem</option><option value="web">Websites won’t load</option><option value="crash">Windows crashes or freezes</option><option value="boot">Windows won’t start</option></select></p>
-<p><label for="target">Which Windows needs help? </label><select id="target" style="font:inherit;padding:8px"><option value="">Choose the target</option><option value="current">The Windows running SimplicityAI</option><option value="other">Another Windows installation / the host PC</option></select></p>
-<p class="muted">If SimplicityAI is inside a virtual machine, “the Windows running SimplicityAI” means that virtual machine. It does not mean your host PC.</p>
-<label for="symptoms">What happens, and when did it start?</label><textarea id="symptoms" maxlength="1800" placeholder="For example: websites stopped loading this morning, but other apps still work."></textarea>
-<div aria-label="Voice input"><button id="voice-check" type="button">Check voice availability</button><button id="voice-start" type="button">Speak my issue</button><button id="voice-stop" type="button" disabled>Stop listening</button>
-<p id="voice-status" role="status">Optional local voice input. Click Speak, wait for “Listening,” say one sentence, then pause. Typing is always available.</p>
-<p class="muted">Uses the default Windows microphone and installed speech language. In a VM, microphone/audio access must be passed into the VM. Audio is not saved or sent to a cloud speech service. Your words are not a command to run tools.</p>
-<div id="voice-review" hidden><label for="voice-draft">Review what was heard</label><textarea id="voice-draft" maxlength="1800"></textarea><button id="voice-use" type="button">Use these words</button><button id="voice-discard" type="button">Discard</button><p class="muted">Using these words only adds them to your issue description. It does not start a check.</p></div></div>
-<button id="prepare-guide" type="button">Show my next step</button><p id="guide-plan" role="status" style="white-space:pre-wrap"></p>
-<div aria-label="Spoken explanations"><label for="speech-voice">Installed voice </label><select id="speech-voice" aria-label="Installed local voice"></select><button id="read-step" type="button">Read next step aloud</button><button id="read-reply" type="button">Read reply aloud</button><button id="stop-speaking" type="button">Stop speaking</button><p id="speech-status" role="status">Speech playback is optional. Only installed local voices are offered.</p></div>
+.panel-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;background:#192131;padding:8px 0;z-index:1}.panel-header button{margin:0;flex-shrink:0;padding:8px 14px}.copy-feedback{display:block;min-height:1.4em;color:#a9b7d2;font-size:14px;margin-top:6px}body{max-width:860px;margin:24px auto}h1{font-size:32px}.chat-start{background:transparent;border:0;padding:12px 0}.composer{border:1px solid #50617e;background:#192131;border-radius:18px;padding:14px}.composer textarea{border:0;background:transparent;min-height:80px;padding:8px 0}.composer-actions{display:flex;gap:6px;flex-wrap:wrap}.composer-actions button{margin:0}.user-bubble{background:#243f68;border-radius:14px;padding:14px;white-space:pre-wrap}.assistant-bubble{white-space:pre-wrap;line-height:1.6}.advanced,.evidence{background:#192131;border:1px solid #303e58;border-radius:14px;padding:16px;margin:18px 0}summary{font-weight:600}.muted{font-size:14px}</style>
+<header><span class="badge">Recovery assistant</span><h1>SimplicityAI</h1><p>Tell me what went wrong. We’ll work through it together.</p></header>
+<section class="chat-start" aria-label="Conversation">
+<h2>What’s happening with your computer?</h2><p class="muted">Describe the problem in your own words, or use the microphone.</p>
+<p id="chat-user" class="user-bubble" hidden></p><p id="guide-plan" class="assistant-bubble" role="status"></p>
+<div id="target-question" hidden><p>Which Windows needs help?</p><button id="target-current" type="button">Windows running SimplicityAI</button><button id="target-other" type="button">Another Windows / host PC</button><p class="muted">Inside a virtual machine, the first choice checks the VM, not the host PC.</p></div>
+<div id="problem-question" hidden><button id="problem-web" type="button">Websites won’t load</button><button id="problem-crash" type="button">Crashes or freezes</button><button id="problem-boot" type="button">Windows won’t start</button></div>
+<div id="next-actions" hidden><button id="run-suggested" type="button">Run this check</button><button id="read-step" type="button">Read aloud</button></div>
+<p id="status" role="status">Ready</p><p id="elapsed" class="muted"></p><p id="task-progress" class="muted"></p><div class="composer"><label for="symptoms" class="muted">Your message</label><textarea id="symptoms" maxlength="1800" placeholder="Tell me what went wrong…"></textarea><div class="composer-actions"><button id="voice-start" type="button">🎙 Speak</button><button id="voice-stop" type="button" hidden>Stop listening</button><button id="prepare-guide" type="button">Send</button><button id="stop" type="button" hidden disabled>Stop task</button><button id="stop-speaking" type="button" hidden>Stop speaking</button></div></div>
+<p id="voice-status" class="muted" role="status">Typing and microphone input are available. Voice input will ask you to review the words.</p><p id="speech-status" class="muted" role="status"></p>
+<div id="voice-review" hidden><label for="voice-draft">Does this look right?</label><textarea id="voice-draft" maxlength="1800"></textarea><button id="voice-use" type="button">Use these words</button><button id="voice-discard" type="button">Discard</button></div>
+<details><summary>Voice status</summary><button id="voice-check" type="button">Check microphone support</button><p>Uses the default Windows microphone and one local Kokoro playback voice. Microphone and speaker drivers must be available. Audio is not uploaded to a speech service. Typing remains available.</p></details>
 </section>
-<section><strong>Recovery assessment prototype</strong><p class="muted">Assess the running Windows environment with read-only diagnostics, or try the Calculator desktop demo. Repair actions, offline Windows inspection and vision are not connected yet. Voice availability depends on Windows audio and speech support.</p><label for="mode">Task mode </label><select id="mode" style="font:inherit;padding:8px;margin-bottom:14px"><option value="health">Read-only health assessment</option><option value="calculator">Calculator desktop demo</option><option value="integrity">Windows file verification — current Windows only</option><option value="network">Network evidence report (no model)</option><option value="dns_simulation">SIMULATION — DNS timeout (no live checks)</option></select><textarea id="prompt" aria-label="Task">Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.</textarea><button id="start">Start task</button><button id="stop" disabled>Stop</button><p class="muted">Stop prevents further actions; a call already in progress may finish. Assessment results stay in local logs.</p></section>
-<section id="health" hidden><div class="panel-header"><strong>Measured facts</strong><button id="copy-facts" type="button">Copy facts</button></div><span id="facts-copy-status" class="copy-feedback" role="status"></span><p class="muted">Collected directly from Windows. These screening results do not establish a diagnosis. Storage is flagged for review below 10% free or 20 GiB free; that does not mean the drive is failing.</p><div id="facts"></div></section>
-<section id="reply-panel" hidden aria-label="Assistant reply"><div class="panel-header"><strong>Assistant reply</strong><button id="copy-reply" type="button">Copy reply</button></div><span id="copy-status" class="copy-feedback" role="status"></span><div id="reply" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px"></div><div id="reply-blocks"></div></section>
-<section aria-live="polite"><div class="panel-header"><strong>Activity and tool evidence</strong><button id="copy-evidence" type="button">Copy activity</button></div><span id="evidence-copy-status" class="copy-feedback" role="status"></span><div id="status">Connecting…</div><p id="elapsed"></p><div id="events"></div><p class="muted" id="log"></p></section>
+
+<details id="health" class="evidence" hidden><summary>Measured facts</summary><div class="panel-header"><strong>Measured facts</strong><button id="copy-facts" type="button">Copy facts</button></div><span id="facts-copy-status" class="copy-feedback" role="status"></span><p class="muted">Collected directly from Windows. These screening results do not establish a diagnosis. Storage is flagged for review below 10% free or 20 GiB free; that does not mean the drive is failing.</p><div id="facts"></div></details>
+<section id="reply-panel" hidden aria-label="Assistant reply"><div class="panel-header"><strong>Assistant reply</strong><div><button id="read-reply" type="button">Read aloud</button> <button id="copy-reply" type="button">Copy reply</button></div></div><span id="copy-status" class="copy-feedback" role="status"></span><div id="reply" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px"></div><div id="reply-blocks"></div></section><details class="advanced"><summary>Advanced tools and test modes</summary><p class="muted">Assess the running Windows environment with read-only diagnostics, or try the Calculator desktop demo. Repair actions, offline Windows inspection and vision are not connected yet. Voice availability depends on Windows audio and speech support.</p><p><label for="problem">Problem category </label><select id="problem"><option value="">Ask me</option><option value="web">Websites</option><option value="crash">Crashes</option><option value="boot">Startup</option></select></p><p><label for="target">Windows target </label><select id="target"><option value="">Ask me</option><option value="current">Running Windows</option><option value="other">Another Windows / host PC</option></select></p><label for="mode">Task mode </label><select id="mode" style="font:inherit;padding:8px;margin-bottom:14px"><option value="health">Read-only health assessment</option><option value="calculator">Calculator desktop demo</option><option value="integrity">Windows file verification — current Windows only</option><option value="network">Network evidence report (no model)</option><option value="dns_simulation">SIMULATION — DNS timeout (no live checks)</option></select><textarea id="prompt" aria-label="Task">Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.</textarea><button id="start">Start task</button><p class="muted">Stop prevents further actions; a call already in progress may finish. Assessment results stay in local logs.</p></details>
+<details class="evidence" aria-live="polite"><summary>Activity and tool evidence</summary><div class="panel-header"><strong>Activity and tool evidence</strong><button id="copy-evidence" type="button">Copy activity</button></div><span id="evidence-copy-status" class="copy-feedback" role="status"></span><div id="events"></div><p class="muted" id="log"></p></details>
 <footer>gpt-oss-20b via local Ollama · Windows-MCP UI Automation library · Loopback-only interface · No cloud model calls</footer>
 <script>
 const token=location.hash.slice(1)||sessionStorage.getItem('themhands-token')||'';if(token)sessionStorage.setItem('themhands-token',token);history.replaceState(null,'',location.pathname);let count=0,lastBusy=false,started=0,chunkDiv=null;
 const el=id=>document.getElementById(id);async function api(path,data){const r=await fetch(path,{method:data?'POST':'GET',headers:{'X-ThemHands-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json();if(!r.ok)throw Error(v.error||'Request failed');return v}
 let guideBlocked=false;
 el('prepare-guide').onclick=()=>{
+ const issue=el('symptoms').value.trim();
+ const detected=/won.t (start|boot)|cannot (start|boot)|not boot/i.test(issue)?'boot':/website|internet|network|dns|brows/i.test(issue)?'web':/crash|freez|blue screen|restart/i.test(issue)?'crash':'';
+ if(detected)el('problem').value=detected;
  const problem=el('problem').value,target=el('target').value;
- if(!problem||!target){el('guide-plan').textContent='Choose the problem and which Windows needs help first. No check has started.';return;}
+ el('chat-user').textContent=issue;el('chat-user').hidden=!issue;el('next-actions').hidden=true;
+ el('target-question').hidden=true;el('problem-question').hidden=true;
+ if(!issue&&!problem){el('guide-plan').textContent='Tell me what is happening, or use the microphone. No check has started.';return;}
+ if(!target){guideBlocked=true;el('start').disabled=true;el('target-question').hidden=false;el('guide-plan').textContent='Before we check anything, which Windows needs help?';return;}
+ if(!problem){guideBlocked=true;el('start').disabled=true;el('problem-question').hidden=false;el('guide-plan').textContent='Which of these best matches the problem? These are the checks this prototype currently supports.';return;}
  if(target==='other'||problem==='boot'){
   guideBlocked=true;el('start').disabled=true;
-  el('guide-plan').textContent='This build cannot inspect another Windows installation or diagnose Windows that will not start. We have not checked or repaired that installation. Do not run the current-Windows checks as a substitute. Offline target selection is the next capability needed.';
+  el('guide-plan').textContent='Checking another Windows installation or Windows that will not start is not available yet. Nothing has been checked or changed. We should not check this running Windows as a substitute.';
   return;
  }
  guideBlocked=false;el('start').disabled=false;
+ el('next-actions').hidden=false;
  const network=problem==='web';el('mode').value=network?'network':'integrity';
  el('prompt').value=(network?'Check the current Windows network configuration and DNS resolution without changing settings.':'Verify files in the Windows currently running without repairing them.')+'\nUser-reported symptoms (not verified): '+el('symptoms').value;
- el('guide-plan').textContent=network?'Next step: check this Windows network settings and make one DNS query. This can show whether that query succeeds; it cannot establish every cause of a browsing problem. No settings will change. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.':'Next step: verify protected Windows files and read the recorded component-store status in this Windows. This checks one possible area; it is not a complete crash diagnosis. Administrator access is required, and the check may take several minutes. No repairs will be requested. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.';
+ el('guide-plan').textContent=network?'I can check the network settings and try a DNS lookup in the Windows running SimplicityAI. This is a first check, not a diagnosis of every browsing problem. No settings will change. Click Run this check when you’re ready.':'One possible first check is to verify protected Windows files in the Windows running SimplicityAI. This does not diagnose every crash. It requires administrator access and may take several minutes. No repairs will be requested. Click Run this check when you’re ready.';
 };
+for(const [id,value] of [['target-current','current'],['target-other','other']])el(id).onclick=()=>{el('target').value=value;el('prepare-guide').onclick();};
+for(const [id,value] of [['problem-web','web'],['problem-crash','crash'],['problem-boot','boot']])el(id).onclick=()=>{el('problem').value=value;el('prepare-guide').onclick();};
+el('run-suggested').onclick=()=>el('start').onclick();
 let replyText='',factsText='',evidenceText='';
 let lastCapture='';
 async function voiceOperation(path){
- try{if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();await api(path,{});await pollVoice();}
+ try{await stopSpeech();await api(path,{});await pollVoice();}
  catch(e){el('voice-status').textContent=e.message;}
 }
 el('voice-check').onclick=()=>voiceOperation('/voice/check');
@@ -60,37 +69,33 @@ el('voice-discard').onclick=()=>{el('voice-draft').value='';el('voice-review').h
 async function pollVoice(){
  const value=await api('/voice/state');const active=['starting','listening'].includes(value.state);
  el('voice-status').textContent=value.message||value.state;
- el('voice-start').disabled=active||lastBusy;el('voice-check').disabled=active||lastBusy;el('voice-stop').disabled=!active;
+ el('voice-start').disabled=active||lastBusy;el('voice-check').disabled=active||lastBusy;el('voice-stop').disabled=!active;el('voice-stop').hidden=!active;
  const key=value.capture_id+':'+value.text;
  if(value.state==='transcribed'&&key!==lastCapture){lastCapture=key;el('voice-draft').value=value.text||'';el('voice-review').hidden=false;}
 }
-let localVoices=[];
-function loadVoices(){
- if(!globalThis.speechSynthesis){el('speech-status').textContent='Speech playback is unavailable in this browser. Text remains available.';return;}
- const selected=el('speech-voice').value;
- localVoices=globalThis.speechSynthesis.getVoices().filter(v=>v.localService===true);
- el('speech-voice').replaceChildren();
- for(const voice of localVoices){const option=document.createElement('option');option.value=voice.voiceURI;option.textContent=voice.name+' ('+voice.lang+')';el('speech-voice').append(option);}
- if(localVoices.some(v=>v.voiceURI===selected))el('speech-voice').value=selected;
- el('speech-status').textContent=localVoices.length?'Choose an installed voice. Playback starts only when you click Read.':'No local playback voice was found. Text remains available; no cloud voice will be substituted.';
-}
-function speakText(text){
- const voice=localVoices.find(v=>v.voiceURI===el('speech-voice').value);
- if(!voice||!globalThis.SpeechSynthesisUtterance){el('speech-status').textContent='No local playback voice is available. Please read the text instead.';return;}
- if(!text.trim()){el('speech-status').textContent='There is no explanation to read yet.';return;}
- if(text.length>12000){el('speech-status').textContent='This reply is too long for this playback prototype. Please use the on-screen text.';return;}
- globalThis.speechSynthesis.cancel();const utterance=new globalThis.SpeechSynthesisUtterance(text);utterance.voice=voice;utterance.rate=0.95;
- utterance.onend=()=>el('speech-status').textContent='Finished speaking.';
- utterance.onerror=()=>el('speech-status').textContent='Playback did not finish. Check the speakers or use the text.';
- el('speech-status').textContent='Reading aloud using '+voice.name+'.';globalThis.speechSynthesis.speak(utterance);
+let playback=null,playbackUrl=null,speechRequest=0;
+function clearPlayback(){if(playback){playback.pause();playback=null;}if(playbackUrl){URL.revokeObjectURL(playbackUrl);playbackUrl=null;}}
+async function stopSpeech(){speechRequest++;clearPlayback();el('stop-speaking').hidden=true;await api('/speech/stop',{}).catch(()=>{});}
+async function speakText(text){
+ if(!text.trim()){el('speech-status').textContent='There is no reply to read yet.';return;}
+ if(text.length>2000){el('speech-status').textContent='This reply is too long for voice playback. Please read the text instead.';return;}
+ const requestId=++speechRequest;clearPlayback();el('stop-speaking').hidden=false;el('speech-status').textContent='Preparing Kokoro voice… The first reply may take longer.';
+ try{
+  const response=await fetch('/speech/read',{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!response.ok){const error=await response.json();throw Error(error.error||'Voice unavailable');}
+  const blob=await response.blob();if(requestId!==speechRequest)return;
+  playbackUrl=URL.createObjectURL(blob);playback=new Audio(playbackUrl);
+  playback.onended=()=>{clearPlayback();el('stop-speaking').hidden=true;el('speech-status').textContent='Finished speaking.';};
+  playback.onerror=()=>{clearPlayback();el('stop-speaking').hidden=true;el('speech-status').textContent='Playback failed. Check your speakers or use the text.';};
+  await playback.play();el('speech-status').textContent='Reading aloud.';
+ }catch(error){if(requestId===speechRequest){clearPlayback();el('stop-speaking').hidden=true;el('speech-status').textContent=error.message+' Text is still available.';}}
 }
 el('read-step').onclick=()=>speakText(el('guide-plan').textContent);
 el('read-reply').onclick=()=>speakText(replyText);
-el('stop-speaking').onclick=()=>{if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();el('speech-status').textContent='Speech stopped.';};
-loadVoices();if(globalThis.speechSynthesis)globalThis.speechSynthesis.addEventListener('voiceschanged',loadVoices);
+el('stop-speaking').onclick=()=>{stopSpeech();el('speech-status').textContent='Speech stopped.';};
 globalThis.addEventListener?.('pagehide',()=>{
- if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();
- fetch('/voice/stop',{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
+ clearPlayback();
+ for(const path of ['/voice/stop','/speech/stop'])fetch(path,{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
 });
 async function copyText(text,label,statusId='copy-status'){
  if(!text){el(statusId).textContent='Nothing to copy yet.';return;}
@@ -117,7 +122,7 @@ function showReply(s){
  }
 }
 el('mode').onchange=()=>{el('prompt').value=el('mode').value==='integrity'?'Verify protected files and recorded component-store status in the Windows currently running. In this VM, check only the VM. Do not repair anything.':el('mode').value==='dns_simulation'?'Run the synthetic DNS-timeout simulation only. Do not inspect or change this computer.':el('mode').value==='network'?'Run the fixed read-only network evidence report. Do not change settings.':el('mode').value==='health'?'Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.':'Open Calculator and use its onscreen buttons to calculate 7 + 9. Explain what you are doing and verify the displayed result.'};
-el('start').onclick=async()=>{try{await api('/start',{prompt:el('prompt').value,mode:el('mode').value});count=0;el('events').replaceChildren();started=Date.now();chunkDiv=null;await poll()}catch(e){el('status').textContent=e.message}};
+el('start').onclick=async()=>{try{await stopSpeech();await api('/start',{prompt:el('prompt').value,mode:el('mode').value});count=0;el('events').replaceChildren();started=Date.now();chunkDiv=null;await poll()}catch(e){el('status').textContent=e.message}};
 el('stop').onclick=()=>api('/stop',{}).catch(e=>el('status').textContent=e.message);
 function showEvent(e){
  if(e.kind==='assistant_chunk'){
@@ -135,7 +140,7 @@ function showEvent(e){
 async function poll(){
  try{
   const s=await api('/state');el('status').textContent=s.status;el('start').disabled=s.busy||guideBlocked;el('stop').disabled=!s.busy;el('mode').disabled=s.busy;
-  el('prepare-guide').disabled=s.busy;
+  el('prepare-guide').disabled=s.busy;el('run-suggested').disabled=s.busy;el('stop').hidden=!s.busy;el('read-step').disabled=s.busy;el('read-reply').disabled=s.busy;const action=s.events.filter(e=>e.kind==='action').at(-1);el('task-progress').textContent=s.busy&&action?action.text:'';
   evidenceText=s.events.map(e=>e.time+' · '+e.kind+'\n'+e.text).join('\n\n')+(s.log?'\n\nLocal evidence log: '+s.log:'');
   showHealth(s.health_snapshot);
   showReply(s);

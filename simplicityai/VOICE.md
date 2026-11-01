@@ -1,54 +1,43 @@
-# Local voice prototype
+# Voice and conversational interface
 
-Voice input is optional, initiated by **Speak my issue**, and stops after one recognized
-phrase or a time limit. The draft must be reviewed and explicitly added to the issue
-description. It cannot select a target, start a tool, or authorize a repair. No microphone
-is activated on page load or during the availability probe. Typing remains available.
+The current application uses one fixed Kokoro playback voice (af_heart). There is no voice selector and no Windows-voice or cloud-voice fallback. Microphone input remains the working installed Windows System.Speech recognizer. The user confirmed accurate dictation and audible Windows playback before requesting a more natural fixed voice.
 
-## Implementation
+## Simple main screen
 
-- `Voice-Input.ps1` loads the installed Windows System.Speech engine, preferring en-US,
-  and uses its default audio input with a dictation grammar. No online recognition API,
-  uploaded audio, model download, recorded audio file or GPU inference is added.
-- `voice.py` runs only that fixed script with Probe or Listen. Capture is bounded to
-  forty seconds by the controller; Stop terminates only its owned child. A Windows job
-  closes the child if the server exits unexpectedly. Leaving the browser page also
-  requests cancellation. The availability probe verifies engine presence, not drivers,
-  microphone permissions, audio routing or transcription quality.
-- Authenticated loopback endpoints provide status, probe, capture and cancellation.
-  Starting a task is rejected during capture. Captured words stay in memory until the
-  user elects to use them; submitted task descriptions use the existing local logs.
-- Browser speech synthesis offers only voices with `localService === true`. Users
-  select a local voice and click Read next step aloud or Read reply aloud. Playback
-  never starts automatically; Stop speaking cancels it. No exact ChatGPT voice is
-  bundled or promised. If no local voice is offered, text remains available.
+The main interaction is a message box with Speak and Send. Sending a description prepares a proposed next step; it never starts a diagnostic. Simple follow-up buttons ask for the affected Windows environment or a supported problem category only when needed. A separate Run this check action is required. Advanced tools, measured facts and timestamped evidence are collapsed. Copy controls remain available in their respective panels. Progress and Stop remain visible during a task.
 
-## Requirements and limits
+This is a conversational layout over bounded workflows, not a general chatbot or a validated autonomous diagnostic agent. Problem routing uses explicit keyword hints and asks when it cannot route. Another Windows installation or nonbooting Windows remains unsupported, with checks blocked rather than redirected to the running recovery environment.
 
-Requires installed Windows speech components, a compatible speech language, default
-microphone and speaker devices/drivers, Windows permissions, and working VMware audio
-input/output when tested in a VM. No drivers, languages or permissions are installed
-or changed automatically. The Windows recognizer may be unavailable or inaccurate on
-some installations; fallback is typing, not a silently substituted cloud service.
+## Playback
 
-Host validation: installed en-US engine found through the script and controller without
-activating a microphone; real Windows child cleanup test passed; mocked capture,
-cancellation and endpoint tests passed. Browser-handler checks verify review-before-use
-and rejection of remote playback voices. Thirty-seven Python tests pass.
+kokoro_worker.py runs the standard Kokoro v1.0 ONNX model on CPUExecutionProvider with two intra-op threads and one inter-op thread. The smaller int8 model was substantially slower on this host and is not shipped in the guest package. The runtime is isolated Python 3.12.16 with pinned packages in kokoro-requirements.txt. Model sources, sizes and SHA-256 hashes are recorded in kokoro-model-sources.json. Large runtime/dependency/model assets remain outside Git.
 
-Still pending: guest engine availability, live microphone transcription, local speaker
-playback, browser visual review, recognition quality and disconnected-network validation.
-No actual user audio was captured during host development tests.
+KokoroSpeech owns one warm worker. Text is JSON on stdin, never a shell command. Audio is transferred in memory and returned through an authenticated loopback endpoint as WAV. It is not uploaded or saved by normal playback. Requests are serialized, limited to two thousand characters and ninety seconds, with explicit Stop. Windows job-object cleanup closes the child if the server exits. Page departure requests cancellation. Starting microphone input or a diagnostic stops playback preparation. No GPU provider or cloud synthesis fallback is used.
 
-## Guest deployment
+Read aloud is opt-in. Stop speaking cancels both preparation and browser audio. The voice is a Kokoro preset, not the ChatGPT Sol voice.
 
-Stop the existing server (elevated if previously started as administrator), run the
-shared-folder `Install-Voice-Update.cmd`, then start the normal `Start-ThemHands.cmd`
-and refresh the page. This adds no diagnostic task or scan. First click **Check voice
-availability**. Only click **Speak my issue** when ready to test the VM microphone.
+## Microphone
 
-## Primary references
+Speak opens the default Windows microphone only after a click. A phrase is placed into an editable review box. Use these words adds it to the issue description, without starting a check, selecting a drive or authorizing a repair. Capture is bounded to forty seconds; only the owned microphone subprocess can be stopped. Check microphone support probes engine availability without activating audio capture.
 
-- [Microsoft: Recognize and timeout semantics](https://learn.microsoft.com/en-us/dotnet/api/system.speech.recognition.speechrecognitionengine.recognize?view=netframework-4.8)
-- [Microsoft: default audio input](https://learn.microsoft.com/en-us/dotnet/api/system.speech.recognition.speechrecognitionengine.setinputtodefaultaudiodevice?view=netframework-4.8)
-- [MDN: local versus remote speech-synthesis voices](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice/localService)
+Requires working microphone/speaker drivers, permissions, installed speech language and VMware audio routing. Nothing changes those settings automatically. If capture or playback fails, typing and on-screen replies remain usable. Submitted descriptions use the existing local task logs; raw microphone audio is not saved.
+
+## Validation and limitations
+
+Host: forty-one Python tests cover boundaries, fixed tools, capture cancellation, session authentication, WAV endpoint, text limits and persistent worker ownership. JS checks cover unique controls, progressive target questions, no automatic diagnostic start, reviewed speech text, Copy isolation and fixed playback/Stop. The voice engine probe and real Windows child-process cleanup were verified without capturing host microphone audio.
+
+Standard-model CPU benchmark: 4.33 seconds of speech generated in 5.47 seconds on first request and 3.56 seconds on the next. A relocated package generated 3.89 seconds of audio in 6.83 seconds. These are small host samples, not guaranteed guest performance. Quantized-model samples took roughly thirty to fifty-five seconds and were rejected. The package is about 545 MiB.
+
+Guest checks pending: new screen appearance, fixed Kokoro audition, playback responsiveness, and disconnected-network validation. No new system scan is needed to test this update.
+
+## Deployment
+
+Use shared-folder Install-Chat-Voice-Update.cmd after stopping the idle server. It verifies model hashes, saves previous source files and installs the local playback assets. Restart normally with Start-ThemHands.cmd and refresh the browser. Earlier installers should not be used to downgrade this version.
+
+## Sources
+
+- https://github.com/thewh1teagle/kokoro-onnx
+- https://huggingface.co/hexgrad/Kokoro-82M
+- https://learn.microsoft.com/en-us/dotnet/api/system.speech.recognition.speechrecognitionengine.recognize?view=netframework-4.8
+
+Third-party runtime/package licenses are retained in the local asset bundle. Kokoro model and wrapper licenses are also retained alongside model provenance. No audio or model weights are committed.
