@@ -3,10 +3,32 @@ import io
 import json
 from unittest.mock import Mock, patch
 from app import State
-from health import screening
+from health import screening, network_report
 
 
 class HealthChecks(unittest.TestCase):
+    def test_network_success_does_not_claim_web_access(self):
+        text = network_report({'network_status': {'dns_test': {'success': True, 'name': 'microsoft.com', 'server': '192.0.2.1', 'checked_utc': 'test'}}})
+        self.assertIn('Succeeded: Windows resolved', text)
+        self.assertIn('Not tested: gateway reachability, web/TCP access', text)
+        self.assertIn('not AI diagnosis', text)
+
+    def test_network_missing_and_failed_results_are_not_success(self):
+        self.assertIn('Unknown', network_report({}))
+        self.assertIn('cause is not established', network_report({'network_status': {'dns_test': {'success': False}}}))
+
+    @patch('app.collect_health', return_value={'network_status': {}})
+    def test_network_mode_never_calls_model(self, collect):
+        state = State()
+        state.mode = 'network'
+        state.ensure_runtime = Mock(side_effect=AssertionError('Model must not load'))
+        state.ask = Mock(side_effect=AssertionError('Model must not run'))
+        state.emit = Mock()
+        state.run('Network report')
+        collect.assert_called_once()
+        state.ask.assert_not_called()
+        self.assertTrue(any(c.args[0]=='status' and c.args[1].startswith('Finished') for c in state.emit.call_args_list))
+
     def test_equals_forces_independent_reread(self):
         state = State()
         state.calc = Mock()

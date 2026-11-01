@@ -144,7 +144,7 @@ if ($servers.Count) {
         }
         $done = Wait-Job $job -Timeout 8
         if (-not $done) { throw 'DNS query exceeded time limit' }
-        $answers = @(Receive-Job $job -ErrorAction Stop)
+        $answers = @(Receive-Job $job -ErrorAction Stop | ForEach-Object { [string]$_ })
         if (-not $answers.Count) { throw 'DNS response contained no IPv4 address' }
         $network.dns_test = [ordered]@{ name='microsoft.com'; server=$servers[0]; success=$true; ipv4_answers=$answers; checked_utc=(Get-Date).ToUniversalTime().ToString('o') }
     } catch {

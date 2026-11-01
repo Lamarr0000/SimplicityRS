@@ -14,7 +14,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from desktop import Calculator, BUTTONS
-from health import collect_health
+from health import collect_health, network_report
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -141,7 +141,7 @@ class State:
                 raise ValueError("A task is already running")
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
                 raise ValueError("Enter a task between 1 and 4000 characters")
-            if mode not in {"health", "calculator"}:
+            if mode not in {"health", "calculator", "network"}:
                 raise ValueError("Unknown task mode")
             self.mode = mode
             self.health_snapshot = None
@@ -276,6 +276,16 @@ class State:
     def run(self, prompt):
         try:
             self.emit("user", prompt)
+            if self.mode == 'network':
+                self.emit('action', 'Running the fixed read-only collector. This mode produces a network-only evidence report without calling the model.')
+                self.health_snapshot = collect_health()
+                self.check_stop()
+                if self.log:
+                    self.log.with_suffix('.health.json').write_text(json.dumps(self.health_snapshot, ensure_ascii=False, indent=2), encoding='utf-8')
+                self.emit('observation', json.dumps(self.health_snapshot.get('network_status'), ensure_ascii=False))
+                self.emit('assistant_chunk', network_report(self.health_snapshot))
+                self.emit('status', 'Finished — scripted network evidence report; no AI diagnosis or changes.')
+                return
             self.ensure_runtime()
             self.check_stop()
             self.messages = [{"role": "system", "content": HEALTH_SYSTEM if self.mode == "health" else SYSTEM}, {"role": "user", "content": prompt}]
@@ -394,7 +404,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument("--task", help="Run a task without the web UI, then exit")
-    parser.add_argument("--mode", choices=["health", "calculator"], default="health")
+    parser.add_argument("--mode", choices=["health", "calculator", "network"], default="health")
     args = parser.parse_args()
     if args.task:
         STATE.start(args.task, args.mode)

@@ -7,6 +7,29 @@ import subprocess
 ROOT = Path(__file__).resolve().parent
 
 
+def network_report(snapshot):
+    """Deterministic evidence report; this is not a model diagnosis."""
+    network = snapshot.get('network_status') or {}
+    test = network.get('dns_test')
+    lines = ['Network check — generated directly from tool evidence, not AI diagnosis.']
+    for adapter in network.get('adapters', []):
+        lines.append('Adapter: ' + adapter.get('description', 'Unknown'))
+        for label, key in [('Addresses', 'addresses'), ('Gateways', 'gateways'), ('Configured DNS', 'dns_servers')]:
+            lines.append(label + ': ' + (', '.join(adapter.get(key) or []) or 'Unknown'))
+    if test and test.get('success') is True:
+        lines.append(f"Succeeded: Windows resolved {test['name']} through configured DNS server {test['server']} at {test['checked_utc']}.")
+        lines.append('This result alone gives no reason to change DNS settings.')
+    elif test:
+        lines.append('The DNS query failed or timed out. Its cause is not established; correlate with symptoms before changing settings.')
+    else:
+        lines.append('DNS query result: Unknown. No successful query was verified.')
+    lines.extend('Unknown: ' + error for error in network.get('errors', []))
+    lines.append('Not tested: gateway reachability, web/TCP access, IPv6 DNS, other DNS servers, or the host computer. Resolver caches may be used.')
+    lines.append('If browsing works and no network symptoms are present, no further investigation is indicated by this limited check. Otherwise, describe the failing application and time of failure.')
+    lines.append('No settings changed.')
+    return '\n\n'.join(lines)
+
+
 def screening(snapshot):
     """Transparent thresholds, not diagnoses. Preserve missing data as unknown."""
     flags = []
