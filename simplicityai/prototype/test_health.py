@@ -141,11 +141,10 @@ class HealthChecks(unittest.TestCase):
         collect.assert_called_once_with()
         self.assertIsNone(state.calc)
 
-    @patch("app.urllib.request.urlopen")
-    def test_truncated_explanation_is_not_marked_complete(self, urlopen):
-        urlopen.return_value = io.BytesIO((json.dumps({"message": {"content": "Partial"},
-                                          "done": True, "done_reason": "length"}) + "\n").encode())
+    def test_truncated_explanation_is_not_marked_complete(self):
         state = State()
+        state.model_connection=Mock()
+        state.model_connection.open.return_value=io.BytesIO((json.dumps({"message":{"content":"Partial"},"done":True,"done_reason":"length"})+'\n').encode())
         state.mode = "health"
         state.emit = Mock()
         with self.assertRaisesRegex(RuntimeError, "incomplete"):

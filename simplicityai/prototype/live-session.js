@@ -25,10 +25,12 @@ class LiveSession {
  async ended(audio,limited){
   if(!this.active||this.muted)return;
   const turn=this.turn;this.phase='transcribing';this.transcribing=true;this.abort=new AbortController();this.options.status('Transcribing your message locally…');
+  const started=globalThis.performance?.now?.()??Date.now();
   try{
    const response=await fetch('/voice/stream/transcribe',{method:'POST',headers:{'X-ThemHands-Token':this.options.token,'Content-Type':'audio/wav'},body:audio,signal:this.abort.signal});
    const value=await response.json();if(!this.active||turn!==this.turn)return;
    if(!response.ok)throw Error(value.error||'Speech recognition unavailable');
+   this.options.measure?.('transcription_roundtrip',(globalThis.performance?.now?.()??Date.now())-started);
    this.transcribing=false;this.phase='listening';
    if(value.text)await this.options.text(value.text,limited);
    else this.options.status('No clear words recognized. I am still listening.');

@@ -1,3 +1,13 @@
+# Host latency follow-up — November 1, 0.6.1
+
+User verified speech interruption is prompt, but resuming takes too long. Reported ~10 s transcription, 20–30 s text, 5–10 s speech; server measured shorter stage times, so client endpointing/queue metrics were added. See simplicityai/LATENCY-2026-11-01.md. Baseline gpt-oss remains selected. Granite 4:3b downloaded only for comparison: warm 1–2 s but failed unknown-target tool behavior; not promoted.
+
+Fixed blocked model HTTP cancellation using a bounded reader queue. Repeated HTTP/1.0/1.1 tests pass; real local cancel requested 0.800 s returned 0.814 s, next short request 4.65 s. VM TLS relay immediate follow-up returned 429; its slot release remains unverified/unfixed and is deferred to VM validation. Speech first section now 120 chars, spoken replies usually <40 words. New local duration-only metrics cover ASR roundtrip, model queue, text and first audio. No microphone used in developer checks. 74 Python + both JS suites pass.
+
+HOST APP IS CLOSED. Exit UI used safely. Updated 0.6.1 files are installed in C:/SimplicityAI-Lab/ThemHands, but scripted restart was twice rejected by automatic approval review with only 'blocked by policy'. File staging succeeded. User must manually reopen C:/SimplicityAI-Lab/ThemHands/Start-ThemHands.cmd. Do not retry programmatic launch using a different tool. New host end-to-end test pending. VM shared installer still 0.5.2; do not have user install that for the host update. Preserve logs and unrelated BRS working changes.
+
+---
+
 # Host continuous-voice prototype — November 1, 0.6.0
 
 User requested continuous processing/interruption and asked to test on host instead of repeated VM transfers. Develop/test on host first; only consolidate a VM update after live host verification. Native HOST app is open at C:/SimplicityAI-Lab/ThemHands; /health verified 0.6.0. User must click Talk and approve mic permission; agent has not opened a microphone. Keep VM app closed for trial. Host Ollama/relay were running after previous restart.

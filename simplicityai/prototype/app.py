@@ -220,7 +220,7 @@ class State:
         started = time.monotonic()
         content, calls, final = "", [], {}
         connection = self.model_connection
-        response_stream = connection.open('/api/chat', data=data, timeout=240) if connection else urllib.request.urlopen(request, timeout=240)
+        response_stream = (connection or ModelConnection(ROOT)).open('/api/chat',data=data,timeout=240,cancel=self.cancel)
         with response_stream as response:
             with self.lock:
                 self.response = response
@@ -241,7 +241,7 @@ class State:
         with self.lock:
             self.response = None
         self.emit("timing", f"Model response: {time.monotonic()-started:.1f} seconds",
-                  metrics={k: final.get(k) for k in ("load_duration", "eval_count", "eval_duration")})
+                  metrics={k: final.get(k) for k in ("load_duration", "prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")})
         if final.get("done_reason") == "length":
             raise RuntimeError("The model reached its response-length limit. The explanation is incomplete; do not treat it as a completed assessment.")
         return {"role": "assistant", "content": content, **({"tool_calls": calls} if calls else {})}
@@ -408,6 +408,8 @@ class State:
     def run_chat(self, prompt):
         self.messages,start=self.chat.begin(prompt)
         self.messages[0]['content']+='\nThis message was '+('transcribed from local microphone audio.' if self.input_source=='voice' else 'typed text; do not claim to have heard audio.')
+        if self.input_source=='voice':
+            self.messages[0]['content']+='\nFor this spoken turn, use one or two short sentences, usually under 40 words. Ask one useful question. Keep necessary qualifications; expand when the user asks for detail.'
         if self.chat.target=='other' and self.chat.calculator_requested:
             self.messages.append({'role':'assistant','content':'I can’t control the physical host PC from inside this VM. I can open Calculator in the Windows running SimplicityAI. Would you like me to do it here in this VM?'})
             self.chat.finish(self.messages,start);self.emit('assistant_chunk',self.messages[-1]['content']);self.emit('status','Finished — host controls are not connected.');return
@@ -477,7 +479,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
-        self.wfile.write(data)
+        try:self.wfile.write(data)
+        except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):pass
 
     def permitted(self):
         host = self.headers.get("Host", "")
@@ -492,7 +495,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path in {'/continuous-voice.js','/voice-processor.js','/live-session.js'} and self.headers.get('Host') == f'127.0.0.1:{self.server.server_port}':
             self.reply(200,(ROOT/self.path[1:]).read_text(encoding='utf-8'),'application/javascript')
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.6.0", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.6.1", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -500,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.6.0'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.6.1'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -566,6 +569,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
             elif self.path == '/voice/stream/stop':
                 STREAM_ASR.cancel()
+            elif self.path == '/voice/timing':
+                stage=data.get('stage');milliseconds=data.get('milliseconds')
+                if stage not in {'transcription_roundtrip','model_queue_wait','text_reply_wait','first_audio_wait'} or not isinstance(milliseconds,(int,float)) or not 0<=milliseconds<=300000:
+                    raise ValueError('Invalid timing observation')
+                STATE.emit('timing',f'Client {stage}: {milliseconds/1000:.2f} seconds',metrics={'stage':stage,'milliseconds':round(milliseconds,1)})
             elif self.path == '/voice/interrupted':
                 prefix=data.get('completed_speech','')
                 if not isinstance(prefix,str) or len(prefix)>2000:raise ValueError('Invalid playback note')
