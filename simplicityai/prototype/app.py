@@ -488,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.5.1", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.5.2", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -496,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.1'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.2'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -528,7 +528,7 @@ class Handler(BaseHTTPRequestHandler):
                 STATE.events=[]
                 STATE.status='Ready'
             elif self.path == '/speech/read':
-                if STATE.busy or VOICE.snapshot()['state'] in {'starting', 'listening'}:
+                if STATE.busy or VOICE.snapshot()['state'] in {'starting', 'listening', 'transcribing'}:
                     raise ValueError('Finish the current task or voice input before reading a reply aloud.')
                 try:
                     started=time.monotonic()
@@ -545,24 +545,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(audio)
                 return
             elif self.path == '/speech/stop':
-                SPEECH.stop()
+                SPEECH.cancel()
             elif self.path == '/voice/start':
                 if STATE.busy:
                     raise ValueError('Wait for the current task to finish before using voice input.')
-                SPEECH.stop()
+                SPEECH.cancel()
                 VOICE.start()
             elif self.path == '/voice/check':
                 VOICE.start('Probe')
             elif self.path == '/voice/level':
                 if STATE.busy:raise ValueError('Wait for the active turn to finish.')
-                SPEECH.stop()
+                SPEECH.cancel()
                 VOICE.start('Level')
             elif self.path == '/voice/stop':
                 VOICE.stop()
             elif self.path == "/start":
-                if VOICE.snapshot()['state'] in {'starting', 'listening'}:
+                if VOICE.snapshot()['state'] in {'starting', 'listening', 'transcribing'}:
                     raise ValueError('Finish or stop voice input and review your words before starting a task.')
-                SPEECH.stop()
+                SPEECH.cancel()
                 STATE.start(data.get("prompt"), data.get("mode", "health"), data.get('input_source','text'))
             elif self.path == "/stop":
                 STATE.stop()

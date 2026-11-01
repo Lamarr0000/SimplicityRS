@@ -61,11 +61,11 @@ class VoiceInput:
         if mode not in self.modes:
             raise ValueError('Unsupported voice operation')
         with self.lock:
-            if self.state['state'] in {'starting', 'listening'}:
+            if self.state['state'] in {'starting', 'listening', 'transcribing'}:
                 raise ValueError('Voice input is already active')
             self.generation += 1
             generation = self.generation
-            self.state = {'state': 'starting', 'message': 'Preparing local speech recognition…'}
+            self.state = {'state': 'starting', 'message': 'Preparing microphone — wait for Listening before speaking…'}
             threading.Thread(target=self._run, args=(mode, generation), daemon=True).start()
 
     def stop(self):
@@ -111,7 +111,7 @@ class VoiceInput:
                     self.state = value
             process.wait()
             with self.lock:
-                if generation == self.generation and self.state['state'] in {'starting', 'listening'}:
+                if generation == self.generation and self.state['state'] in {'starting', 'listening', 'transcribing'}:
                     self.state = {'state': 'unavailable', 'message': 'Voice recognition did not finish. You can type your issue instead.'}
         except Exception:
             with self.lock:

@@ -13,6 +13,36 @@ import whisper_worker
 
 
 class CaptureTests(unittest.TestCase):
+    def test_microphone_opens_and_closes_before_loading_recognizer(self):
+        events=[]
+        class Block:
+            value=.01
+            def copy(self):return self
+            def __mul__(self,other):return types.SimpleNamespace(value=self.value**2)
+            def __getitem__(self,key):return self
+            def __len__(self):return 4800
+        class Stream:
+            def __init__(self,**kwargs):self.callback=kwargs['callback']
+            def __enter__(self):
+                events.append('mic-open')
+                for _ in range(50):self.callback(Block(),4800,None,None)
+                return self
+            def __exit__(self,*args):events.append('mic-closed')
+        def load_model(*args,**kwargs):
+            events.append('model-load')
+            raise RuntimeError('Recognition boundary reached')
+        numpy=types.SimpleNamespace(sqrt=math.sqrt,mean=lambda block:block.value)
+        sound=types.SimpleNamespace(query_devices=lambda **kwargs:{'name':'Synthetic microphone','max_input_channels':1,'default_samplerate':48000},InputStream=Stream)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'models'/'small.en').mkdir(parents=True);(root/'models'/'small.en'/'model.bin').write_bytes(b'fixture')
+            clock=itertools.count();output=io.StringIO()
+            with patch.dict(sys.modules,{'numpy':numpy,'sounddevice':sound,'faster_whisper':types.SimpleNamespace(WhisperModel=load_model)}),patch.object(sys,'argv',['worker',directory,'Listen']),patch.object(sys,'path',list(sys.path)),patch.object(whisper_worker.time,'monotonic',lambda:next(clock)),contextlib.redirect_stdout(output):
+                with self.assertRaisesRegex(RuntimeError,'Recognition boundary'):whisper_worker.main()
+            self.assertEqual(events,['mic-open','mic-closed','model-load'])
+            states=[json.loads(line)['state'] for line in output.getvalue().splitlines()]
+            self.assertIn('listening',states)
+            self.assertEqual(states[-1],'transcribing')
+
     def test_level_test_uses_native_rate_and_never_loads_recognizer(self):
         class Block:
             value=.01

@@ -55,3 +55,22 @@ ready before guest chat can connect. A listening port alone did not establish
 readiness during the roughly 58-second GPU initialization observed today.
 Connection error text now names the services to check. Startup services are
 still manual; no Windows startup settings were changed.
+
+## Simplified voice and earlier playback — 0.5.2
+
+Supersedes 0.5.1: one Talk button starts continuous conversation and becomes Stop
+talking. Mute mic/Unmute mic pauses capture while Sound on/off controls reply
+playback. Wait for Listening — speak now; Preparing means the device is not ready.
+No microphone opens until Talk is selected.
+
+Whisper capture now precedes recognizer loading. All initial captured blocks remain
+in the in-memory recording. Transcribing is shown as a separate state. Kokoro stays
+loaded while idle; active synthesis remains cancellable and Exit stops it. Speech
+is divided into bounded sentence/word sections, allowing the first section to play
+while the next is prepared. This is segmented playback of an approved complete
+text reply, not native speech-to-speech or token-by-token model audio.
+
+65 Python tests and UI checks pass. Host synthetic timings: 4.40 seconds cold and
+1.59 seconds retained for roughly 3.4-second phrases. These do not establish guest
+timing, fix every recognition error or add barge-in. No user audio captured during
+development tests. Live guest onset/playback verification remains pending.

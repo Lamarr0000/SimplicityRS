@@ -21,14 +21,12 @@ def main():
     os.environ['HF_HUB_DISABLE_TELEMETRY']='1'
     import numpy as np
     import sounddevice as sd
-    from faster_whisper import WhisperModel
     if not (assets/'models'/'small.en'/'model.bin').is_file(): raise ValueError('Model missing')
     device=sd.query_devices(kind='input')
     if device['max_input_channels']<1: raise ValueError('No input channels')
     if mode=='Probe':
         emit('ready','Local Whisper files and an input device are available. Click Talk when ready to test recognition.')
         return
-    model=None if mode=='Level' else WhisperModel(str(assets/'models'/'small.en'),device='cpu',compute_type='int8',cpu_threads=2,num_workers=1,local_files_only=True)
     rate=int(device['default_samplerate'])
     blocks=queue.Queue(maxsize=250)
     def callback(data, frames, timing, status):
@@ -61,7 +59,10 @@ def main():
     if not voiced:
         emit('no_speech',f'No clear microphone signal detected. Highest level: {min(100,round(maximum*2000,1))}%. Try Test microphone in Connection and voice status, or type instead.')
         return
-    emit('listening','Transcribing locally. The microphone is now closed…')
+    emit('transcribing','Transcribing locally. The microphone is now closed…')
+    # Capture first: loading recognition weights must never delay opening the mic.
+    from faster_whisper import WhisperModel
+    model=WhisperModel(str(assets/'models'/'small.en'),device='cpu',compute_type='int8',cpu_threads=2,num_workers=1,local_files_only=True)
     audio=np.concatenate(chunks).astype(np.float32)
     encoded=io.BytesIO()
     with wave.open(encoded,'wb') as wav:

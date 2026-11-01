@@ -28,6 +28,12 @@ class KokoroSpeech:
                 self.guard()
                 self.guard = None
 
+    def cancel(self):
+        """Cancel active synthesis, retaining an idle worker for the next reply."""
+        with self.lock:
+            if self.busy:
+                self.stop()
+
     def synthesize(self, text):
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
             raise ValueError('Please read a shorter reply (up to 2000 characters).')

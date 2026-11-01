@@ -1,3 +1,15 @@
+# Voice pipeline update — November 1, 0.5.2
+
+User confirms voice works but is delayed and first words are clipped. One Talk / Stop talking button now replaces separate Talk and Voice toggle; Mute mic / Unmute mic pauses capture, Sound on/off controls output. Stop task appears only during backend work. Full duplex/barge-in remains unimplemented.
+
+Whisper loaded weights before opening the microphone. Capture now precedes recognition import/model load, retains initial blocks, closes mic then transcribes. UI shows Preparing microphone and Listening — speak now. Transcribing has its own state and blocks duplicate capture. Words spoken before device readiness cannot be recovered. Recognition beam settings unchanged.
+
+Idle Kokoro stays loaded; active generation still cancels, Exit fully stops owned workers. Bounded sentence/word sections (240 characters max) begin playback while the next section is prepared. Text still waits for whole-reply checks. Host synthetic check: cold section 4.40 seconds for 3.38 seconds audio; retained next section 1.59 seconds for 3.35 seconds audio. No microphone captured; guest speeds are not established. Local model latency remains.
+
+65 Python tests and UI tests pass, covering capture-before-model order, warm retention/cancel, unified Talk toggle, mic mute/unmute, segmented playback and cancellation. Updated App-Window-Update/Install-AppWindow-Update.cmd in shared folder. Previous 0.5.1 package copied to Archive/2026-11-01-voice-controls-0.5.1 because guest Explorer held the shared directory open and prevented rename. No files deleted. Guest deployment/onset/timing verification pending. Host model/relay previously restarted and authenticated checks passed; startup remains manual after reboot.
+
+---
+
 # Voice conversation update — November 1, morning, 0.5.1
 
 User confirmed the native app window/menu look good. Guest messages timed out because host Ollama and TLS relay were off after reboot. Restarted only the known host services with original configuration; GPU discovery took about 58 seconds. Authenticated TLS version/model checks pass; only gpt-oss:20b exposed, missing token/wrong model/untrusted CA rejected. Actual guest inference recovery awaits user's typed retry. No firewall, network, or VM settings changed.

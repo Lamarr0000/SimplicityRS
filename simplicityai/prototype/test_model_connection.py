@@ -28,7 +28,8 @@ class ConnectionErrors(unittest.TestCase):
     def test_authentication_failure_remains_an_http_error(self):
         connection=self.connection()
         connection.opener.open.side_effect=urllib.error.HTTPError(connection.endpoint,403,'Forbidden',{},None)
-        with self.assertRaises(urllib.error.HTTPError):connection.open('/api/version')
+        with self.assertRaises(urllib.error.HTTPError) as error:connection.open('/api/version')
+        error.exception.close()
 
 
 if __name__=='__main__':unittest.main()

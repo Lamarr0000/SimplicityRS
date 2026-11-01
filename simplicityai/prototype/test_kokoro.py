@@ -24,12 +24,24 @@ class KokoroTests(unittest.TestCase):
         popen.return_value=process
         speaker=KokoroSpeech()
         self.assertEqual(speaker.synthesize('hello'),wav)
+        speaker.cancel()
+        process.terminate.assert_not_called()
         self.assertEqual(speaker.synthesize('do not execute $(anything)'),wav)
         self.assertEqual(popen.call_count,1)
         self.assertNotIn('do not execute',str(popen.call_args))
         speaker.stop()
         process.terminate.assert_called_once()
         guard.return_value.assert_called_once()
+
+    def test_cancel_active_synthesis_terminates_only_owned_worker(self):
+        speaker=KokoroSpeech()
+        process=Mock();process.poll.return_value=None
+        speaker.process=process;speaker.guard=Mock();guard=speaker.guard
+        speaker.busy=True
+        speaker.cancel()
+        process.terminate.assert_called_once_with()
+        guard.assert_called_once_with()
+        self.assertIsNone(speaker.process)
 
     @patch('kokoro_speech.Path.is_file', return_value=True)
     @patch('kokoro_speech.Path.is_dir', return_value=True)
