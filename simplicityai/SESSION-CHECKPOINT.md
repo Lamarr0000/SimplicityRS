@@ -1,3 +1,18 @@
+# Efficiency architecture selected — November 1
+
+User asked us to make the efficiency choice. Selected CPU-first streaming speech
+pipeline: evaluate sherpa-onnx streaming recognition, speech-aware VAD, retain
+Kokoro voice and ThemHands. No heavier native model or cloud migration. See
+EFFICIENT-VOICE-DECISION.md. Isolated sherpa 2.0.1 + small English Zipformer20M
+experiment ran CPU-only on four synthetic clips, 0.09–0.20 s processing but lost
+initial words. Padding and separate 16k whole-input checks did not fix the first
+word loss. Cause unresolved; candidate NOT promoted; production Whisper unchanged.
+Research deps/models are only in C:/SimplicityAI-Lab/SpeechStreaming. Provenance
+there; raw results in host logs. Runtime choice is a direction, not validated
+speech integration. No microphone used. 0.6.2 is still staged for manual restart.
+
+---
+
 # Host speech overlap staged — November 1, 0.6.2
 
 Implemented bounded speculative opening-audio preparation while model output is
