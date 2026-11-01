@@ -123,4 +123,36 @@ $security.notes = @(
     'Current status cannot establish historical state at the time of an event. No recovery keys, certificates, TPM secrets or key protector identifiers collected.'
 )
 $health['security_status'] = $security
+$network = [ordered]@{ adapters=@(); dns_test=$null; errors=@(); changes_made=$false }
+try {
+    $network.adapters = @(Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' | ForEach-Object {
+        [ordered]@{ interface_index=$_.InterfaceIndex; description=$_.Description; dhcp_enabled=$_.DHCPEnabled;
+            addresses=@($_.IPAddress); gateways=@($_.DefaultIPGateway); dns_servers=@($_.DNSServerSearchOrder) }
+    })
+} catch { $network.errors += 'Adapter configuration unavailable. Configuration is unknown.' }
+$servers = @($network.adapters | ForEach-Object { $_.dns_servers } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Select-Object -Unique)
+if ($servers.Count) {
+    # A new Windows DNS request to an explicitly configured server, not a cache lookup.
+    # No cache flush, adapter changes, user-supplied command or repair operation.
+    $job = $null
+    try {
+        $job = Start-Job -ArgumentList $servers[0] -ScriptBlock {
+            param($server)
+            $ErrorActionPreference='Stop'
+            $records = @(Resolve-DnsName -Name 'microsoft.com' -Type A -Server $server -DnsOnly -NoHostsFile -QuickTimeout -ErrorAction Stop)
+            @($records | Where-Object { $_.Type -eq 'A' } | ForEach-Object { $_.IPAddress })
+        }
+        $done = Wait-Job $job -Timeout 8
+        if (-not $done) { throw 'DNS query exceeded time limit' }
+        $answers = @(Receive-Job $job -ErrorAction Stop)
+        if (-not $answers.Count) { throw 'DNS response contained no IPv4 address' }
+        $network.dns_test = [ordered]@{ name='microsoft.com'; server=$servers[0]; success=$true; ipv4_answers=$answers; checked_utc=(Get-Date).ToUniversalTime().ToString('o') }
+    } catch {
+        $network.dns_test = [ordered]@{ name='microsoft.com'; server=$servers[0]; success=$false; error='Query failed or timed out; this alone does not establish the cause.'; checked_utc=(Get-Date).ToUniversalTime().ToString('o') }
+    } finally {
+        if ($null -ne $job) { Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force -ErrorAction SilentlyContinue }
+    }
+} else { $network.errors += 'No configured IPv4 DNS server was available for this limited query. IPv6-only DNS was not tested.' }
+$network['limitations'] = @('Configuration does not prove connectivity. DNS success does not prove web access or gateway reachability.', 'Tests only the first configured IPv4 DNS server with one domain. Resolver upstream caches may be used. No ping, TCP, HTTP, IPv6 DNS or host-network tests performed.', 'Addresses may identify this network; review logs before sharing.')
+$health['network_status'] = $network
 $health | ConvertTo-Json -Depth 8 -Compress

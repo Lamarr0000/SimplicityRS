@@ -60,3 +60,5 @@ control, offline Windows inspection, voice or vision capability is claimed.
 Never commit VM disks, Windows images, model weights, credentials, recovery keys,
 certificates/private keys, session URLs or diagnostic logs. Review staged files before
 each commit; ignore rules are an extra safeguard, not a secret scanner.
+
+Network extension: fixed read-only adapter configuration plus an explicit-server Windows A-record query for microsoft.com, bounded by an eight-second job wait. It tests only the first configured IPv4 DNS server. No DNS cache flush or configuration changes; upstream resolver caches may be used. Host smoke check succeeded; guest test pending. Exact network values appear in Measured facts. No internet reachability diagnosis is implied.

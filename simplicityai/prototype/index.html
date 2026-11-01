@@ -84,6 +84,13 @@ function showHealth(h){
   rows.push('Current status does not establish historical status or certificate/firmware update completion.');
  }
  for(const flag of h.screening_flags||[])rows.push('Needs review — '+flag.area+': '+flag.finding+'. '+flag.evidence);
+ const net=h.network_status;
+ if(net){
+  for(const a of net.adapters||[])rows.push('Network — '+a.description+'; addresses: '+(a.addresses||[]).join(', ')+'; gateways: '+(a.gateways||[]).join(', ')+'; DNS: '+(a.dns_servers||[]).join(', '));
+  if(net.dns_test)rows.push('DNS query — '+net.dns_test.name+' via '+net.dns_test.server+': '+(net.dns_test.success?'Succeeded':'Failed or timed out')+'; '+net.dns_test.checked_utc);
+  for(const e of net.errors||[])rows.push('Unknown — '+e);
+  for(const note of net.limitations||[])rows.push(note);
+ }
  for(const error of h.collection_errors||[])rows.push('Unknown — '+error);
  rows.push('No repairs or system-setting changes performed. Disk physical health, malware, temperatures and offline Windows were not tested.');
  el('facts').replaceChildren();for(const row of rows){const p=document.createElement('p');p.textContent=row;el('facts').append(p)}
