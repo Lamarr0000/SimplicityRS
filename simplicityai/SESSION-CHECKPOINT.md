@@ -1,3 +1,24 @@
+# Reply speed prioritized; role correction staged — November 1
+
+User's main concern is reply speed, not Calculator or cosmetic behavior. See
+REPLY-SPEED-FINDINGS.md. Live cold loading accounted13s of28s; warm generation
+still~10s. One bounded real-chat replay (no tools/speech) had firsttext3.24s and
+completion5.92s, cachedprompt0.48s. App buffering thus adds~2.68s in that sample.
+Both model/runtime and buffering contribute; exactCPU/memory/offloadlimit not
+isolated. Added first_content_seconds to future model timing logs; no streaming
+publication/prewarming change yet. Do not promise instant replies from this sample.
+
+Finished Calculator role correction: recovery/troubleshooting primary in prompt,
+Calculator secondary; no unsolicited calculations in greetings. Fixed sticky old
+calculator_requested flag forcing Calculator into unrelated host recovery issues.
+30 relevant component tests pass; one synthetic greeting omitted Calculator/tools.
+Source app.py/conversation.py/test staged with backup, manual reopen to load; no
+new app version or engine change. Next engineering priority: earlier useful output
+with appropriate reporting checks, and model cold-start handling. User need not
+repeat Calculator tests. No ongoing background work is implied by this checkpoint.
+
+---
+
 # Application session-facts correction staged — November 1
 
 Screenshot showed model falsely saying each reply starts fresh. Requestlog130946

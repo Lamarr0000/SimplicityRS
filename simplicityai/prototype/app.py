@@ -226,6 +226,7 @@ class State:
                                          headers={"Content-Type": "application/json"})
         started = time.monotonic()
         content, calls, final = "", [], {}
+        first_content_seconds=None
         connection = self.model_connection
         response_stream = (connection or ModelConnection(ROOT)).open('/api/chat',data=data,timeout=240,cancel=self.cancel)
         with response_stream as response:
@@ -239,6 +240,8 @@ class State:
                 message = part.get("message", {})
                 chunk = message.get("content", "")
                 if chunk:
+                    if first_content_seconds is None:
+                        first_content_seconds=time.monotonic()-started
                     content += chunk
                     if self.mode not in {"health", "chat"}:
                         self.emit("assistant_chunk", chunk)
@@ -253,7 +256,7 @@ class State:
         with self.lock:
             self.response = None
         self.emit("timing", f"Model response: {time.monotonic()-started:.1f} seconds",
-                  metrics={k: final.get(k) for k in ("load_duration", "prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")})
+                  metrics={**{k: final.get(k) for k in ("load_duration", "prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")},'first_content_seconds':first_content_seconds})
         if final.get("done_reason") == "length":
             raise RuntimeError("The model reached its response-length limit. The explanation is incomplete; do not treat it as a completed assessment.")
         return {"role": "assistant", "content": content, **({"tool_calls": calls} if calls else {})}
@@ -430,10 +433,16 @@ class State:
             self.emit('assistant_chunk',explanation)
             self.emit('status','Finished — application behavior explanation.')
             return
+        if self.chat.target=='other' and re.fullmatch(r'(?:the |my |physical )?host(?: pc)?[.!?]?',prompt.strip(),re.I):
+            self.messages.append({'role':'assistant','content':'I can’t inspect or control the physical host from inside this VM. I can guide you through its problem. What is happening on that computer?'})
+            self.chat.finish(self.messages,start)
+            self.emit('assistant_chunk',self.messages[-1]['content'])
+            self.emit('status','Finished — outside-host controls are not connected.')
+            return
         self.messages[0]['content']+='\nThis message was '+('transcribed from local microphone audio.' if self.input_source=='voice' else 'typed text; do not claim to have heard audio.')
         if self.input_source=='voice':
             self.messages[0]['content']+='\nFor this spoken turn, use one or two short sentences, usually under 40 words. Ask one useful question. Keep necessary qualifications; expand when the user asks for detail.'
-        if self.chat.target=='other' and self.chat.calculator_requested:
+        if self.chat.target=='other' and re.search(r'\bcalculator\b',prompt,re.I):
             self.messages.append({'role':'assistant','content':'I can’t control the physical host PC from inside this VM. I can open Calculator in the Windows running SimplicityAI. Would you like me to do it here in this VM?'})
             self.chat.finish(self.messages,start);self.emit('assistant_chunk',self.messages[-1]['content']);self.emit('status','Finished — host controls are not connected.');return
         matches=list(re.finditer(r'(?<![0-9.\-])'+EXPRESSION+r'(?![0-9.])',prompt)) if re.search(r'calculator',prompt,re.I) else []

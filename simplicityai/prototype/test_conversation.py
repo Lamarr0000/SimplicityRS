@@ -65,6 +65,18 @@ class ConversationTests(unittest.TestCase):
         self.assertIn('recent messages',state.chat.transcript[-1]['content'])
         self.assertEqual(len(state.chat.turns),1)
 
+    def test_old_calculator_interest_does_not_hijack_later_recovery_question(self):
+        state=State();state.mode='chat';state.emit=Mock();state.ensure_runtime=Mock()
+        state.chat.begin('Open Calculator')
+        self.assertTrue(state.chat.calculator_requested)
+        state.ask=Mock(return_value={'role':'assistant','content':
+            'I cannot inspect the physical host from this VM. What symptoms does that computer show?'})
+        state.execute=Mock()
+        state.run('The physical host will not boot. What can I check?')
+        state.ask.assert_called_once()
+        state.execute.assert_not_called()
+        self.assertNotIn('Calculator',state.chat.transcript[-1]['content'])
+
     def test_target_requires_explicit_current_environment(self):
         for text in ['yes','my PC','not this VM','the host, not this VM']:
             c=Conversation();c.begin(text)
