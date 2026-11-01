@@ -5,6 +5,14 @@
 :root{color-scheme:dark;font-family:Segoe UI,system-ui,sans-serif;background:#10141e;color:#edf2ff}body{max-width:1000px;margin:40px auto;padding:0 22px}h1{font-size:42px;margin:0}header p{color:#a9b7d2;font-size:18px}section{background:#192131;border:1px solid #303e58;border-radius:14px;padding:24px;margin:22px 0}.badge{color:#9cc6ff;font-size:14px}textarea{box-sizing:border-box;width:100%;padding:14px;background:#101724;color:inherit;border:1px solid #50617e;border-radius:8px;font:inherit;min-height:100px}button{font:inherit;font-weight:600;padding:12px 22px;border:0;border-radius:8px;background:#84b7ff;color:#101827;margin:12px 8px 0 0;cursor:pointer}button:disabled{opacity:.4;cursor:default}#stop{background:#f2ae9d}#status{font-size:20px;font-weight:600}#elapsed,.muted{color:#a9b7d2}#events{max-height:580px;overflow:auto}.event{border-bottom:1px solid #303e58;padding:12px 0;white-space:pre-wrap;overflow-wrap:anywhere}.event small{color:#92a7cb;display:block;margin-bottom:5px}.error{color:#ffb5a9}.action{color:#9adfc5}.observation{font:13px Consolas,monospace;color:#b0c4e6}details{margin:10px 0}summary{cursor:pointer}footer{color:#94a5c2;font-size:13px}a{color:#9cc6ff}
 .panel-header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;background:#192131;padding:8px 0;z-index:1}.panel-header button{margin:0;flex-shrink:0;padding:8px 14px}.copy-feedback{display:block;min-height:1.4em;color:#a9b7d2;font-size:14px;margin-top:6px}</style>
 <header><span class="badge">SimplicityAI · Offline prototype</span><h1>SimplicityAI</h1><p>Local reasoning with gpt-oss · Windows interaction through ThemHands.</p></header>
+<section aria-label="Guided troubleshooting"><h2>What do you need help with?</h2>
+<p>Tell us what is happening. We’ll explain a relevant check before you start it.</p>
+<p><label for="problem">Problem </label><select id="problem" style="font:inherit;padding:8px"><option value="">Choose a problem</option><option value="web">Websites won’t load</option><option value="crash">Windows crashes or freezes</option><option value="boot">Windows won’t start</option></select></p>
+<p><label for="target">Which Windows needs help? </label><select id="target" style="font:inherit;padding:8px"><option value="">Choose the target</option><option value="current">The Windows running SimplicityAI</option><option value="other">Another Windows installation / the host PC</option></select></p>
+<p class="muted">If SimplicityAI is inside a virtual machine, “the Windows running SimplicityAI” means that virtual machine. It does not mean your host PC.</p>
+<label for="symptoms">What happens, and when did it start?</label><textarea id="symptoms" maxlength="1800" placeholder="For example: websites stopped loading this morning, but other apps still work."></textarea>
+<button id="prepare-guide" type="button">Show my next step</button><p id="guide-plan" role="status" style="white-space:pre-wrap"></p>
+</section>
 <section><strong>Recovery assessment prototype</strong><p class="muted">Assess the running Windows environment with read-only diagnostics, or try the Calculator desktop demo. Repair actions, offline Windows inspection, voice, and vision are not connected yet.</p><label for="mode">Task mode </label><select id="mode" style="font:inherit;padding:8px;margin-bottom:14px"><option value="health">Read-only health assessment</option><option value="calculator">Calculator desktop demo</option><option value="integrity">Windows file verification — current Windows only</option><option value="network">Network evidence report (no model)</option><option value="dns_simulation">SIMULATION — DNS timeout (no live checks)</option></select><textarea id="prompt" aria-label="Task">Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.</textarea><button id="start">Start task</button><button id="stop" disabled>Stop</button><p class="muted">Stop prevents further actions; a call already in progress may finish. Assessment results stay in local logs.</p></section>
 <section id="health" hidden><div class="panel-header"><strong>Measured facts</strong><button id="copy-facts" type="button">Copy facts</button></div><span id="facts-copy-status" class="copy-feedback" role="status"></span><p class="muted">Collected directly from Windows. These screening results do not establish a diagnosis. Storage is flagged for review below 10% free or 20 GiB free; that does not mean the drive is failing.</p><div id="facts"></div></section>
 <section id="reply-panel" hidden aria-label="Assistant reply"><div class="panel-header"><strong>Assistant reply</strong><button id="copy-reply" type="button">Copy reply</button></div><span id="copy-status" class="copy-feedback" role="status"></span><div id="reply" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px"></div><div id="reply-blocks"></div></section>
@@ -13,6 +21,20 @@
 <script>
 const token=location.hash.slice(1)||sessionStorage.getItem('themhands-token')||'';if(token)sessionStorage.setItem('themhands-token',token);history.replaceState(null,'',location.pathname);let count=0,lastBusy=false,started=0,chunkDiv=null;
 const el=id=>document.getElementById(id);async function api(path,data){const r=await fetch(path,{method:data?'POST':'GET',headers:{'X-ThemHands-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const v=await r.json();if(!r.ok)throw Error(v.error||'Request failed');return v}
+let guideBlocked=false;
+el('prepare-guide').onclick=()=>{
+ const problem=el('problem').value,target=el('target').value;
+ if(!problem||!target){el('guide-plan').textContent='Choose the problem and which Windows needs help first. No check has started.';return;}
+ if(target==='other'||problem==='boot'){
+  guideBlocked=true;el('start').disabled=true;
+  el('guide-plan').textContent='This build cannot inspect another Windows installation or diagnose Windows that will not start. We have not checked or repaired that installation. Do not run the current-Windows checks as a substitute. Offline target selection is the next capability needed.';
+  return;
+ }
+ guideBlocked=false;el('start').disabled=false;
+ const network=problem==='web';el('mode').value=network?'network':'integrity';
+ el('prompt').value=(network?'Check the current Windows network configuration and DNS resolution without changing settings.':'Verify files in the Windows currently running without repairing them.')+'\nUser-reported symptoms (not verified): '+el('symptoms').value;
+ el('guide-plan').textContent=network?'Next step: check this Windows network settings and make one DNS query. This can show whether that query succeeds; it cannot establish every cause of a browsing problem. No settings will change. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.':'Next step: verify protected Windows files and read the recorded component-store status in this Windows. This checks one possible area; it is not a complete crash diagnosis. Administrator access is required, and the check may take several minutes. No repairs will be requested. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.';
+};
 let replyText='',factsText='',evidenceText='';
 async function copyText(text,label,statusId='copy-status'){
  if(!text){el(statusId).textContent='Nothing to copy yet.';return;}
@@ -56,7 +78,8 @@ function showEvent(e){
 }
 async function poll(){
  try{
-  const s=await api('/state');el('status').textContent=s.status;el('start').disabled=s.busy;el('stop').disabled=!s.busy;el('mode').disabled=s.busy;
+  const s=await api('/state');el('status').textContent=s.status;el('start').disabled=s.busy||guideBlocked;el('stop').disabled=!s.busy;el('mode').disabled=s.busy;
+  el('prepare-guide').disabled=s.busy;
   evidenceText=s.events.map(e=>e.time+' · '+e.kind+'\n'+e.text).join('\n\n')+(s.log?'\n\nLocal evidence log: '+s.log:'');
   showHealth(s.health_snapshot);
   showReply(s);
