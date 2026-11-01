@@ -29,20 +29,21 @@ dialog{box-sizing:border-box;width:min(760px,calc(100vw - 32px));max-height:80vh
 <dialog id="tools-dialog" aria-labelledby="tools-title"><div class="panel-heading"><h2 id="tools-title">Tools and evidence</h2><button id="close-tools" aria-label="Close tools panel">Close</button></div>
 <section id="facts-panel" hidden><button id="copy-facts">Copy facts</button><pre id="facts"></pre></section>
 <section id="activity-panel" hidden><button id="copy-activity">Copy activity</button><pre id="activity"></pre></section>
-<section id="connection-panel" hidden><button id="voice-check">Check microphone support</button> <button id="voice-test">Test microphone for five seconds</button><p class="muted">Talk starts voice conversation; the same button becomes Stop talking. Mute mic pauses capture without muting the reply. Wait for Listening — speak now before starting your sentence. Listening pauses while SimplicityAI thinks or speaks. Voice uses local Whisper input and one Kokoro playback voice. Opening the app or choosing New chat starts fresh. Refresh keeps the active conversation. Diagnostic logs remain available. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></section>
+<section id="connection-panel" hidden><button id="voice-check">Check microphone support</button> <button id="voice-test">Test microphone for five seconds</button><p class="muted">Talk starts voice conversation; the same button becomes Stop talking. Mute mic pauses capture without muting the reply. Wait for Listening — speak now before starting your sentence. When continuous audio is available, listening remains active while SimplicityAI thinks or speaks, and your speech interrupts playback. Echo cancellation is requested; verify speaker feedback during the live test. Without continuous-audio support, the previous turn-taking input remains available. Voice uses local Whisper input and one Kokoro playback voice. Opening the app or choosing New chat starts fresh. Refresh keeps the active conversation. Diagnostic logs remain available. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></section>
 <p id="tools-copy-status" class="feedback" role="status"></p></dialog>
 <div class="composer"><p id="status" class="muted status" role="status">Ready</p><p id="speech-status" class="muted status" role="status"></p><div class="input-box"><textarea id="message" maxlength="1800" aria-label="Message SimplicityAI" placeholder="Message SimplicityAI…"></textarea><div class="actions"><button id="talk" aria-pressed="false" title="Start or stop voice conversation">🎙 Talk</button><button id="mic-mute" aria-pressed="false" title="Mute microphone without stopping the conversation">Mute mic</button><button id="stop" hidden>Stop</button><button id="send">Send</button></div></div><p id="copy-status" class="feedback" role="status"></p></div>
+<script src="/continuous-voice.js"></script>
+<script src="/live-session.js"></script>
 <script>
 const token=location.hash.slice(1)||sessionStorage.getItem('themhands-token')||'';if(token)sessionStorage.setItem('themhands-token',token);history.replaceState(null,'',location.pathname);
 const el=id=>document.getElementById(id);
 let busy=false,voiceSession=false,continuousVoice=false,sound=true,captureId=-1,lastAssistant=-1,initialized=false,signature='',factsText='',activityText='',polling=false,autoNext=false;
 let context=null,node=null,speechGeneration=0,speaking=false,voiceStarting=false,voiceNotice='',micMuted=false;
-let followConversation=true,exiting=false,toolPanel=null;
+let followConversation=true,exiting=false,toolPanel=null,liveSession=null,queuedVoiceText=null,sendingVoice=false,spokenPrefix='';
 function followLatest(){if(followConversation&&globalThis.requestAnimationFrame)requestAnimationFrame(()=>globalThis.scrollTo({top:document.documentElement.scrollHeight,behavior:'auto'}));}
 globalThis.addEventListener?.('scroll',()=>{followConversation=document.documentElement.scrollHeight-(globalThis.scrollY+globalThis.innerHeight)<200;},{passive:true});
 async function api(path,data){const response=await fetch(path,{method:data?'POST':'GET',headers:{'X-ThemHands-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const value=await response.json();if(!response.ok)throw Error(value.error||'Request failed');return value;}
 function unlockAudio(){
- if(!sound)return;
  const Constructor=globalThis.AudioContext||globalThis.webkitAudioContext;
  if(!Constructor){el('speech-status').textContent='Audio playback is unavailable in this browser. Replies remain on screen.';return;}
  if(!context)context=new Constructor();
@@ -51,6 +52,7 @@ function unlockAudio(){
 function clearAudio(){if(node){node.onended=null;try{node.stop();node.disconnect();}catch{}node=null;}}
 async function stopSpeech(){speechGeneration++;speaking=false;clearAudio();await api('/speech/stop',{}).catch(()=>{});}
 async function listen(){
+ if(liveSession?.active)return;
  if(!voiceSession||busy||micMuted)return;
  voiceStarting=true;
  await stopSpeech();
@@ -65,10 +67,10 @@ function speechSections(text){
 }
 async function speak(text,continueVoice=false){
  if(!sound){if(continueVoice&&voiceSession&&continuousVoice)await listen();else if(!continuousVoice)voiceSession=false;return;}
- if(!context){el('speech-status').textContent='Click Sound on or Read aloud to enable playback.';voiceSession=false;return;}
+ if(!context){el('speech-status').textContent='Click Sound on or Read aloud to enable playback.';voiceSession=false;stopLiveSession();return;}
  const clean=text.replace(/```[\s\S]*?```/g,'The command is shown on screen.').replace(/[*#`]/g,'');
- if(clean.length>2000){el('speech-status').textContent='This reply is too long for voice playback; please read it on screen.';voiceSession=false;return;}
- const sections=speechSections(clean);if(!sections.length)return;
+ if(clean.length>2000){el('speech-status').textContent='This reply is too long for voice playback; please read it on screen.';voiceSession=false;stopLiveSession();return;}
+ const sections=speechSections(clean);if(!sections.length)return;spokenPrefix='';
  const generation=++speechGeneration;speaking=true;clearAudio();el('speech-status').textContent='Preparing voice reply…';
  async function prepare(section){
   try{const response=await fetch('/speech/read',{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:JSON.stringify({text:section})});
@@ -81,23 +83,23 @@ async function speak(text,continueVoice=false){
   try{const result=await pending;if(generation!==speechGeneration)return;if(result.error)throw result.error;
    if(context.state!=='running')throw Error('Audio is paused. Click Read aloud or Sound on to enable it.');
    node=context.createBufferSource();node.buffer=result.buffer;node.connect(context.destination);
-   node.onended=()=>{node=null;if(generation!==speechGeneration)return;if(next){play(index+1,next);return;}speaking=false;el('speech-status').textContent='';if(continueVoice&&voiceSession&&continuousVoice)listen();else if(!continuousVoice)voiceSession=false;updateVoiceToggle();};
+   node.onended=()=>{node=null;if(generation!==speechGeneration)return;spokenPrefix+=(spokenPrefix?' ':'')+sections[index];if(next){play(index+1,next);return;}speaking=false;el('speech-status').textContent='';if(continueVoice&&voiceSession&&continuousVoice)listen();else if(!continuousVoice)voiceSession=false;updateVoiceToggle();};
    node.start();el('speech-status').textContent='Speaking…';
    const next=index+1<sections.length?prepare(sections[index+1]):null;
-  }catch(error){if(generation===speechGeneration){speaking=false;voiceSession=false;continuousVoice=false;updateVoiceToggle();el('speech-status').textContent=error.message+' The reply is available on screen.';}}
+  }catch(error){if(generation===speechGeneration){speaking=false;voiceSession=false;continuousVoice=false;stopLiveSession();updateVoiceToggle();el('speech-status').textContent=error.message+' The reply is available on screen.';}}
  }
  await play(0,prepare(sections[0]));
 }
 async function sendMessage(text,fromVoice=false){
- if(busy||!text.trim())return;
+ if(busy||!text.trim())return false;
  followConversation=true;
  unlockAudio();
- if(!fromVoice){voiceSession=false;await api('/voice/stop',{}).catch(()=>{});}
+ if(!fromVoice){voiceSession=false;stopLiveSession();await api('/voice/stop',{}).catch(()=>{});}
  voiceNotice='';
  autoNext=true;
  await stopSpeech();
- try{await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text'});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();}
- catch(error){voiceSession=false;el('status').textContent=error.message;}
+ try{await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text'});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();return true;}
+ catch(error){voiceSession=false;stopLiveSession();el('status').textContent=error.message;return false;}
 }
 function openToolPanel(panel,title){toolPanel=panel;el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');el('tools-title').textContent=title;for(const name of ['facts','activity','connection'])el(name+'-panel').hidden=name!==panel;el('tools-copy-status').textContent='';el('tools-dialog').showModal();}
 el('tools').onclick=()=>{const menu=el('tools-menu');menu.hidden=!menu.hidden;el('tools').setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)el('show-activity').focus?.();};
@@ -108,23 +110,32 @@ el('show-connection').onclick=()=>openToolPanel('connection','Connection and voi
 el('close-tools').onclick=()=>el('tools-dialog').close();
 document.addEventListener?.('click',event=>{if(!el('tools-menu').contains(event.target)&&!el('tools').contains(event.target)){el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');}});
 document.addEventListener?.('keydown',event=>{if(event.key==='Escape'){el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');}});
-el('exit').onclick=async()=>{if(exiting)return;exiting=true;voiceSession=false;autoNext=false;clearAudio();el('exit').disabled=true;el('status').textContent='Closing SimplicityAI…';try{await api('/shutdown',{});el('status').textContent='SimplicityAI has stopped. This window will close.';}catch(error){exiting=false;el('exit').disabled=false;el('status').textContent='Could not exit: '+error.message;}};
+el('exit').onclick=async()=>{if(exiting)return;exiting=true;voiceSession=false;stopLiveSession();autoNext=false;clearAudio();el('exit').disabled=true;el('status').textContent='Closing SimplicityAI…';try{await api('/shutdown',{});el('status').textContent='SimplicityAI has stopped. This window will close.';}catch(error){exiting=false;el('exit').disabled=false;el('status').textContent='Could not exit: '+error.message;}};
 el('send').onclick=()=>sendMessage(el('message').value);
 el('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage(el('message').value);}};
+function stopLiveSession(){liveSession?.stop();liveSession=null;queuedVoiceText=null;}
+async function beginLiveSession(){
+ if(!globalThis.LiveSession||!navigator.mediaDevices?.getUserMedia){await listen();return;}
+ liveSession=new LiveSession(context,{api,token,status:message=>{voiceNotice=message;el('status').textContent=message;},error:error=>{voiceSession=false;continuousVoice=false;queuedVoiceText=null;voiceNotice=error.message+' You can still type.';updateVoiceToggle();},
+ interrupt:async()=>{queuedVoiceText=null;const wasSpeaking=speaking;autoNext=false;const completed=spokenPrefix;const stopped=stopSpeech();if(wasSpeaking)api('/voice/interrupted',{completed_speech:completed.slice(0,2000)}).catch(()=>{});if(busy)await api('/stop',{});await stopped;},
+ text:async(text,limited)=>{if(!voiceSession||micMuted)return;if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test(text.trim())){voiceSession=false;continuousVoice=false;stopLiveSession();await stopSpeech();updateVoiceToggle();return;}if(limited){el('message').value=text;voiceNotice='Please review the long message before sending.';voiceSession=false;continuousVoice=false;stopLiveSession();updateVoiceToggle();return;}queuedVoiceText=text;voiceNotice='';await flushVoiceText();}});
+ await liveSession.start(micMuted);
+}
+async function flushVoiceText(){if(sendingVoice||busy||!queuedVoiceText||!voiceSession||micMuted)return;sendingVoice=true;const text=queuedVoiceText;queuedVoiceText=null;try{await sendMessage(text,true);}finally{sendingVoice=false;}}
 function updateVoiceToggle(){const active=voiceSession;el('talk').textContent=active?'Stop talking':'🎙 Talk';el('talk').setAttribute('aria-pressed',String(active));el('talk').disabled=busy&&!active;el('mic-mute').textContent=micMuted?'Unmute mic':'Mute mic';el('mic-mute').setAttribute('aria-pressed',String(micMuted));}
-el('talk').onclick=async()=>{if(voiceSession){continuousVoice=false;voiceSession=false;autoNext=false;updateVoiceToggle();await stopSpeech();await api('/voice/stop',{}).catch(()=>{});voiceNotice='Voice conversation stopped.';}else{if(busy)return;unlockAudio();voiceNotice='';continuousVoice=true;voiceSession=true;autoNext=true;updateVoiceToggle();if(micMuted)voiceNotice='Microphone muted. Click Unmute mic when ready.';else await listen();}updateVoiceToggle();};
-el('mic-mute').onclick=async()=>{micMuted=!micMuted;updateVoiceToggle();if(micMuted){await api('/voice/stop',{}).catch(()=>{});voiceNotice='Microphone muted.';}else{voiceNotice='';if(voiceSession&&!busy&&!speaking)await listen();}};
-el('stop').onclick=async()=>{continuousVoice=false;updateVoiceToggle();voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});if(busy)await api('/stop',{}).catch(()=>{});el('speech-status').textContent='Stopped.';};
+el('talk').onclick=async()=>{if(voiceSession){continuousVoice=false;voiceSession=false;stopLiveSession();autoNext=false;updateVoiceToggle();await stopSpeech();await api('/voice/stop',{}).catch(()=>{});voiceNotice='Voice conversation stopped.';}else{if(busy)return;unlockAudio();voiceNotice='';continuousVoice=true;voiceSession=true;autoNext=true;updateVoiceToggle();if(micMuted)voiceNotice='Microphone muted. Click Unmute mic when ready.';await beginLiveSession();}updateVoiceToggle();};
+el('mic-mute').onclick=async()=>{micMuted=!micMuted;updateVoiceToggle();if(liveSession?.active){queuedVoiceText=null;liveSession.mute(micMuted);voiceNotice=micMuted?'Microphone muted.':'Listening — you can speak now.';return;}if(micMuted){await api('/voice/stop',{}).catch(()=>{});voiceNotice='Microphone muted.';}else{voiceNotice='';if(voiceSession&&!busy&&!speaking)await listen();}};
+el('stop').onclick=async()=>{continuousVoice=false;updateVoiceToggle();voiceSession=false;stopLiveSession();autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});if(busy)await api('/stop',{}).catch(()=>{});el('speech-status').textContent='Stopped.';};
 el('sound').onclick=async()=>{sound=!sound;el('sound').textContent=sound?'Sound on':'Sound off';el('sound').setAttribute('aria-pressed',String(sound));if(sound)unlockAudio();else{await stopSpeech();if(voiceSession&&!busy&&!micMuted)await listen();}};
-el('new-chat').onclick=async()=>{continuousVoice=false;voiceSession=false;micMuted=false;updateVoiceToggle();autoNext=false;voiceNotice='';followConversation=true;el('speech-status').textContent='';await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/chat/reset',{});signature='';initialized=false;await poll();}catch(error){el('status').textContent=error.message;}};
+el('new-chat').onclick=async()=>{continuousVoice=false;voiceSession=false;stopLiveSession();micMuted=false;updateVoiceToggle();autoNext=false;voiceNotice='';followConversation=true;el('speech-status').textContent='';await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/chat/reset',{});signature='';initialized=false;await poll();}catch(error){el('status').textContent=error.message;}};
 el('voice-check').onclick=()=>api('/voice/check',{}).catch(error=>el('voice-detail').textContent=error.message);
-el('voice-test').onclick=async()=>{voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/voice/level',{});}catch(error){el('voice-detail').textContent=error.message;}};
+el('voice-test').onclick=async()=>{voiceSession=false;stopLiveSession();autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/voice/level',{});}catch(error){el('voice-detail').textContent=error.message;}};
 async function copy(text){try{await navigator.clipboard.writeText(text);el('copy-status').textContent='Copied.';el('tools-copy-status').textContent='Copied.';}catch{el('copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';el('tools-copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';}}
 el('copy-facts').onclick=()=>copy(factsText);el('copy-activity').onclick=()=>copy(activityText);
 function render(state){
  const messages=state.chat_transcript||[];const next=JSON.stringify(messages);
  el('empty').hidden=messages.length>0;
- if(next!==signature){signature=next;el('chat').replaceChildren();for(const message of messages){const bubble=document.createElement('div');bubble.className='bubble '+message.role;bubble.textContent=message.content;if(message.role==='assistant'){const controls=document.createElement('div'),copyButton=document.createElement('button'),read=document.createElement('button');copyButton.textContent='Copy';copyButton.onclick=()=>copy(message.content);read.textContent='Read aloud';read.onclick=()=>{unlockAudio();speak(message.content);};controls.append(copyButton,read);bubble.append(controls);}el('chat').append(bubble);}followLatest();}
+ if(next!==signature){signature=next;el('chat').replaceChildren();for(const message of messages){const bubble=document.createElement('div');bubble.className='bubble '+message.role;bubble.textContent=message.content;if(message.role==='assistant'){const controls=document.createElement('div'),copyButton=document.createElement('button'),read=document.createElement('button');copyButton.textContent='Copy';copyButton.onclick=()=>copy(message.content);read.textContent='Read aloud';read.onclick=async()=>{unlockAudio();await stopSpeech();speak(message.content);};controls.append(copyButton,read);bubble.append(controls);}el('chat').append(bubble);}followLatest();}
  const latest=messages.filter(message=>message.role==='assistant').at(-1);
  if(!initialized){lastAssistant=latest?.id??-1;initialized=true;}
  if(latest&&latest.id>lastAssistant&&!state.busy){lastAssistant=latest.id;if(autoNext){autoNext=false;speak(latest.content,voiceSession&&continuousVoice);}}
@@ -140,16 +151,18 @@ async function poll(){
   factsText=state.health_snapshot?JSON.stringify(state.health_snapshot,null,2):'';el('facts').textContent=factsText||'No facts have been collected in this chat yet.';
   const voice=await api('/voice/state');el('voice-detail').textContent=(voice.message||voice.state)+(voice.detail?' Technical detail: '+voice.detail:'')+' Build: '+(state.build||'older version');
   updateVoiceToggle();
-  const capturing=['starting','listening','transcribing'].includes(voice.state);el('voice-test').disabled=busy||capturing;el('voice-check').disabled=busy||capturing;
-  if(voiceSession&&!micMuted&&['starting','listening','transcribing'].includes(voice.state))el('status').textContent=voice.state==='listening'?'Listening — speak now.':voice.message;
-  if(voiceSession&&!micMuted&&voice.state==='transcribed'&&voice.capture_id!==captureId){captureId=voice.capture_id;el('message').value=voice.text||'';if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test((voice.text||'').trim())){voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{});voiceNotice='Voice conversation stopped.';}else if(voice.review_required){voiceSession=false;voiceNotice='The recording reached its limit. Review the words in the message box, then press Send.';}else if(voice.text)sendMessage(voice.text,true);}
-  if(voiceSession&&!micMuted&&!voiceStarting&&voice.state==='no_speech'&&continuousVoice&&!busy&&!speaking){listen();}
-  else if(voiceSession&&!micMuted&&!voiceStarting&&['unavailable','no_speech','timeout','cancelled'].includes(voice.state)){voiceSession=false;continuousVoice=false;voiceNotice=voice.message;}
+  const capturing=!!liveSession?.active||['starting','listening','transcribing'].includes(voice.state);el('voice-test').disabled=busy||capturing;el('voice-check').disabled=busy||capturing;
+  if(!liveSession?.active&&voiceSession&&!micMuted&&['starting','listening','transcribing'].includes(voice.state))el('status').textContent=voice.state==='listening'?'Listening — speak now.':voice.message;
+  if(!liveSession?.active&&voiceSession&&!micMuted&&voice.state==='transcribed'&&voice.capture_id!==captureId){captureId=voice.capture_id;el('message').value=voice.text||'';if(/^(stop|cancel|stop listening|stop talking)[.!]?$/i.test((voice.text||'').trim())){voiceSession=false;stopLiveSession();autoNext=false;await stopSpeech();await api('/voice/stop',{});voiceNotice='Voice conversation stopped.';}else if(voice.review_required){voiceSession=false;voiceNotice='The recording reached its limit. Review the words in the message box, then press Send.';}else if(voice.text)sendMessage(voice.text,true);}
+  if(!liveSession?.active&&voiceSession&&!micMuted&&!voiceStarting&&voice.state==='no_speech'&&continuousVoice&&!busy&&!speaking){listen();}
+  else if(!liveSession?.active&&voiceSession&&!micMuted&&!voiceStarting&&['unavailable','no_speech','timeout','cancelled'].includes(voice.state)){voiceSession=false;continuousVoice=false;voiceNotice=voice.message;}
   if(!voiceSession)continuousVoice=false;updateVoiceToggle();
+  if(liveSession?.active){el('voice-detail').textContent='Continuous local audio; echo cancellation: '+String(liveSession.settings?.echoCancellation??'not reported')+'. Build: '+state.build;if(!busy&&!speaking&&!micMuted)el('status').textContent=liveSession.phase==='transcribing'?'Transcribing your message…':liveSession.phase==='recording'?'Listening to your message…':'Listening — you can speak now.';}
+  if(queuedVoiceText&&!busy)flushVoiceText();
   if(!busy&&voiceNotice)el('status').textContent=voiceNotice;
- }catch(error){el('status').textContent='Connection unavailable: '+error.message;}
+ }catch(error){voiceSession=false;continuousVoice=false;stopLiveSession();updateVoiceToggle();el('status').textContent='Connection unavailable: '+error.message;}
  finally{polling=false;}
 }
-globalThis.addEventListener?.('pagehide',()=>{voiceSession=false;clearAudio();for(const path of ['/speech/stop','/voice/stop'])fetch(path,{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});});
+globalThis.addEventListener?.('pagehide',()=>{voiceSession=false;stopLiveSession();clearAudio();for(const path of ['/speech/stop','/voice/stop'])fetch(path,{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});});
 poll();setInterval(poll,1000);
 </script></html>

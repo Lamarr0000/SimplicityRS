@@ -74,3 +74,10 @@ text reply, not native speech-to-speech or token-by-token model audio.
 1.59 seconds retained for roughly 3.4-second phrases. These do not establish guest
 timing, fix every recognition error or add barge-in. No user audio captured during
 development tests. Live guest onset/playback verification remains pending.
+
+## Host continuous voice prototype — 0.6.0
+
+See CONTINUOUS-VOICE.md. User requested host-first development. Continuous capture,
+interruption handling and warm per-utterance ASR are staged in the host app, pending
+live microphone/echo verification. The shared VM installer intentionally remains
+0.5.2 until this host trial is reviewed.

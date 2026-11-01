@@ -99,6 +99,24 @@ class VoiceEndpointTests(unittest.TestCase):
                 self.assertEqual(response.read(),audio)
             synth.assert_called_once_with('Hello')
 
+    def test_streaming_audio_requires_token_and_preserves_binary_body(self):
+        from test_stream_asr import audio
+        data=audio()
+        with patch.object(app,'STREAM_ASR') as recognizer:
+            recognizer.run.return_value={'text':'Synthetic words'}
+            request=urllib.request.Request(self.url+'/voice/stream/transcribe',data=data,headers={'Content-Type':'audio/wav'})
+            with self.assertRaises(urllib.error.HTTPError) as error:self.opener.open(request)
+            self.assertEqual(error.exception.code,403);error.exception.close();recognizer.run.assert_not_called()
+            request.add_header('X-ThemHands-Token',app.TOKEN)
+            with self.opener.open(request) as response:self.assertEqual(json.load(response)['text'],'Synthetic words')
+            recognizer.run.assert_called_once_with(data)
+
+    def test_streaming_audio_rejects_wrong_type_before_worker(self):
+        with patch.object(app,'STREAM_ASR') as recognizer:
+            request=urllib.request.Request(self.url+'/voice/stream/transcribe',data=b'x'*44,headers={'Content-Type':'application/json','X-ThemHands-Token':app.TOKEN})
+            with self.assertRaises(urllib.error.HTTPError) as error:self.opener.open(request)
+            self.assertEqual(error.exception.code,400);error.exception.close();recognizer.run.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,3 +1,13 @@
+# Host continuous-voice prototype — November 1, 0.6.0
+
+User requested continuous processing/interruption and asked to test on host instead of repeated VM transfers. Develop/test on host first; only consolidate a VM update after live host verification. Native HOST app is open at C:/SimplicityAI-Lab/ThemHands; /health verified 0.6.0. User must click Talk and approve mic permission; agent has not opened a microphone. Keep VM app closed for trial. Host Ollama/relay were running after previous restart.
+
+See simplicityai/CONTINUOUS-VOICE.md for architecture, limitations, public model research and verification. Continuous WebView2 capture requests AEC/noise suppression; adaptive energy VAD + 0.5 s pre-roll can interrupt playback and request model cancellation. Newest transcript queues until prior model turn stops. Transcription is still per-utterance, not partial streaming. Persistent local ASR reuses Whisper small.en; Kokoro retained. Complete spoken sections tracked; current partial section heard amount unknown. Stop/mute/Exit/unload discard stale results and close/mute tracks. In-flight tools may finish despite cooperative cancellation. Speaker echo still needs real testing.
+
+71 Python + both JS suites passed, no mic used. Synthetic ASR warmup 2.52 s; generated phrases transcribed correctly in 2.66 s and 2.61 s. Live host onset/interruption/echo/mute/exit NOT verified yet. No advanced model downloaded; MiniCPM-o 4.5 is a research candidate, Moshi FAQ rules out its current 8GB setup. Current VM transfer package intentionally remains 0.5.2; do not direct user to reinstall it for the new host prototype.
+
+---
+
 # Voice pipeline update — November 1, 0.5.2
 
 User confirms voice works but is delayed and first words are clipped. One Talk / Stop talking button now replaces separate Talk and Voice toggle; Mute mic / Unmute mic pauses capture, Sound on/off controls output. Stop task appears only during backend work. Full duplex/barge-in remains unimplemented.

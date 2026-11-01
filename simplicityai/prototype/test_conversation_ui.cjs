@@ -14,6 +14,7 @@ sandbox.document.documentElement={scrollHeight:3000};sandbox.requestAnimationFra
 vm.runInContext(script,sandbox);const tick=()=>new Promise(setImmediate);
 (async()=>{
  assert.equal(requests.length,0);
+ vm.runInContext('sound=false;unlockAudio();sound=true',sandbox);assert(vm.runInContext('context!==null',sandbox));
  el('message').value='My computer freezes';state={...state,busy:true,status:'Thinking',chat_transcript:[{id:0,role:'user',content:'My computer freezes'}]};
  await el('send').onclick();assert.equal(requests.find(r=>r.path==='/start').body.mode,'chat');assert(order.indexOf('resume')<order.indexOf('/start'));
  state={...state,busy:false,chat_transcript:[...state.chat_transcript,{id:1,role:'assistant',content:'When did this start?'}]};
@@ -48,6 +49,17 @@ vm.runInContext(script,sandbox);const tick=()=>new Promise(setImmediate);
  el('close-tools').onclick();assert.equal(el('tools-dialog').open,false);
  el('show-facts').onclick();await vm.runInContext('poll()',sandbox);assert.equal(el('facts-panel').hidden,false);assert(el('facts').textContent.includes('No facts'));
  el('close-tools').onclick();
+ // Native continuous path: interruption cancels output, newest text waits for the old task.
+ let liveOptions,liveStopped=0,muteValue;
+ sandbox.navigator.mediaDevices={getUserMedia(){throw Error('No real microphone in tests')}};
+ sandbox.LiveSession=class{constructor(_context,options){liveOptions=options;this.active=false;this.phase='listening';this.settings={echoCancellation:true}}async start(){this.active=true}stop(){liveStopped++;this.active=false}mute(value){muteValue=value}};
+ await el('talk').onclick();assert.equal(el('talk').textContent,'Stop talking');
+ state.busy=true;await vm.runInContext('poll()',sandbox);vm.runInContext('speaking=true',sandbox);
+ await liveOptions.interrupt();assert(requests.some(r=>r.path==='/voice/interrupted'));assert.equal(vm.runInContext('speaking',sandbox),false);
+ const turns=requests.filter(r=>r.path==='/start').length;await liveOptions.text('My new question',false);assert.equal(requests.filter(r=>r.path==='/start').length,turns);
+ state.busy=false;await vm.runInContext('poll()',sandbox);await tick();await tick();assert.equal(requests.filter(r=>r.path==='/start').at(-1).body.prompt,'My new question');
+ await el('mic-mute').onclick();assert.equal(muteValue,true);
+ await el('talk').onclick();assert(liveStopped>0);
  await el('exit').onclick();assert.equal(requests.at(-1).path,'/shutdown');assert.equal(el('exit').disabled,true);
  const count=requests.length;await vm.runInContext('poll()',sandbox);assert.equal(requests.length,count);
  console.log('Conversation UI passed: no forms or automatic capture, chat submission, audio unlock before async work, automatic spoken reply, Copy, completion race, cancellation combined Talk/Stop, mic mute, segmented playback and Tools menu.');

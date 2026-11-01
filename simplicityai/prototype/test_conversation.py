@@ -9,6 +9,14 @@ from app import State
 
 
 class ConversationTests(unittest.TestCase):
+    def test_interrupted_playback_note_does_not_authorize_tools(self):
+        conversation=Conversation()
+        conversation.audio_interruption={'completed_spoken_sections':'I was checking.','current_section':'Interrupted; heard portion unknown.'}
+        messages,_=conversation.begin('What were you saying?')
+        self.assertIn('Do not assume the remaining text was heard',messages[0]['content'])
+        self.assertIsNone(conversation.audio_interruption)
+        self.assertIsNone(conversation.target)
+
     def test_saved_chat_restores_history_but_not_target_permission(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'chat.json'

@@ -22,6 +22,7 @@ from conversation import Conversation, CHAT_TOOLS, reply_issues
 from neural_voice import NeuralVoiceInput
 from calculator_task import calculate,validate as validate_calculation,EXPRESSION
 from model_connection import ModelConnection
+from stream_asr import StreamASR, MAX_AUDIO
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -31,6 +32,7 @@ if hasattr(sys.stderr, "reconfigure"):
 ROOT = Path(__file__).resolve().parent
 VOICE = NeuralVoiceInput()
 SPEECH = KokoroSpeech()
+STREAM_ASR = StreamASR()
 LAB = ROOT.parent / "HostTest"
 OLLAMA = "http://127.0.0.1:11434"
 MODEL = "gpt-oss:20b"
@@ -487,8 +489,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
+        elif self.path in {'/continuous-voice.js','/voice-processor.js','/live-session.js'} and self.headers.get('Host') == f'127.0.0.1:{self.server.server_port}':
+            self.reply(200,(ROOT/self.path[1:]).read_text(encoding='utf-8'),'application/javascript')
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.5.2", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.6.0", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -496,7 +500,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.2'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.6.0'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -505,6 +509,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, {"error": "Unauthorized"})
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if self.path == '/voice/stream/transcribe':
+                if not 44<=length<=MAX_AUDIO:raise ValueError('Invalid microphone audio size')
+                if self.headers.get('Content-Type')!='audio/wav':raise ValueError('Expected WAV audio')
+                started=time.monotonic()
+                result=STREAM_ASR.run(self.rfile.read(length))
+                STATE.emit('timing',f'Local streaming-turn transcription: {time.monotonic()-started:.1f} seconds')
+                self.reply(200,result)
+                return
             if not 0 < length < 12000:
                 raise ValueError("Invalid body length")
             data = json.loads(self.rfile.read(length))
@@ -514,6 +526,7 @@ class Handler(BaseHTTPRequestHandler):
                     STATE.stop()
                     VOICE.stop()
                     SPEECH.stop()
+                    STREAM_ASR.stop()
                     self.server.shutdown()
                 threading.Thread(target=shutdown, daemon=True).start()
                 return
@@ -522,6 +535,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Stop the active turn before starting a new chat.')
                 SPEECH.stop()
                 VOICE.stop()
+                STREAM_ASR.stop()
                 STATE.chat=Conversation(STATE.chat.storage_path,restore=False)
                 STATE.chat.save()
                 STATE.health_snapshot=None
@@ -546,6 +560,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             elif self.path == '/speech/stop':
                 SPEECH.cancel()
+            elif self.path == '/voice/stream/prepare':
+                VOICE.stop()
+                self.reply(200,STREAM_ASR.run())
+                return
+            elif self.path == '/voice/stream/stop':
+                STREAM_ASR.cancel()
+            elif self.path == '/voice/interrupted':
+                prefix=data.get('completed_speech','')
+                if not isinstance(prefix,str) or len(prefix)>2000:raise ValueError('Invalid playback note')
+                with STATE.lock:
+                    STATE.chat.audio_interruption={'completed_spoken_sections':prefix,'current_section':'Interrupted; heard portion unknown. Full text remains visible.'}
             elif self.path == '/voice/start':
                 if STATE.busy:
                     raise ValueError('Wait for the current task to finish before using voice input.')
@@ -594,6 +619,7 @@ def main():
         STATE.cancel.set()
         VOICE.stop()
         SPEECH.stop()
+        STREAM_ASR.stop()
         server.server_close()
 
 
