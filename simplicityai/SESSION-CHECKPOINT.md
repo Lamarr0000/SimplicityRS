@@ -1,3 +1,18 @@
+# Host 0.6.3 live pilot confirmed — November 1
+
+User confirms very quick transcription and text/voice arriving together; perceived
+first thinking delay25–30s. Actual logs130540-0405b7: model28.1s, of which load
+12.95s, prompt5.73s, generation9.37s; client29.03s. This cold start explains much
+of first delay. Following130708-458d58: ASR0.41s (zipformer), queue0; model12.5s
+with negligibleload, prompt2.08s/generation10.38s; firstaudio0.02s after text with
+prefetchhit. Later speech sections took5.0/6.5/0.8s to prepare; speech gaps remain
+possible. Do not claim total response is now instant or all voice latency fixed.
+0.6.3 is now running and live-tested, superseding staged/restart-pending notes.
+Current next bottleneck is cold model loading and warm generation; no additional
+user test requested this turn. Voice input still utterance WAV, no live partials.
+
+---
+
 # Faster CPU transcription host pilot staged — November 1, 0.6.3
 
 User confirms missing voice is fixed, still delayed but slightly faster. Tested

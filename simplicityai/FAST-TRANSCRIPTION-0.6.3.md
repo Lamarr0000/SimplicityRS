@@ -1,5 +1,17 @@
 # CPU transcription host pilot — 0.6.3
 
+## Live host follow-up
+
+User confirms quick transcription and simultaneous text/voice. Latest live ASR
+roundtrip was0.41s with zipformer and zero queue delay. The first model request
+took28.1s, including12.95s loading,5.73s prompt processing and9.37s generation.
+The next warm request took12.5s, with first audio22ms after text (prefetch hit).
+Thus the reported25–30s initial delay was substantially cold loading, while warm
+reasoning/generation remains a noticeable delay. Later audio sections required
+5.0/6.5/0.8s preparation; continuous-speech smoothness is not established.
+Evidence: host logs20261101-130540-0405b7.jsonl and130708-458d58.jsonl.
+Host pilot is now running/live confirmed, superseding staging notes below.
+
 User confirmed the speech scheduling fix: voice works again, slightly faster.
 The next requested work is faster transcription. No further user input was
 needed for isolated synthetic testing.
