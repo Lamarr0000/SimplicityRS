@@ -1,3 +1,36 @@
+# Browser launch and accurate ThemHands capability facts prepared — November 1
+
+User's live conversation showed absent browser controls, poor ThemHands identity
+answers, and confusion between app launch and website failure. Pilot previously
+had read-only diagnostics + Calculator only; do not claim general desktop control.
+
+Added pilot-only ToolState registry with open_browser_window and capability tool.
+Fixed Edge standard path + new-window about:blank, real HWND/process-path match,
+new-window verification and best-effort foreground check. No URL/path arguments,
+arbitrary commands, page reading/navigation or file controls. Another/other/different
+PC/VM targets blocked. No browser actually launched during this development turn.
+
+Model replay chose browser tool contextually. Its first freeform summary falsely
+interpreted intentional blankness as page-load failure. Replaced only that tool's
+summary with direct grounded window evidence + relevant browser follow-up, labeled
+in activity as application reporting. Native model still chooses tools. Narrow
+ThemHands install/identity questions use actual app capability facts (no model
+call); original action requests remain un-intercepted. This improves application
+reliability, not proof of a generally stronger reasoning model.
+
+Added server_job.guard_server (kill-on-close + explicit BREAKAWAY_OK, not silent)
+so a requested external browser survives assistant Exit; speech/collector jobs
+unchanged. Actual Windows harmless-process lifecycle test passed and helpers were
+cleaned up. Browser API/window behavior remains for live pilot verification.
+18 tests pass (9core+9browser), Python compile checks pass. Headless model benchmark
+also explicitly blocks new browser action. Existing normal app/BRS/VM unchanged;
+running pilot NOT restarted. Save/push then user Exit/reopen Voice Pilot, ask:
+Open a browser on the Windows running SimplicityAI and check whether it opens.
+This is only a browser-launch test; no web-access claim. Source docs in streaming/
+README.md; synthetic replay logs under StreamingPrototype/logs/browser-conversation*.
+
+---
+
 # Spoken target confirmation loop fixed — November 1
 
 User's live network request looped on confirmation despite clear current-Windows

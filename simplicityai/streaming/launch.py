@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parent
 ASSETS=Path('C:/SimplicityAI-Lab/StreamingPrototype')
 sys.path.insert(0,'C:/SimplicityAI-Lab/ThemHands')
 from voice import _guard_process
+from server_job import guard_server
 
 
 def request(path,token=None):
@@ -30,7 +31,7 @@ def main(model='gpt-oss:20b'):
         with (ASSETS/'logs/server.log').open('ab') as output:
             server=subprocess.Popen([sys.executable,str(ROOT/'server.py'),'--model',model],cwd=ROOT,
                 stdout=output,stderr=output,stdin=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW)
-        guard=_guard_process(server)
+        guard=guard_server(server)
         for _ in range(80):
             if server.poll() is not None:raise RuntimeError('Prototype did not start; see StreamingPrototype/logs/server.log')
             try:

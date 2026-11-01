@@ -25,11 +25,23 @@ from model_connection import ModelConnection
 from voice import _guard_process
 from protocol import Segments
 from target_scope import TargetConversation
+from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
+from browser_tools import browser_report
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
     'Use native tool calls when needed. Never announce completed checks before tool evidence. '
-    'Do not output JSON or internal reasoning as a conversational answer.')
+    'Do not output JSON or internal reasoning as a conversational answer. '
+    'ThemHands is your connected local tool layer, not something the user needs to install or explain. '
+    'The current pilot additionally exposes open_browser_window: use it when asked to open a browser '
+    'in this Windows. It opens Edge about:blank and verifies its window, not web access. '
+    'Like Calculator, a requested browser launch uses the Windows running this app without a '
+    'diagnostic-target questionnaire unless another computer was requested. '
+    'Use the actual available tools instead of claiming you cannot open a browser or asking the user to open it for you. '
+    'Distinguish a browser that will not open from one that opens but cannot load websites. '
+    'Ask which symptom occurred when unclear; do not immediately assume an internet failure. '
+    'General app/file control and browser-page navigation remain unavailable. '
+    'Current capabilities: '+json.dumps(CAPABILITIES))
 
 
 class VoiceWorker:
@@ -62,7 +74,7 @@ class VoiceWorker:
 
 class Agent:
     def __init__(self,emit,model):
-        self.emit=emit;self.model=model;self.state=State();self.state.mode='chat'
+        self.emit=emit;self.model=model;self.state=ToolState();self.state.mode='chat'
         self.state.chat=TargetConversation()
         self.state.emit=lambda kind,text,**extra:emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
@@ -71,9 +83,14 @@ class Agent:
         state=self.state;state.check_stop();messages,start=state.chat.begin(prompt)
         messages[0]['content']+='\n'+INSTRUCTIONS
         state.messages=messages
+        explanation=capability_reply(prompt)
+        if explanation:
+            self.emit('activity',activity_kind='report_source',text='Connected ThemHands capability facts from the application registry; no diagnostic or model call.')
+            for text in Segments().feed(explanation,final=True):self.emit('text.delta',text=text+' ');segment(text)
+            messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
         for step in range(8):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
-            payload={'model':self.model,'messages':messages,'tools':CHAT_TOOLS,'stream':True,
+            payload={'model':self.model,'messages':messages,'tools':TOOLS,'stream':True,
                      'keep_alive':'30m','options':{'num_ctx':8192,'num_predict':400,'temperature':0}}
             if self.model=='gpt-oss:20b':payload['think']='low'
             if self.model=='qwen3:8b':payload['think']=False
@@ -104,6 +121,12 @@ class Agent:
                     except Exception as error:result={'ok':False,'error':str(error)}
                     messages.append({'role':'tool','tool_name':call.get('function',{}).get('name',''),
                                      'content':json.dumps(result)})
+                if len(calls)==1 and calls[0].get('function',{}).get('name')=='open_browser_window':
+                    report=browser_report(result)
+                    self.emit('activity',activity_kind='report_source',text='Browser outcome generated directly from ThemHands window evidence; no web-access claim.')
+                    for text in Segments().feed(report,final=True):self.emit('text.delta',text=text+' ');segment(text)
+                    messages.append({'role':'assistant','content':report})
+                    state.check_stop();state.chat.finish(messages,start);return
                 continue
             if not raw.strip():raise ValueError('The local model returned no usable answer')
             if reply_issues(raw):raise ValueError('Reply failed reporting checks')

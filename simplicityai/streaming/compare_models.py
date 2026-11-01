@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import server
 import app as legacy
+import tool_state
 
 OUT=server.ASSETS/'logs/model-runtime-comparison.json'
 CASES=[
@@ -66,6 +67,7 @@ def run_case(model,options,name,prompt):
         # Any actual collector or app-control request resolves only to a fixture.
         with patch.object(legacy,'collect_health',return_value=FIXTURE), \
              patch.object(legacy,'collect_integrity',side_effect=RuntimeError('Integrity tool excluded from this benchmark')), \
+             patch.object(tool_state,'open_browser',side_effect=RuntimeError('Browser tool excluded from this benchmark')), \
              patch.object(legacy,'Calculator',side_effect=RuntimeError('Calculator excluded from this benchmark')):
             agent.run(prompt,lambda text:segments.append({'elapsed':time.monotonic()-started,'text':text}))
     except Exception as failure:error=str(failure)

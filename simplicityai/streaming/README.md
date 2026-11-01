@@ -136,3 +136,36 @@ never selects an unknown target. Exact first user transcript replay selected the
 network tool and explained its synthetic result without a confirmation loop.
 Nine checks pass. Exit/reopen Voice Pilot to load this scope fix; no new install.
 Broader troubleshooting judgment remains under evaluation.
+
+Browser/tool-awareness follow-up: the pilot now exposes get_tool_capabilities and
+open_browser_window through its isolated ThemHands ToolState extension. The latter
+opens standard-installed Microsoft Edge with --new-window about:blank, observes a
+new visible window belonging to that exact executable, and attempts foreground
+activation with normal Windows APIs. No arbitrary path, URL, shell command, keys,
+page navigation, cookies/history reads or settings changes are exposed. Failure
+to observe a new window is reported honestly; a launch request is not success.
+This is not a web-loading/connectivity test or general desktop-control integration.
+
+Browser launch outcomes use a grounded report from window evidence, not a freeform
+network diagnosis. Early replay incorrectly called intentional blankness a failure;
+that interpretation is now excluded from this report path. The model still chooses
+the tool. Narrow ThemHands identity/install questions get authoritative connected-
+capability facts, preserving action requests for model/tool execution. Activity
+records label these app-generated reports. Synthetic results are explicitly marked.
+
+The server job now permits explicit child breakaway only for the fixed external
+browser launch. It does not enable silent breakaway; speech/collector guards remain
+unchanged. A real Windows test using harmless sleeping processes verified server
+Exit kills ordinary workers and preserves the explicit external child, which was
+then cleaned up. This prevents assistant Exit from closing an external browser.
+References: Microsoft Win32 Job Objects and SetForegroundWindow documentation.
+
+18 checks pass across check.py and check_browser.py. They include executable/URL
+argument rejection, another-PC/VM scope blocking, existing-window false-success
+prevention, cancellation, foreground uncertainty, capability facts and worker
+lifetime. Python compilation passes. Model replay selected the browser tool after
+a contextual request. Browser launch/window observation itself has NOT been run
+against a real browser yet: the user owns the next pilot. No app was restarted.
+Exit/reopen Voice Pilot to load the new tool and launcher. Ask it to open a browser
+in the Windows running SimplicityAI and report whether a window actually appears.
+Local replay evidence is in StreamingPrototype/logs/browser-conversation-*.json.
