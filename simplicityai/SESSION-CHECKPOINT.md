@@ -1,3 +1,30 @@
+# Spoken target confirmation loop fixed — November 1
+
+User's live network request looped on confirmation despite clear current-Windows
+wording. Inspected only relevant live evidence log stream-20261101-151455.jsonl.
+Exact first transcript: CHECKED THE NETWORK ON THE WINDOWS RUNNING SIMPLICITY A I
+EXPLAIN WHAT YOU FIND DON'T CHANGE ANY SETTINGS. Model tried network tool twice
+on later turns, but old exact-name target guard did not bind the spoken name.
+Bare yes could not establish an unknown target. This specific flow failure is
+explained by scope matching; do not claim broad model reasoning validated.
+
+Added isolated TargetConversation adapter in streaming/target_scope.py. Narrow
+Simplicity A I / AI / AY variants accepted only in explicit running-Windows context.
+Raw transcript/evidence/model words unchanged. Confirmation retained for later
+turns. Another/host/outside/negated target still blocks; ambiguous yes remains
+unbound. New chat uses same adapter. No working-installation module changed.
+No new routing shortcut or repairs added; model still chooses tools normally.
+
+Replayed user's exact first transcript with actual Qwen8B and real tool guards but
+synthetic collector: one accepted network call, appropriate synthetic report,
+no confirmation request,3.67s total. No actual Windows collector ran in replay.
+Nine automated checks pass, including scope spelling/retention/negative cases;
+Python compilation passes. Running pilot was NOT restarted. Next user action:
+Exit/reopen Voice Pilot and repeat same spoken network request, no special spelling
+workaround. Previous loop history clears on new session; logs retained.
+
+---
+
 # Live voice pilot succeeded — November 1
 
 User reports Voice Pilot was super fast on transcription, text and speech and

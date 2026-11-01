@@ -19,11 +19,12 @@ LEGACY=Path('C:/SimplicityAI-Lab/ThemHands')
 sys.path.insert(0,str(ASSETS/'deps'));sys.path.insert(0,str(LEGACY))
 from aiohttp import web, WSMsgType
 from app import State
-from conversation import CHAT_TOOLS, Conversation, reply_issues
+from conversation import CHAT_TOOLS, reply_issues
 from kokoro_speech import KokoroSpeech
 from model_connection import ModelConnection
 from voice import _guard_process
 from protocol import Segments
+from target_scope import TargetConversation
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -62,6 +63,7 @@ class VoiceWorker:
 class Agent:
     def __init__(self,emit,model):
         self.emit=emit;self.model=model;self.state=State();self.state.mode='chat'
+        self.state.chat=TargetConversation()
         self.state.emit=lambda kind,text,**extra:emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
         if self.connection.remote:raise ValueError('This offline host prototype requires the local loopback model service')
@@ -229,7 +231,7 @@ class Session:
         elif kind=='playback':self.retained_audio=value.get('retained') is True
         elif kind=='reset':
             if self.actor and not self.actor.done():raise ValueError('Stop the active task before New chat')
-            self.agent.state.chat=Conversation();self.turn+=1;self.speaker.cancel()
+            self.agent.state.chat=TargetConversation();self.turn+=1;self.speaker.cancel()
             await self.send('audio.clear');await self.send('chat.reset')
         elif kind=='close':await self.ws.close()
         else:raise ValueError('Unknown session control')

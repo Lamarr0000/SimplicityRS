@@ -111,7 +111,7 @@ Local evidence:
 - `C:\SimplicityAI-Lab\StreamingPrototype\logs\recognition-check.json`
 - `C:\SimplicityAI-Lab\StreamingPrototype\logs\stream-*.jsonl`
 
-Seven automated checks cover segmentation, VAD timing, invalid target/arguments,
+Nine automated checks cover segmentation, VAD timing, invalid target/arguments,
 native tool routing without speaking JSON, stale events/cancellation and bounded
 capture reset. Python compilation, JavaScript syntax and native compilation passed.
 No repairs, host networking, security settings, VM configuration or BRS files changed.
@@ -126,3 +126,13 @@ synthetic voice answer had audio available4.83s. Still misses2–3s. Separate
 Start-Voice-Pilot.cmd/desktop Voice Pilot shortcut selects Qwen8B only for a
 live development test; normal installation/default20B unchanged. Read the newest
 MODEL-RUNTIME-COMPARISON.md section before interpreting restricted results.
+
+Live diagnostic pilot follow-up: spoken “Simplicity A I” failed the old exact
+current-Windows name check, causing repeated questions despite two attempted tools.
+TargetConversation now accepts narrow app-name speech variants in explicit
+running-Windows wording, keeps original text/evidence unchanged, and retains the
+confirmed target. Another/outside/negated target still revokes binding; a bare yes
+never selects an unknown target. Exact first user transcript replay selected the
+network tool and explained its synthetic result without a confirmation loop.
+Nine checks pass. Exit/reopen Voice Pilot to load this scope fix; no new install.
+Broader troubleshooting judgment remains under evaluation.

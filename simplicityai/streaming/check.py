@@ -15,6 +15,35 @@ from voice_worker import Gate
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_spoken_scope_and_raw_words_are_retained(self):
+        import server
+        from target_scope import TargetConversation
+        for text in ["CHECKED THE NETWORK ON THE WINDOWS RUNNING SIMPLICITY A I EXPLAIN WHAT YOU FIND DON'T CHANGE ANY SETTINGS",
+                     'Check the Windows running Simplicity AI.',
+                     'The Windows that is running SimplicityAI.',
+                     'THE WINDOWS AS RUNNING SIMPLICITY AY']:
+            with self.subTest(text=text):
+                chat=TargetConversation();messages,_=chat.begin(text)
+                self.assertEqual(chat.target,'current')
+                self.assertEqual(messages[-1]['content'],text)
+                self.assertIn('running Windows explicitly confirmed',messages[0]['content'])
+                chat.begin('Yes I do')
+                self.assertEqual(chat.target,'current')
+
+    def test_ambiguous_yes_and_outside_targets_stay_blocked(self):
+        import server
+        from target_scope import TargetConversation
+        chat=TargetConversation();chat.begin('My computer freezes.');chat.begin('Yes')
+        self.assertIsNone(chat.target)
+        with self.assertRaises(ValueError):chat.require_target()
+        for text in ['Another computer, not the Windows running Simplicity A I.',
+                     'Check the host outside this VM.',
+                     'Not the Windows running Simplicity AI.']:
+            with self.subTest(text=text):
+                chat=TargetConversation();chat.begin('Use this VM.');chat.begin(text)
+                self.assertEqual(chat.target,'other')
+                with self.assertRaises(ValueError):chat.require_target()
+
     def test_tool_activity_and_confirmation_use_real_adapter(self):
         import server
         events=[]
