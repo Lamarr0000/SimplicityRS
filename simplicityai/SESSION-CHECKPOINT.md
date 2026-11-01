@@ -1,3 +1,41 @@
+# Offline streaming prototype measured — November 1, 14:15 PST
+
+User authorized one significant offline architecture prototype. Source is now in
+`simplicityai/streaming/`; runtime/model deps are isolated under
+`C:\SimplicityAI-Lab\StreamingPrototype`. Working host 0.6.3, VM/shared payload,
+SimplicityBRS and unrelated changes were preserved. No existing app restart or
+new native UI launch was performed. Window compiled, live UI/mic QA pending.
+
+Implemented authenticated loopback PCM/WebSocket session, persistent online
+Zipformer + independently acquired Silero VAD, partial transcripts, progressive
+native-tool model reply segments, fixed Kokoro audio packets, playback offsets,
+cooperative turn cancellation and separate pause/resume. Existing ThemHands
+argument/target/expression checks retained. No new repair/general-control tools.
+All runtime requests local; no cloud/API allowance for this engine. Startup warms
+workers/model honestly. Not a portable release; uses current host assets.
+
+Measured paced synthetic input: final transcript0.733s after end of speech;
+model4.219s (first content2.143s, prompt0.574s, 32tokens/3.604s); useful audio
+available7.723s after speech end, including2.768s Kokoro synthesis. No physical
+playback/microphone. This misses2–3s target: **NOT PROMOTED**. No manual pilot
+required now. Next worthwhile work is bounded model/runtime quality+speed
+comparison, not more cosmetic tweaks. Do not imply active work after turn ends.
+
+Recognition ten-fixture check preserved important negations/stop controls with
+spelling errors. Extra RAM fixture was variable: earlier 'our AM' caused a
+clarification; repeat 'R A M' correctly generated explanation. Earlier 'Sure!'
+audio excluded as non-useful. Raw typed benchmark second entry had stale audio
+and is excluded; event-turn filtering fixed. JSON-schema and prompt-only JSON
+router experiment returned empty answers, rejected in favor of native tools.
+
+Six checks passed, Python/JS syntax and native compilation passed. Full limits,
+measurement details, local evidence paths and optional user-invoked development
+launcher are in `simplicityai/streaming/README.md`. Streaming phrase checks are
+narrow, not a semantic truth validator; already-spoken output cannot be retracted.
+This remains an isolated prototype. Local evidence logs omit PCM and credentials.
+
+---
+
 # Installed voice architecture audit complete — November 1
 
 User explicitly requested inspecting this app's install for offline adaptation,

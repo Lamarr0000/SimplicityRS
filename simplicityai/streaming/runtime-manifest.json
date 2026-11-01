@@ -1,0 +1,84 @@
+{
+  "deps": [
+    {
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1"
+    },
+    {
+      "name": "aiohttp",
+      "version": "3.14.5"
+    },
+    {
+      "name": "aiosignal",
+      "version": "1.4.0"
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0"
+    },
+    {
+      "name": "frozenlist",
+      "version": "1.8.0"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "multidict",
+      "version": "7.2.1"
+    },
+    {
+      "name": "propcache",
+      "version": "0.5.4"
+    },
+    {
+      "name": "yarl",
+      "version": "1.25.1"
+    }
+  ],
+  "speech-deps": [
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4"
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.31.1"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2"
+    },
+    {
+      "name": "sherpa-onnx-core",
+      "version": "2.0.1"
+    },
+    {
+      "name": "sherpa_onnx",
+      "version": "2.0.1"
+    }
+  ],
+  "silero": {
+    "revision": "066409f3d9db45a30d21dfcbf9147826ffdd7052",
+    "source": "https://raw.githubusercontent.com/snakers4/silero-vad/066409f3d9db45a30d21dfcbf9147826ffdd7052/src/silero_vad/data/silero_vad_16k_op15.onnx",
+    "sha256": "7ed98ddbad84ccac4cd0aeb3099049280713df825c610a8ed34543318f1b2c49",
+    "bytes": 1289603,
+    "license_source": "https://raw.githubusercontent.com/snakers4/silero-vad/066409f3d9db45a30d21dfcbf9147826ffdd7052/LICENSE"
+  },
+  "runtime_layout": {
+    "server_python": "C:/SimplicityAI-Lab/ThemHands/.venv/Scripts/python.exe",
+    "speech_python": "C:/SimplicityAI-Lab/SpeechConversation/python/cpython-3.12.16-windows-x86_64-none/python.exe",
+    "asr_assets": "C:/SimplicityAI-Lab/SpeechStreaming/models/zipformer20230626",
+    "voice_assets": "C:/SimplicityAI-Lab/Kokoro",
+    "model": "gpt-oss:20b in local Ollama"
+  }
+}
