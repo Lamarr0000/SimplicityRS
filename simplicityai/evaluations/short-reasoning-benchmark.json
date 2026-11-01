@@ -1,0 +1,66 @@
+{
+  "synthetic": true,
+  "system": "Review synthetic evidence only. Never perform actions. Return JSON with\nobserved, unknown, next_check fields, each a short string; at most 80 words total.\nState only what the test proves. Configured is not working; a timeout does not prove\nunreachability or a cause. DNS success does not prove web access. If no symptoms and\nthe test succeeded, say no further check indicated by this evidence. Otherwise offer\none read-only comparison inside the affected VM, with limits on its interpretation.\nNo repairs, firmware suggestions or host checks. No invented results.",
+  "cases": [
+    {
+      "case": "timeout",
+      "simulation": true,
+      "environment": "affected Windows VM",
+      "evidence": "Adapter Up; address and gateway configured. One explicit-server DNS A query timed out.",
+      "unknown": "Packet delivery, gateway reachability, DNS service availability, firewall, web access."
+    },
+    {
+      "case": "success",
+      "simulation": true,
+      "environment": "affected Windows VM",
+      "evidence": "One explicit-server DNS A query succeeded. User reports no symptoms.",
+      "unknown": "Web access, other resolvers, IPv6 DNS, historical failures."
+    }
+  ],
+  "runs": [
+    {
+      "context": 2048,
+      "case": "timeout",
+      "elapsed_seconds": 35.99,
+      "done_reason": "stop",
+      "format_valid": true,
+      "eval_count": 133,
+      "eval_duration_ns": 17464924000,
+      "load_duration_ns": 15915013000,
+      "answer": "{\"observed\":\"Adapter up, IP and gateway configured; explicit-server DNS A query timed out.\",\"unknown\":\"Packet delivery, gateway reachability, DNS service availability, firewall, web access.\",\"next_check\":\"Run a read\u2011only comparison of the VM\u2019s routing table and firewall rules to identify any blocking entries.\"}"
+    },
+    {
+      "context": 2048,
+      "case": "success",
+      "elapsed_seconds": 20.73,
+      "done_reason": "stop",
+      "format_valid": true,
+      "eval_count": 137,
+      "eval_duration_ns": 18092105000,
+      "load_duration_ns": 10189600,
+      "answer": "{\"observed\":\"Explicit-server DNS A query succeeded; user reports no symptoms.\",\"unknown\":\"Web access, other resolvers, IPv6 DNS, historical failures.\",\"next_check\":\"Run a read\u2011only comparison of the affected VM\u2019s DNS client configuration (e.g., `ipconfig /all` and `nslookup -type=any .`) to verify resolver settings.\"}"
+    },
+    {
+      "context": 4096,
+      "case": "timeout",
+      "elapsed_seconds": 34.61,
+      "done_reason": "stop",
+      "format_valid": true,
+      "eval_count": 133,
+      "eval_duration_ns": 17143970000,
+      "load_duration_ns": 14891176900,
+      "answer": "{\"observed\":\"Adapter up, IP and gateway configured; explicit-server DNS A query timed out.\",\"unknown\":\"Packet delivery, gateway reachability, DNS service availability, firewall, web access.\",\"next_check\":\"Run a read\u2011only comparison of the VM\u2019s routing table and firewall rules to identify any blocking entries.\"}"
+    },
+    {
+      "context": 4096,
+      "case": "success",
+      "elapsed_seconds": 13.71,
+      "done_reason": "stop",
+      "format_valid": true,
+      "eval_count": 94,
+      "eval_duration_ns": 12174670000,
+      "load_duration_ns": 8724900,
+      "answer": "{\"observed\":\"Explicit-server DNS A query succeeded.\",\"unknown\":\"Web access, other resolvers, IPv6 DNS, historical failures.\",\"next_check\":\"No further check indicated by this evidence.\"}"
+    }
+  ]
+}
