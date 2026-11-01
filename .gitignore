@@ -35,3 +35,24 @@ Desktop.ini
 icon-source/
 /Simplicity.ico
 /simplicity-source.png
+
+# SimplicityAI local runtimes, model data, credentials and evidence
+**/__pycache__/
+*.pyc
+**/.venv/
+/simplicityai/**/runtime/
+/simplicityai/**/deps/
+/simplicityai/**/vendor/
+/simplicityai/**/models/
+*.gguf
+*.safetensors
+model-connection.json
+relay-private.json
+session-url.txt
+firewall-ready.json
+*.pem
+*.key
+*.health.json
+*.conversation.json
+*.jsonl
+connection-check.txt
