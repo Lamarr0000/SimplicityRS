@@ -1,3 +1,34 @@
+# Model comparison found a hardware restriction — November 1 afternoon
+
+User closed SimplicityAI and authorized bounded model/runtime comparisons.
+See `simplicityai/streaming/MODEL-RUNTIME-COMPARISON.md` for full observations,
+limits, source links and evidence. Most significant finding: under inference GPU
+utilization99%, SM300MHz/memory810MHz, current limit30W vs requested/default80W;
+SW Power Cap and SW Thermal Slowdown Active. Temp56C, listed slowdown95C.
+Cause NOT established. Laptop Lenovo20QNCTO1WW/P53, original Lenovo adapter direct
+(user confirmed), Windows Balanced/zero overlay, LITSSVC running. BIOS/thermal
+queries denied. No power/driver/firmware/security setting changed. Do not force
+80W or disable thermal protections. Next useful user action is inspect normal
+Windows/Lenovo power mode and a controlled supported performance-mode test.
+
+Seven synthetic quality cases, collectors mocked/no OS actions. Existing20B mixed
+GPU/CPU~8.5t/s, Granite3B fullyGPU~14t/s but failed quality; CPU~8.7t/s. Downloaded
+Qwen3:8b Q4_K_M5.2GB, think=False, fullyGPU6.19GB~7t/s under restriction; completed
+all7cases, better limited scope/uncertainty/memory behavior, not production-certified.
+CPU4threads~4.2t/s, warm short RAM answer8.62s without ASR/TTS. No candidate voice
+pilot yet because hardware restriction confounds normal-speed comparisons.
+Restored original gpt-oss20B automatic allocation, only model loaded afterward.
+Working installation still0.6.3 and source default20B. No native app restart/launch.
+
+Fixed prototype activity-event callback keyword collision discovered by tool-path
+benchmark; affected cases rerun, pre-fix tool failures excluded. Added regression
+check;7tests pass. Capture worklet now included in Git (was local but accidentally
+not in preceding commit). Source supports optional candidate CLI only. Unrelated
+worktree/BRS/VM/shared packages unchanged. No test left running. Save/push this
+checkpoint before asking user for the next normal power-mode test.
+
+---
+
 # Offline streaming prototype measured â€” November 1, 14:15 PST
 
 User authorized one significant offline architecture prototype. Source is now in

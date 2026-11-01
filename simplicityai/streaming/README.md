@@ -111,7 +111,11 @@ Local evidence:
 - `C:\SimplicityAI-Lab\StreamingPrototype\logs\recognition-check.json`
 - `C:\SimplicityAI-Lab\StreamingPrototype\logs\stream-*.jsonl`
 
-Six automated checks cover segmentation, VAD timing, invalid target/arguments,
+Seven automated checks cover segmentation, VAD timing, invalid target/arguments,
 native tool routing without speaking JSON, stale events/cancellation and bounded
 capture reset. Python compilation, JavaScript syntax and native compilation passed.
 No repairs, host networking, security settings, VM configuration or BRS files changed.
+
+Follow-up comparison and observed GPU restriction: see MODEL-RUNTIME-COMPARISON.md.
+The working model remains unchanged; investigate the normal power/cooling mode
+before drawing normal-speed conclusions.

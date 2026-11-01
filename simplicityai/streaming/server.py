@@ -62,7 +62,7 @@ class VoiceWorker:
 class Agent:
     def __init__(self,emit,model):
         self.emit=emit;self.model=model;self.state=State();self.state.mode='chat'
-        self.state.emit=lambda kind,text,**extra:emit('activity',kind=kind,text=text)
+        self.state.emit=lambda kind,text,**extra:emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
         if self.connection.remote:raise ValueError('This offline host prototype requires the local loopback model service')
     def run(self,prompt,segment):
@@ -74,6 +74,7 @@ class Agent:
             payload={'model':self.model,'messages':messages,'tools':CHAT_TOOLS,'stream':True,
                      'keep_alive':'30m','options':{'num_ctx':8192,'num_predict':400,'temperature':0}}
             if self.model=='gpt-oss:20b':payload['think']='low'
+            if self.model=='qwen3:8b':payload['think']=False
             with self.connection.open('/api/chat',data=json.dumps(payload).encode(),timeout=180,cancel=state.cancel) as response:
                 for line in response:
                     if not line.strip():continue
@@ -140,6 +141,7 @@ class Session:
         payload={'model':self.agent.model,'messages':[],'keep_alive':'30m','stream':False,
                  'options':{'num_ctx':8192}}
         if self.agent.model=='gpt-oss:20b':payload['think']='low'
+        if self.agent.model=='qwen3:8b':payload['think']=False
         with self.agent.connection.open('/api/chat',data=json.dumps(payload).encode(),timeout=180) as response:
             value=json.load(response)
             if value.get('error'):raise ValueError(value['error'])
@@ -304,5 +306,5 @@ async def main(port,model):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8770)
-    parser.add_argument('--model',choices=['gpt-oss:20b','granite4:3b'],default='gpt-oss:20b')
+    parser.add_argument('--model',choices=['gpt-oss:20b','granite4:3b','qwen3:8b'],default='gpt-oss:20b')
     args=parser.parse_args();asyncio.run(main(args.port,args.model))

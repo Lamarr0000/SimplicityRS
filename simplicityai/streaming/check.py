@@ -15,6 +15,16 @@ from voice_worker import Gate
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_tool_activity_and_confirmation_use_real_adapter(self):
+        import server
+        events=[]
+        agent=server.Agent(lambda kind,**data:events.append((kind,data)),'gpt-oss:20b')
+        agent.state.chat.begin('Use this VM.')
+        result=agent.state.execute({'function':{'name':'confirm_running_windows','arguments':{}}})
+        self.assertTrue(result['confirmed'])
+        self.assertEqual(events[0][0],'activity')
+        self.assertEqual(events[0][1]['activity_kind'],'tool_request')
+
     def test_segments(self):
         text='First useful sentence. '+('A bounded piece of conversation. '*12)
         parts=Segments();out=[]
@@ -156,12 +166,12 @@ async def benchmark():
     target.write_text(json.dumps(results,indent=2),encoding='utf-8');print(json.dumps(results,indent=2))
 
 
-async def voice_benchmark():
+async def voice_benchmark(model='gpt-oss:20b'):
     """Real-time synthetic PCM input through the complete server. No mic/playback."""
     import array
     import server
     from aiohttp import ClientSession, web
-    app=server.create_app();runner=web.AppRunner(app,access_log=None);await runner.setup()
+    app=server.create_app(model);runner=web.AppRunner(app,access_log=None);await runner.setup()
     site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
     port=site._server.sockets[0].getsockname()[1];result={}
     try:
@@ -201,17 +211,17 @@ async def voice_benchmark():
                     if value['type']!='audio':events.append({'after_end_seconds':now-end,**value})
                 await feeder
                 await ws.send_json({'type':'listen','enabled':False})
-                result={'synthetic_input':prompt,'first_audio_available_after_speech_end_seconds':first_audio,
+                result={'model':model,'synthetic_input':prompt,'first_audio_available_after_speech_end_seconds':first_audio,
                         'first_useful_audio_after_speech_end_seconds':useful_audio,
                         'physical_playback_tested':False,'events':events}
                 await ws.send_json({'type':'close'})
     finally:await runner.cleanup()
-    target=server.ASSETS/'logs/voice-streaming-benchmark.json';target.write_text(json.dumps(result,indent=2),encoding='utf-8')
+    target=server.ASSETS/'logs'/('voice-streaming-'+model.replace(':','-')+'.json');target.write_text(json.dumps(result,indent=2),encoding='utf-8')
     print(json.dumps(result,indent=2))
 
 
 if __name__=='__main__':
     if '--recognition' in sys.argv:recognition()
-    elif '--voice-benchmark' in sys.argv:asyncio.run(voice_benchmark())
+    elif '--voice-benchmark' in sys.argv:asyncio.run(voice_benchmark(sys.argv[sys.argv.index('--model')+1] if '--model' in sys.argv else 'gpt-oss:20b'))
     elif '--benchmark' in sys.argv:asyncio.run(benchmark())
     else:unittest.main()
