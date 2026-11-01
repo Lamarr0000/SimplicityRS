@@ -38,11 +38,11 @@ Elapsed: 49.3 seconds. Stop reason: stop.
 
 ## Unverified model answer
 
-**Simulation result** – The evidence shows that the network adapter is up with a valid IPv4 address and gateway, but DNS resolution fails: a query for “microsoft.com” timed out. No other connectivity tests were performed.  
-**What is proven working** – Adapter state and IP configuration.  
-**What is merely configured** – DNS server address (192.0.2.1) and gateway.  
-**Most plausible area to investigate** – DNS resolution path: verify that the configured DNS server is reachable and responsive, and that the local firewall or router is not blocking DNS traffic.  
-**Uncertainty** – It is unclear whether the DNS server is actually reachable, whether the gateway forwards DNS queries, or if the issue lies with the DNS server itself.  
+**Simulation result** – The evidence shows that the network adapter is up with a valid IPv4 address and gateway, but DNS resolution fails: a query for “microsoft.com” timed out. No other connectivity tests were performed.
+**What is proven working** – Adapter state and IP configuration.
+**What is merely configured** – DNS server address (192.0.2.1) and gateway.
+**Most plausible area to investigate** – DNS resolution path: verify that the configured DNS server is reachable and responsive, and that the local firewall or router is not blocking DNS traffic.
+**Uncertainty** – It is unclear whether the DNS server is actually reachable, whether the gateway forwards DNS queries, or if the issue lies with the DNS server itself.
 **Next read‑only check** – Ping the configured DNS server (192.0.2.1) from the host. Purpose: confirm network reachability to the DNS server and rule out a basic connectivity block.
 
 ## Review criteria

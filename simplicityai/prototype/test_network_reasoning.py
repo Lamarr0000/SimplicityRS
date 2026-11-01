@@ -16,6 +16,14 @@ EVIDENCE = {
     'settings_changed': False,
 }
 SYSTEM = '''You are evaluating a SIMULATED recovery incident, not this computer.
+The affected environment is the guest Windows VM. Every proposed check must be
+inside that affected VM, never the host. Adapter Up, assigned addresses and gateway
+entries establish configuration only, not successful packet delivery or internet.
+One timeout establishes one failed DNS query, not universal DNS failure or its cause.
+Propose one read-only check that distinguishes hypotheses. Explain what both a
+successful and unsuccessful result would mean and what neither result proves.
+ICMP ping is not a DNS service test; absent ICMP replies cannot prove a server is
+unreachable. Never say ping rules out a connectivity block or confirms DNS works.
 Use only the supplied synthetic evidence. No tools or repair actions are available.
 In at most 140 words: state what failed, what is merely configured versus proven
 working, the most plausible area to investigate and uncertainty, and one useful
