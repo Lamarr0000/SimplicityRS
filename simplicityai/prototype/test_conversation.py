@@ -58,11 +58,10 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(second.chat.transcript,[])
         self.assertIsNone(second.chat.storage_path)
 
-    def test_reopening_launcher_resets_idle_chat_before_opening_window(self):
-        with patch('urllib.request.urlopen',side_effect=[io.BytesIO(b'{"app":"ThemHands"}'),io.BytesIO(b'{"ok":true}')]) as request,patch('pathlib.Path.read_text',return_value='http://127.0.0.1:8769/#test-token'),patch('pathlib.Path.is_file',return_value=False),patch('webbrowser.open') as browser:
-            runpy.run_path(str(Path(__file__).with_name('launcher.py')))
-            self.assertEqual(request.call_args_list[1].args[0].full_url,'http://127.0.0.1:8769/chat/reset')
-            browser.assert_called_once()
+    def test_launcher_uses_owned_window_lifecycle(self):
+        with patch('window_launcher.launch') as launch:
+            runpy.run_path(str(Path(__file__).with_name('launcher.py')),run_name='__main__')
+            launch.assert_called_once_with()
 
     @patch('app.collect_health',return_value={'network_status':{'changes_made':False}})
     def test_chat_can_choose_supported_tool_and_retain_evidence(self,collect):

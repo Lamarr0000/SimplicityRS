@@ -488,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.4.2", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.5.0", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -496,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.4.2'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.5.0'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -508,6 +508,15 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length < 12000:
                 raise ValueError("Invalid body length")
             data = json.loads(self.rfile.read(length))
+            if self.path == '/shutdown':
+                self.reply(200, {'ok': True})
+                def shutdown():
+                    STATE.stop()
+                    VOICE.stop()
+                    SPEECH.stop()
+                    self.server.shutdown()
+                threading.Thread(target=shutdown, daemon=True).start()
+                return
             if self.path == '/chat/reset':
                 if STATE.busy:
                     raise ValueError('Stop the active turn before starting a new chat.')
@@ -579,7 +588,13 @@ def main():
     url = f"http://127.0.0.1:{server.server_port}/#{TOKEN}"
     (ROOT / "session-url.txt").write_text(url, encoding="utf-8")
     print("ThemHands is ready. Open session-url.txt for its local interface.", flush=True)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        STATE.cancel.set()
+        VOICE.stop()
+        SPEECH.stop()
+        server.server_close()
 
 
 if __name__ == "__main__":

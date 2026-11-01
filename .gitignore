@@ -60,3 +60,4 @@ connection-check.txt
 *.integrity.json
 /simplicityai/**/kokoro/
 /simplicityai/**/whisper/
+/simplicityai/**/window-runtime/

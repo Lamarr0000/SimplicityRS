@@ -1,3 +1,13 @@
+# Latest update — November 1 morning: dedicated app window 0.5.0
+
+Completed native WinForms/WebView2 app window and anchored chat composer. Activity/evidence, collected facts and voice/connection panels are now Tools menu items (three dots), as requested. Exit, title-bar X and Alt+F4 stop the owned local Python server and descendants. Real host window tested; real Windows job test preserved unrelated sibling. 60 Python tests and UI checks pass. Source/build instructions: simplicityai/APP-WINDOW.md. VM installation not yet confirmed; voice and clipboard in native guest window need verification. No model/microphone test performed on host. Latency and Calculator foreground remain unresolved.
+
+VM shared folder now contains Install-AppWindow-Update.cmd/.ps1 and App-Window-Update (~1.4 MB), Stop-ThemHands-VM helpers, README and this resume note. Previous session-tools payload archived under Archive/2026-11-01-app-window. Update installer verifies payload hashes and backs up replaced files. Launch existing Start-ThemHands.cmd after install. Close old server before installing. Native runtime requires normal Windows 11 WebView2 Runtime/.NET Framework 4.8; private model/voice assets unchanged.
+
+Read the overnight checkpoint below for broader context; its old browser launcher and source-only transfer package descriptions are superseded by this update.
+
+---
+
 # Resume checkpoint — November 1, 2026
 
 ## Stop here tonight

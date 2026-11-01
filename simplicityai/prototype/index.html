@@ -3,20 +3,41 @@
 <title>SimplicityAI</title>
 <style>
 :root{color-scheme:dark;font-family:Segoe UI,system-ui,sans-serif;background:#101722;color:#edf2ff}body{max-width:860px;margin:24px auto;padding:0 20px}header{display:flex;align-items:center;justify-content:space-between}h1{font-size:28px}button{font:inherit;border:1px solid #405474;border-radius:10px;background:#1d2a40;color:inherit;padding:9px 14px;cursor:pointer}button:hover{background:#2b4265}button:disabled{opacity:.45;cursor:default}.muted{color:#a9b7d2;font-size:14px}.bubble{padding:16px 20px;border-radius:16px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:18px 0}.user{background:#25477a;margin-left:12%}.assistant{background:#182334;margin-right:5%}.bubble button{font-size:12px;padding:4px 9px;display:block;margin-top:10px}.composer{position:sticky;bottom:0;background:#101722;padding:12px 0 20px}.input-box{background:#1a2638;border:1px solid #405474;border-radius:20px;padding:14px}textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:78px;max-height:260px;font:inherit;border:0;background:transparent;color:inherit;outline:none}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#send{margin-left:auto;background:#4a83db;color:white}#stop{background:#70463e}details{border:1px solid #30425d;border-radius:10px;padding:12px;margin:14px 0}summary{cursor:pointer;font-weight:600}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px Consolas,monospace;max-height:440px;overflow:auto}.status{min-height:1.4em}.feedback{font-size:13px;color:#a9d8c9}#empty{padding:8vh 0;text-align:center}audio{display:none}
+
+body{max-width:900px;margin:0 auto;padding:100px 28px 280px}
+header{position:fixed;top:0;left:0;right:0;z-index:5;padding:14px max(28px,calc((100vw - 900px)/2));background:#101722f5;border-bottom:1px solid #26344a;backdrop-filter:blur(16px)}
+h1{font-size:22px;letter-spacing:-.6px;margin:8px 0}header>div{display:flex;gap:8px}
+.composer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:calc(100% - 56px);max-width:900px;padding:8px 0 16px;z-index:4;background:linear-gradient(transparent,#101722 10%)}
+.input-box{box-shadow:0 8px 30px #0003;border-radius:24px}textarea{min-height:56px;max-height:150px;resize:none;line-height:1.6}
+.bubble.assistant{background:transparent;padding-left:0;margin-right:0}.bubble.user{margin-left:18%;border-radius:22px;background:#233c60}
+.bubble button{display:inline-block;margin-right:6px;background:transparent;border-color:transparent;color:#a9b7d2}.bubble button:hover{background:#24344d;color:#fff}
+button:focus-visible,summary:focus-visible{outline:2px solid #80b3ff;outline-offset:3px}textarea:focus-visible{outline:none}.input-box:focus-within{border-color:#80b3ff}
+.status{margin:5px 0;min-height:18px}.feedback{margin:4px 0;min-height:18px}#exit{color:#ffc9c4}#empty{padding:10vh 0 6vh}#empty h2{font-size:30px;letter-spacing:-.6px}details{background:#152030}
+@media(max-width:640px){body{padding:94px 16px 280px}header{padding:12px 16px}h1{font-size:19px}button{padding:8px 10px}.composer{width:calc(100% - 32px)}#empty h2{font-size:25px}}
+
+#tools-menu{position:fixed;top:80px;right:max(20px,calc((100vw - 900px)/2));z-index:10;background:#1a2638;border:1px solid #405474;border-radius:14px;padding:7px;box-shadow:0 10px 40px #0006}#tools-menu button{display:block;width:100%;text-align:left;border:0;background:transparent}#tools-menu button:hover{background:#2b4265}
+dialog{box-sizing:border-box;width:min(760px,calc(100vw - 32px));max-height:80vh;overflow:auto;background:#152030;color:#edf2ff;border:1px solid #405474;border-radius:18px;padding:22px}dialog::backdrop{background:#0008;backdrop-filter:blur(3px)}.panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-heading h2{font-size:19px}dialog pre{max-height:55vh}#tools{font-size:22px;line-height:18px;padding:9px 12px}
 </style>
-<header><h1>SimplicityAI</h1><div><button id="sound" aria-pressed="true">Sound on</button> <button id="new-chat">New chat</button></div></header>
+<header><h1>SimplicityAI</h1><div><button id="sound" aria-pressed="true">Sound on</button> <button id="new-chat">New chat</button> <button id="tools" aria-haspopup="menu" aria-expanded="false" aria-label="Tools and evidence menu" title="Tools and evidence">⋯</button> <button id="exit" title="Exit and stop SimplicityAI">Exit</button></div></header>
 <main id="chat" role="log" aria-label="Conversation"></main>
 <div id="empty"><h2>What’s happening with your computer?</h2><p class="muted">Tell me in your own words. We’ll take it one step at a time.</p></div>
-<details id="facts-panel" hidden><summary>Collected facts</summary><button id="copy-facts">Copy facts</button><pre id="facts"></pre></details>
-<details><summary>Activity and tool evidence</summary><button id="copy-activity">Copy activity</button><pre id="activity"></pre></details>
-<details><summary>Connection and voice status</summary><button id="voice-check">Check microphone support</button> <button id="voice-test">Test microphone for five seconds</button><p class="muted">Voice uses local Whisper input and one Kokoro playback voice. Opening the app or choosing New chat starts fresh. Refresh keeps the active conversation. Diagnostic logs remain available. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></details>
+<div id="tools-menu" role="menu" hidden aria-label="Tools and evidence">
+<button id="show-activity" role="menuitem">Activity and tool evidence</button>
+<button id="show-facts" role="menuitem">Collected facts</button>
+<button id="show-connection" role="menuitem">Connection and voice status</button>
+</div>
+<dialog id="tools-dialog" aria-labelledby="tools-title"><div class="panel-heading"><h2 id="tools-title">Tools and evidence</h2><button id="close-tools" aria-label="Close tools panel">Close</button></div>
+<section id="facts-panel" hidden><button id="copy-facts">Copy facts</button><pre id="facts"></pre></section>
+<section id="activity-panel" hidden><button id="copy-activity">Copy activity</button><pre id="activity"></pre></section>
+<section id="connection-panel" hidden><button id="voice-check">Check microphone support</button> <button id="voice-test">Test microphone for five seconds</button><p class="muted">Voice uses local Whisper input and one Kokoro playback voice. Opening the app or choosing New chat starts fresh. Refresh keeps the active conversation. Diagnostic logs remain available. Offline Windows inspection and repairs are not connected.</p><p id="voice-detail" class="muted"></p></section>
+<p id="tools-copy-status" class="feedback" role="status"></p></dialog>
 <div class="composer"><p id="status" class="muted status" role="status">Ready</p><p id="speech-status" class="muted status" role="status"></p><div class="input-box"><textarea id="message" maxlength="1800" aria-label="Message SimplicityAI" placeholder="Message SimplicityAI…"></textarea><div class="actions"><button id="talk">🎙 Talk</button><button id="stop" hidden>Stop</button><button id="send">Send</button></div></div><p id="copy-status" class="feedback" role="status"></p></div>
 <script>
 const token=location.hash.slice(1)||sessionStorage.getItem('themhands-token')||'';if(token)sessionStorage.setItem('themhands-token',token);history.replaceState(null,'',location.pathname);
 const el=id=>document.getElementById(id);
 let busy=false,voiceSession=false,sound=true,captureId=-1,lastAssistant=-1,initialized=false,signature='',factsText='',activityText='',polling=false,autoNext=false;
 let context=null,node=null,speechGeneration=0,speaking=false,voiceStarting=false,voiceNotice='';
-let followConversation=true;
+let followConversation=true,exiting=false,toolPanel=null;
 function followLatest(){if(followConversation&&globalThis.requestAnimationFrame)requestAnimationFrame(()=>globalThis.scrollTo({top:document.documentElement.scrollHeight,behavior:'auto'}));}
 globalThis.addEventListener?.('scroll',()=>{followConversation=document.documentElement.scrollHeight-(globalThis.scrollY+globalThis.innerHeight)<200;},{passive:true});
 async function api(path,data){const response=await fetch(path,{method:data?'POST':'GET',headers:{'X-ThemHands-Token':token,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const value=await response.json();if(!response.ok)throw Error(value.error||'Request failed');return value;}
@@ -66,6 +87,16 @@ async function sendMessage(text,fromVoice=false){
  try{await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text'});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();}
  catch(error){voiceSession=false;el('status').textContent=error.message;}
 }
+function openToolPanel(panel,title){toolPanel=panel;el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');el('tools-title').textContent=title;for(const name of ['facts','activity','connection'])el(name+'-panel').hidden=name!==panel;el('tools-copy-status').textContent='';el('tools-dialog').showModal();}
+el('tools').onclick=()=>{const menu=el('tools-menu');menu.hidden=!menu.hidden;el('tools').setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)el('show-activity').focus?.();};
+el('tools-menu').onkeydown=event=>{const items=['show-activity','show-facts','show-connection'];const index=items.findIndex(id=>el(id)===document.activeElement);if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?2:(index+(event.key==='ArrowDown'?1:2)+3)%3;el(items[next]).focus?.();}if(event.key==='Escape'){el('tools-menu').hidden=true;el('tools').focus?.();}};
+el('show-activity').onclick=()=>openToolPanel('activity','Activity and tool evidence');
+el('show-facts').onclick=()=>openToolPanel('facts','Collected facts');
+el('show-connection').onclick=()=>openToolPanel('connection','Connection and voice status');
+el('close-tools').onclick=()=>el('tools-dialog').close();
+document.addEventListener?.('click',event=>{if(!el('tools-menu').contains(event.target)&&!el('tools').contains(event.target)){el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');}});
+document.addEventListener?.('keydown',event=>{if(event.key==='Escape'){el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');}});
+el('exit').onclick=async()=>{if(exiting)return;exiting=true;voiceSession=false;autoNext=false;clearAudio();el('exit').disabled=true;el('status').textContent='Closing SimplicityAI…';try{await api('/shutdown',{});el('status').textContent='SimplicityAI has stopped. This window will close.';}catch(error){exiting=false;el('exit').disabled=false;el('status').textContent='Could not exit: '+error.message;}};
 el('send').onclick=()=>sendMessage(el('message').value);
 el('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage(el('message').value);}};
 el('talk').onclick=async()=>{unlockAudio();voiceNotice='';voiceSession=true;autoNext=true;await listen();};
@@ -74,7 +105,7 @@ el('sound').onclick=async()=>{sound=!sound;el('sound').textContent=sound?'Sound 
 el('new-chat').onclick=async()=>{voiceSession=false;autoNext=false;voiceNotice='';followConversation=true;el('speech-status').textContent='';await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/chat/reset',{});signature='';initialized=false;await poll();}catch(error){el('status').textContent=error.message;}};
 el('voice-check').onclick=()=>api('/voice/check',{}).catch(error=>el('voice-detail').textContent=error.message);
 el('voice-test').onclick=async()=>{voiceSession=false;autoNext=false;await stopSpeech();await api('/voice/stop',{}).catch(()=>{});try{await api('/voice/level',{});}catch(error){el('voice-detail').textContent=error.message;}};
-async function copy(text){try{await navigator.clipboard.writeText(text);el('copy-status').textContent='Copied.';}catch{el('copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';}}
+async function copy(text){try{await navigator.clipboard.writeText(text);el('copy-status').textContent='Copied.';el('tools-copy-status').textContent='Copied.';}catch{el('copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';el('tools-copy-status').textContent='Copy unavailable. Select the text and press Ctrl+C.';}}
 el('copy-facts').onclick=()=>copy(factsText);el('copy-activity').onclick=()=>copy(activityText);
 function render(state){
  const messages=state.chat_transcript||[];const next=JSON.stringify(messages);
@@ -85,14 +116,14 @@ function render(state){
  if(latest&&latest.id>lastAssistant&&!state.busy){lastAssistant=latest.id;if(autoNext){autoNext=false;speak(latest.content,voiceSession);}}
 }
 async function poll(){
- if(polling)return;polling=true;
+ if(polling||exiting)return;polling=true;
  try{
   const state=await api('/state');busy=state.busy;render(state);
   el('send').disabled=busy;el('talk').disabled=busy||voiceSession;el('new-chat').disabled=busy;
   el('stop').hidden=!(busy||voiceSession||speaking||node);el('status').textContent=state.status;
   const action=state.events.filter(event=>event.kind==='action').at(-1);if(busy&&action)el('status').textContent=action.text;
   activityText=state.events.map(event=>event.time+' · '+event.kind+'\n'+event.text).join('\n\n');el('activity').textContent=activityText;
-  factsText=state.health_snapshot?JSON.stringify(state.health_snapshot,null,2):'';el('facts-panel').hidden=!factsText;el('facts').textContent=factsText;
+  factsText=state.health_snapshot?JSON.stringify(state.health_snapshot,null,2):'';el('facts').textContent=factsText||'No facts have been collected in this chat yet.';
   const voice=await api('/voice/state');el('voice-detail').textContent=(voice.message||voice.state)+(voice.detail?' Technical detail: '+voice.detail:'')+' Build: '+(state.build||'older version');
   const capturing=['starting','listening'].includes(voice.state);if(capturing)el('stop').hidden=false;el('talk').disabled=busy||voiceSession||capturing;el('voice-test').disabled=busy||capturing;el('voice-check').disabled=busy||capturing;
   if(voiceSession&&['starting','listening'].includes(voice.state))el('status').textContent=voice.message;
