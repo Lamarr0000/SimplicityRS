@@ -166,7 +166,7 @@ class Session:
                         if text.lower().strip('.!?') in {'stop','cancel','stop talking','stop listening'}:
                             self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
                             await self.set_listening(False);await self.send('voice.stop');continue
-                        await self.submit(text)
+                        await self.submit(text,source='voice')
         except asyncio.CancelledError:pass
         except Exception as error:
             if not self.closed:await self.send('error',text='Speech stopped: '+str(error))
@@ -174,17 +174,17 @@ class Session:
         self.listening=value;self.capture+=1
         while not self.frames.empty():self.frames.get_nowait()
         self.frames.put_nowait((self.capture,None))
-    async def submit(self,text):
+    async def submit(self,text,source='typed'):
         if not isinstance(text,str) or not text.strip() or len(text)>4000:raise ValueError('Enter a message up to4000 characters')
-        self.pending=text;self.agent.state.cancel.set()
+        self.pending=(text,source);self.agent.state.cancel.set()
         if not self.actor or self.actor.done():self.actor=asyncio.create_task(self.turn_loop())
     async def turn_loop(self):
         while self.pending is not None and not self.closed:
-            prompt=self.pending;self.pending=None;self.turn+=1;turn=self.turn
+            prompt,source=self.pending;self.pending=None;self.turn+=1;turn=self.turn
             self.agent.running_turn=turn;self.agent.state.cancel.clear()
             self.speaker.cancel();self.paused=False
             while not self.segments.empty():self.segments.get_nowait()
-            await self.send('turn.start',turn=turn,text=prompt)
+            await self.send('turn.start',turn=turn,text=prompt,source=source)
             def segment(text):
                 if self.closed or turn!=self.turn or self.agent.state.cancel.is_set():raise InterruptedError('Turn stopped')
                 asyncio.run_coroutine_threadsafe(self.segments.put((turn,text)),self.loop).result(timeout=30)

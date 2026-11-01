@@ -1,3 +1,21 @@
+# Live voice pilot succeeded — November 1
+
+User reports Voice Pilot was super fast on transcription, text and speech and
+answered the memory/storage question naturally. This is user-observed live success,
+not a new stopwatch measurement. All-caps voice transcript reported; explained as
+Zipformer output format, not a recognition failure. Prepared presentation-only
+sentence casing for voice partials/chat bubbles, preserving common acronyms; raw
+recognition remains unchanged in evidence/model input. Typed case unchanged.
+Added source=voice/typed event metadata.7checks, Python and JS syntax pass.
+Running pilot was NOT restarted or refreshed. Display fix takes effect after user
+Exit/reopens Voice Pilot at convenience; no speed retest required for this change.
+Qwen8B pilot+streaming engine+user Best performance profile now live-user verified
+for this conversational question. General recovery accuracy, broader desktop
+controls and interruption robustness remain unvalidated. Existing app0.6.3 still
+preserved; don't silently replace normal launcher or claim all recovery tools work.
+
+---
+
 # Power-mode speed recovery verified; voice pilot ready — November 1
 
 User selected Plugged in / Best performance, followed by an unidentified Lenovo

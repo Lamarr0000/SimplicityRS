@@ -7,6 +7,12 @@ const activity=[],evidence=[];
 function send(value){if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(value));}
 function status(text){$('status').textContent=text;}
 function scroll(){window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});}
+function voiceDisplay(text){
+  // Presentation only: raw recognition stays in evidence and model input.
+  if(text!==text.toUpperCase())return text;
+  const terms={ram:'RAM',cpu:'CPU',gpu:'GPU',dns:'DNS',tpm:'TPM',usb:'USB',ssd:'SSD',hdd:'HDD',pc:'PC',ai:'AI',uefi:'UEFI',bios:'BIOS',http:'HTTP',https:'HTTPS',ip:'IP',ipv4:'IPv4',ipv6:'IPv6',sfc:'SFC',dism:'DISM',windows:'Windows',bitlocker:'BitLocker',simplicityai:'SimplicityAI',themhands:'ThemHands',chatgpt:'ChatGPT',lenovo:'Lenovo',nvidia:'NVIDIA',i:'I'};
+  return text.toLowerCase().replace(/\b[a-z][a-z0-9]*\b/g,word=>terms[word]||word).replace(/(^|[.!?]\s+)([a-z])/g,(_,prefix,char)=>prefix+char.toUpperCase());
+}
 function message(text,role){const node=document.createElement('div');node.className='message '+role;const body=document.createElement('span');body.textContent=text;node.append(body);$('messages').append(node);scroll();return node;}
 function copyButton(node){if(node.querySelector('button'))return;const button=document.createElement('button');button.className='copy';button.textContent='Copy';button.onclick=()=>navigator.clipboard.writeText(node.querySelector('span').textContent).catch(()=>status('Copy unavailable. Select the text to copy.'));node.append(button);}
 
@@ -39,13 +45,13 @@ ws.onmessage=event=>{
   if(kind!=='audio'){activity.push(value);if(/timing|activity|review/.test(kind))evidence.push(value);}
   if(kind==='ready'){ready=true;$('talk').disabled=$('send').disabled=false;status(value.text);}
   else if(kind==='status')status(value.text);
-  else if(kind==='transcript.partial'){$('partial').textContent=value.text;scroll();}
+  else if(kind==='transcript.partial'){$('partial').textContent=voiceDisplay(value.text);scroll();}
   else if(kind==='transcript.final')$('partial').textContent='';
   else if(kind==='voice.pause'){playback.pause();send({type:'playback',retained:playback.queue.length>0});}
   else if(kind==='voice.resume')playback.resume();
   else if(kind==='audio.clear')playback.clear();
   else if(kind==='voice.stop'){playback.clear();microphone(false);}
-  else if(kind==='turn.start'){currentTurn=value.turn;busy=true;playback.clear();message(value.text,'user');answer=message('','assistant');status('Thinking…');}
+  else if(kind==='turn.start'){currentTurn=value.turn;busy=true;playback.clear();message(value.source==='voice'?voiceDisplay(value.text):value.text,'user');answer=message('','assistant');status('Thinking…');}
   else if(kind==='text.delta'&&value.turn===currentTurn){answer.querySelector('span').textContent+=value.text;status('Replying…');scroll();}
   else if(kind==='audio'&&value.turn===currentTurn)playback.add(value);
   else if(kind==='turn.done'||kind==='turn.stopped'){busy=false;if(answer)copyButton(answer);status(listening?'Listening — you can speak now.':'Reply ready.');}
