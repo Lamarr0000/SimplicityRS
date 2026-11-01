@@ -66,6 +66,35 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(second.chat.transcript,[])
         self.assertIsNone(second.chat.storage_path)
 
+    def test_rejected_draft_is_discarded_before_approved_rewrite(self):
+        state=State();state.mode='chat';state.emit=Mock();state.ensure_runtime=Mock()
+        state.speech_prefetch=Mock()
+        state.ask=Mock(side_effect=[
+            {'role':'assistant','content':'Change the DNS adapter settings.'},
+            {'role':'assistant','content':'What happens when you open a website?'}])
+        state.run('Websites stopped working')
+        state.speech_prefetch.clear.assert_called()
+        state.speech_prefetch.approve.assert_called_once_with('What happens when you open a website?')
+        self.assertNotIn('Change the DNS',str(state.chat.transcript))
+
+    def test_streamed_draft_stays_unapproved_and_late_tool_call_discards_audio(self):
+        import io
+        import json
+        state=State();state.mode='chat';state.speech_enabled=True;state.emit=Mock()
+        state.speech_prefetch=Mock();state.model_connection=Mock()
+        draft='This opening sentence is long enough to prepare. More text.'
+        parts=[{'message':{'content':draft}},
+               {'message':{'tool_calls':[{'function':{'name':'get_network_snapshot','arguments':{}}}]}},
+               {'done':True}]
+        state.model_connection.open.return_value=io.BytesIO(
+            b''.join(json.dumps(part).encode()+b'\n' for part in parts))
+        result=state.ask()
+        self.assertEqual(result['tool_calls'][0]['function']['name'],'get_network_snapshot')
+        state.speech_prefetch.offer.assert_called_once_with(draft)
+        state.speech_prefetch.approve.assert_not_called()
+        self.assertEqual(state.speech_prefetch.mock_calls[0][0],'clear')
+        self.assertEqual(state.speech_prefetch.mock_calls[-1][0],'clear')
+
     def test_launcher_uses_owned_window_lifecycle(self):
         with patch('window_launcher.launch') as launch:
             runpy.run_path(str(Path(__file__).with_name('launcher.py')),run_name='__main__')

@@ -65,7 +65,7 @@ async function listen(){
 }
 function speechSections(text){
  const parts=[];let remaining=text.trim();
- while(remaining.length){const limit=parts.length===0?120:240;const head=remaining.slice(0,limit+1);let end=-1;for(const match of head.matchAll(/[.!?](?=\s)/g))if(match.index>=35){end=match.index+1;break;}if(end<0)end=remaining.length<=limit?remaining.length:head.lastIndexOf(' ');if(end<1)end=limit;parts.push(remaining.slice(0,end));remaining=remaining.slice(end).trimStart();}return parts;
+ while(remaining.length){const limit=parts.length===0?80:160;const head=remaining.slice(0,limit+1);let end=-1;for(const match of head.matchAll(/[.!?](?=\s)/g))if(match.index>=35){end=match.index+1;break;}if(end<0)end=remaining.length<=limit?remaining.length:head.lastIndexOf(' ');if(end<1)end=limit;parts.push(remaining.slice(0,end));remaining=remaining.slice(end).trimStart();}return parts;
 }
 async function speak(text,continueVoice=false){
  if(!sound){if(continueVoice&&voiceSession&&continuousVoice)await listen();else if(!continuousVoice)voiceSession=false;return;}
@@ -100,7 +100,7 @@ async function sendMessage(text,fromVoice=false){
  voiceNotice='';
  autoNext=true;
  await stopSpeech();
- try{replyStartedAt=clock();await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text'});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();return true;}
+ try{replyStartedAt=clock();await api('/start',{mode:'chat',prompt:text.trim(),input_source:fromVoice?'voice':'text',speech_enabled:sound});el('message').value='';busy=true;el('status').textContent='Thinking…';await poll();return true;}
  catch(error){voiceSession=false;stopLiveSession();el('status').textContent=error.message;return false;}
 }
 function openToolPanel(panel,title){toolPanel=panel;el('tools-menu').hidden=true;el('tools').setAttribute('aria-expanded','false');el('tools-title').textContent=title;for(const name of ['facts','activity','connection'])el(name+'-panel').hidden=name!==panel;el('tools-copy-status').textContent='';el('tools-dialog').showModal();}

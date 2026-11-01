@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent
 class KokoroSpeech:
     def __init__(self):
         self.lock = threading.RLock()
+        self.operation = threading.Lock()
         self.process = None
         self.guard = None
         self.busy = False
@@ -34,7 +35,17 @@ class KokoroSpeech:
             if self.busy:
                 self.stop()
 
-    def synthesize(self, text):
+    def synthesize(self, text, cancelled=None):
+        # Cancellation may leave an old reader unwinding. Serialize complete
+        # operations so its cleanup cannot overwrite the next request's state.
+        if not self.operation.acquire(timeout=90):
+            raise ValueError('Voice preparation is busy.')
+        try:
+            return self._synthesize(text, cancelled)
+        finally:
+            self.operation.release()
+
+    def _synthesize(self, text, cancelled=None):
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
             raise ValueError('Please read a shorter reply (up to 2000 characters).')
         assets = ROOT / 'kokoro'
@@ -44,6 +55,8 @@ class KokoroSpeech:
         if not runtime.is_file():
             raise ValueError('Kokoro playback files are missing. The on-screen text is still available.')
         with self.lock:
+            if cancelled is not None and cancelled.is_set():
+                raise ValueError('Playback stopped')
             if self.busy:
                 raise ValueError('A voice reply is already being prepared. Stop it first.')
             if self.process is None or self.process.poll() is not None:

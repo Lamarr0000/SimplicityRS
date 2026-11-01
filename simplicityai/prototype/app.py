@@ -23,6 +23,7 @@ from neural_voice import NeuralVoiceInput
 from calculator_task import calculate,validate as validate_calculation,EXPRESSION
 from model_connection import ModelConnection
 from stream_asr import StreamASR, MAX_AUDIO
+from speech_prefetch import SpeechPrefetch
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -135,6 +136,8 @@ class State:
         self.model_connection = None
         self.chat = Conversation(ROOT/'logs'/'chat-state.json' if persist_chat else None)
         self.input_source = 'text'
+        self.speech_enabled = False
+        self.speech_prefetch = SpeechPrefetch(SPEECH)
 
     def emit(self, kind, text, **extra):
         with self.lock:
@@ -147,7 +150,7 @@ class State:
                     f.write(json.dumps(event, ensure_ascii=False) + "\n")
             print(f"[{event['time']}] {kind}: {text}", flush=True)
 
-    def start(self, prompt, mode="health", input_source='text'):
+    def start(self, prompt, mode="health", input_source='text', speech_enabled=False):
         with self.lock:
             if self.busy:
                 raise ValueError("A task is already running")
@@ -156,6 +159,9 @@ class State:
             if mode not in {"health", "calculator", "network", "dns_simulation", "integrity", "chat"}:
                 raise ValueError("Unknown task mode")
             if input_source not in {'text','voice'}:raise ValueError('Unknown message source')
+            if not isinstance(speech_enabled,bool):raise ValueError('Invalid speech preference')
+            self.speech_prefetch.clear()
+            self.speech_enabled=speech_enabled
             self.input_source=input_source
             self.mode = mode
             self.health_snapshot = None
@@ -212,6 +218,7 @@ class State:
             raise RuntimeError("gpt-oss:20b is not installed in the running Ollama instance")
 
     def ask(self):
+        self.speech_prefetch.clear()
         data = json.dumps({"model": MODEL, "messages": self.messages, "tools": CHAT_TOOLS if self.mode == 'chat' else HEALTH_TOOLS if self.mode == "health" else TOOLS,
                            "stream": True, "think": "low", "keep_alive": "15m",
                            "options": {"num_ctx": 8192, "num_predict": 900 if self.mode == "health" else 450 if self.mode == 'chat' else 350, "temperature": 0}}).encode()
@@ -236,6 +243,11 @@ class State:
                     if self.mode not in {"health", "chat"}:
                         self.emit("assistant_chunk", chunk)
                 calls.extend(message.get("tool_calls", []))
+                if self.mode == 'chat' and self.speech_enabled:
+                    if calls:
+                        self.speech_prefetch.clear()
+                    elif chunk:
+                        self.speech_prefetch.offer(content)
                 if part.get("done"):
                     final = part
         with self.lock:
@@ -391,9 +403,11 @@ class State:
             else:
                 self.emit("status", "Stopped at the 24-step limit. Task completion is unverified.")
         except InterruptedError as error:
+            self.speech_prefetch.clear()
             if self.mode == 'chat': self.chat.fail(str(error))
             self.emit("status", str(error))
         except Exception as error:
+            self.speech_prefetch.clear()
             if self.mode == 'chat': self.chat.fail('I could not finish that turn. '+str(error))
             self.emit("error", str(error))
             self.emit("status", "Stopped with an error. Completion is unverified.")
@@ -426,6 +440,7 @@ class State:
             self.check_stop()
             self.emit('status','Thinking…' if step==0 else 'Reviewing the tool results…')
             message=self.ask()
+            self.check_stop()
             self.messages.append(message)
             calls=message.get('tool_calls',[])
             if not calls:
@@ -433,6 +448,7 @@ class State:
                     raise RuntimeError('The local model returned no reply. Please try again.')
                 issues=reply_issues(message['content'])
                 if issues:
+                    self.speech_prefetch.clear()
                     if rewrites:
                         raise RuntimeError('The local model could not produce a suitable evidence-based reply. Please ask a narrower question. No repair was performed.')
                     rewrites+=1
@@ -441,6 +457,7 @@ class State:
                     self.emit('status','Reviewing the reply before presenting it…')
                     continue
                 self.chat.finish(self.messages,start)
+                self.speech_prefetch.approve(message['content'])
                 self.emit('assistant_chunk',message['content'])
                 self.emit('status','Finished — reply ready.')
                 return
@@ -459,6 +476,7 @@ class State:
 
     def stop(self):
         self.cancel.set()
+        self.speech_prefetch.clear()
         # Action calls already in progress may finish; no new ones may start.
         self.emit("status", "Stop requested — waiting for the current call to return. No new actions will start.")
 
@@ -495,7 +513,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path in {'/continuous-voice.js','/voice-processor.js','/live-session.js'} and self.headers.get('Host') == f'127.0.0.1:{self.server.server_port}':
             self.reply(200,(ROOT/self.path[1:]).read_text(encoding='utf-8'),'application/javascript')
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
-            self.reply(200, {"app": "ThemHands", "version": "0.6.1", "scope": "Local conversation and scoped diagnostic tools"})
+            self.reply(200, {"app": "ThemHands", "version": "0.6.2", "scope": "Local conversation and scoped diagnostic tools"})
         elif self.path == '/voice/state' and self.permitted():
             self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
@@ -503,7 +521,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
                                  "log": str(STATE.log) if STATE.log else None,
                                  "mode": STATE.mode, "health_snapshot": STATE.health_snapshot,
-                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.6.1'})
+                                 "chat_transcript": list(STATE.chat.transcript),'build':'0.6.2'})
         else:
             self.reply(403, {"error": "Unavailable or unauthorized"})
 
@@ -536,6 +554,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/chat/reset':
                 if STATE.busy:
                     raise ValueError('Stop the active turn before starting a new chat.')
+                STATE.speech_prefetch.clear()
                 SPEECH.stop()
                 VOICE.stop()
                 STREAM_ASR.stop()
@@ -549,8 +568,14 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Finish the current task or voice input before reading a reply aloud.')
                 try:
                     started=time.monotonic()
-                    audio = SPEECH.synthesize(data.get('text'))
-                    STATE.emit('timing',f'Kokoro audio preparation: {time.monotonic()-started:.1f} seconds')
+                    audio = STATE.speech_prefetch.take(data.get('text'))
+                    prefetched = audio is not None
+                    if audio is None:
+                        # A different manual Read aloud request must not race
+                        # an unused speculative opening section.
+                        STATE.speech_prefetch.clear()
+                        audio = SPEECH.synthesize(data.get('text'))
+                    STATE.emit('timing',f'Kokoro audio preparation: {time.monotonic()-started:.1f} seconds',metrics={'prefetch_hit':prefetched})
                 except ValueError:
                     STATE.emit('speech_error',SPEECH.last_error or 'Voice preparation did not complete.')
                     raise
@@ -562,6 +587,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(audio)
                 return
             elif self.path == '/speech/stop':
+                STATE.speech_enabled=False
+                STATE.speech_prefetch.clear()
                 SPEECH.cancel()
             elif self.path == '/voice/stream/prepare':
                 VOICE.stop()
@@ -582,6 +609,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == '/voice/start':
                 if STATE.busy:
                     raise ValueError('Wait for the current task to finish before using voice input.')
+                STATE.speech_prefetch.clear()
                 SPEECH.cancel()
                 VOICE.start()
             elif self.path == '/voice/check':
@@ -596,7 +624,7 @@ class Handler(BaseHTTPRequestHandler):
                 if VOICE.snapshot()['state'] in {'starting', 'listening', 'transcribing'}:
                     raise ValueError('Finish or stop voice input and review your words before starting a task.')
                 SPEECH.cancel()
-                STATE.start(data.get("prompt"), data.get("mode", "health"), data.get('input_source','text'))
+                STATE.start(data.get("prompt"), data.get("mode", "health"), data.get('input_source','text'),data.get('speech_enabled',False))
             elif self.path == "/stop":
                 STATE.stop()
             else:
@@ -625,6 +653,7 @@ def main():
         server.serve_forever()
     finally:
         STATE.cancel.set()
+        STATE.speech_prefetch.clear()
         VOICE.stop()
         SPEECH.stop()
         STREAM_ASR.stop()

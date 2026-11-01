@@ -13,6 +13,15 @@ class KokoroTests(unittest.TestCase):
                 KokoroSpeech().synthesize(text)
 
     @patch('kokoro_speech.Path.is_file', return_value=True)
+    @patch('kokoro_speech.subprocess.Popen')
+    def test_cancelled_speculation_cannot_start_a_worker(self, popen, file):
+        import threading
+        cancelled=threading.Event();cancelled.set()
+        with self.assertRaises(ValueError):
+            KokoroSpeech().synthesize('Old draft', cancelled=cancelled)
+        popen.assert_not_called()
+
+    @patch('kokoro_speech.Path.is_file', return_value=True)
     @patch('kokoro_speech.Path.is_dir', return_value=True)
     @patch('kokoro_speech._guard_process')
     @patch('kokoro_speech.subprocess.Popen')

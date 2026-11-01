@@ -1,3 +1,27 @@
+# Host speech overlap staged — November 1, 0.6.2
+
+Implemented bounded speculative opening-audio preparation while model output is
+still arriving. Never release until full reply passes existing checks and exact
+opening matches. Clear on late tool calls, draft rewrite, stop/new turn/reset/Exit;
+cancelled waiters cannot restart stale synthesis. Client sends sound preference.
+First section 80 chars, later 160; warm Kokoro stays CPU two threads. Serialized
+speaker operations prevent old cleanup racing a newer request.
+
+See SPEECH-OVERLAP-0.6.2.md. Warm synthetic model-to-first-WAV time improved from
+10.60/11.01 sec sequential to 8.48/8.98 sec overlap in two paired questions.
+Not end-to-end voice timing; ASR and playback excluded, tiny sample/cache caveats.
+Greedy Whisper decoding did not materially improve four synthetic clip timings;
+retained beam3, CPU2. No model switch or paid/cloud setup. 83 Python tests and both
+JS suites pass. No real microphone or playback used in development checks.
+
+Host was verified idle on 0.6.1; 0.6.2 source is copied/hash-verified at
+C:/SimplicityAI-Lab/ThemHands with prior files in a timestamped Backups folder.
+RUNNING PROCESS REMAINS 0.6.1 until user Exit/reopens Start-ThemHands.cmd manually.
+Prior automatic review rejected scripted restart; do not bypass with another tool.
+Live voice/interruption verification is pending. VM shared package still 0.5.2.
+
+---
+
 # Balanced performance decision — November 1
 
 User clarified model switching was an idea, not an instruction; wants balanced

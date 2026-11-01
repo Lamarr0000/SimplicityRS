@@ -61,6 +61,7 @@ class VoiceEndpointTests(unittest.TestCase):
         self.voice = Mock()
         self.voice.snapshot.return_value = {'state': 'listening'}
         self.state = Mock(busy=False)
+        self.state.speech_prefetch.take.return_value = None
         for name, value in [('VOICE', self.voice), ('STATE', self.state)]:
             patcher = patch.object(app, name, value)
             patcher.start()
@@ -98,6 +99,17 @@ class VoiceEndpointTests(unittest.TestCase):
                 self.assertEqual(response.headers['Content-Type'],'audio/wav')
                 self.assertEqual(response.read(),audio)
             synth.assert_called_once_with('Hello')
+
+    def test_approved_prefetch_uses_same_authenticated_audio_endpoint(self):
+        self.voice.snapshot.return_value = {'state': 'idle'}
+        audio=b'RIFF\x00\x00\x00\x00WAVEprefetched'
+        self.state.speech_prefetch.take.return_value=audio
+        with patch.object(app.SPEECH, 'synthesize') as synth:
+            request=urllib.request.Request(self.url+'/speech/read',data=b'{"text":"Approved"}',
+                headers={'X-ThemHands-Token':app.TOKEN,'Content-Type':'application/json'})
+            with self.opener.open(request) as response:self.assertEqual(response.read(),audio)
+            synth.assert_not_called()
+            self.state.speech_prefetch.take.assert_called_once_with('Approved')
 
     def test_streaming_audio_requires_token_and_preserves_binary_body(self):
         from test_stream_asr import audio
