@@ -4,6 +4,20 @@ from integrity import collect_integrity, integrity_report
 
 
 class IntegrityTests(unittest.TestCase):
+    def test_clean_summary_keeps_raw_progress_out(self):
+        result = {'windows_directory': 'C:\\Windows', 'errors': [], 'checks': [
+            {'exit_code': 0, 'output': 'No component store corruption detected.', 'tool': 'DISM', 'errors': ''},
+            {'exit_code': 0, 'output': 'Verification 50% complete.\nWindows Resource Protection did not find any integrity violations.', 'tool': 'SFC', 'errors': ''}]}
+        text = integrity_report(result)
+        self.assertNotIn('50%', text)
+        self.assertIn('no reason to repair', text)
+        self.assertIn('Full Windows output', text)
+
+    def test_partial_result_never_gets_all_clear(self):
+        result = {'windows_directory': 'C:\\Windows', 'errors': [], 'checks': [
+            {'exit_code': 0, 'output': 'No component store corruption detected.', 'tool': 'DISM', 'errors': ''}]}
+        self.assertNotIn('no reason to repair', integrity_report(result))
+
     @patch('integrity.subprocess.run')
     @patch('integrity.is_admin', return_value=False)
     def test_no_admin_runs_nothing(self, admin, run):

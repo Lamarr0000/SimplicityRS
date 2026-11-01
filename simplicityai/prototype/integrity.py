@@ -35,19 +35,25 @@ def collect_integrity(emit, check_stop):
 
 
 def integrity_report(result):
-    lines = ['Windows file checks — running Windows only: ' + result['windows_directory'],
-             'Inside this VM, this checks the VM’s Windows, not your host PC or another drive. No repairs were requested. Windows may write diagnostic logs.']
+    lines = ['Windows file check results',
+             'Checked: the Windows currently running at ' + result['windows_directory'] + '. If running inside a VM, this checks the VM, not the host PC. Other Windows installations were not checked.']
     lines.extend(result['errors'])
+    passed = 0
     for item in result['checks']:
         text = item['output'].lower()
         if item['exit_code'] == 0 and 'windows resource protection did not find any integrity violations' in text:
             lines.append('Windows reports that the protected system files passed this verification. That does not rule out other causes of a crash.')
+            passed += 1
         elif 'windows resource protection found integrity violations' in text:
             lines.append('Windows reports protected-file integrity problems. This verification did not request a repair. Review the detailed log before deciding what to do next.')
         elif item['exit_code'] == 0 and 'no component store corruption detected' in text:
             lines.append('Windows has no component-store corruption flagged in this status check. A full scan has not been performed.')
+            passed += 1
         else:
             lines.append('This result needs review. SimplicityAI has not established a clean result or a repair from this output.')
-        lines.append(item['tool'] + ': command returned exit code ' + str(item['exit_code']) + '. Read the Windows result below; an exit code alone does not prove files are healthy.\n\n' + item['output'] + ('\n' + item['errors'] if item['errors'] else ''))
-    lines.append('DISM CheckHealth reads whether corruption has already been flagged; it is not a new full component-store scan. SFC verifyonly checks protected system files without requesting repairs. Neither checks hardware, malware or every Windows problem. If Windows reports corruption or a failed check, keep these results for review before choosing a repair.')
+    if len(result['checks']) == 2 and passed == 2 and not result['errors']:
+        lines.append('What to do next: these checks found no reason to repair Windows files. If the computer still has a problem, describe what happens and when so we can choose a different check.')
+    elif result['checks']:
+        lines.append('What to do next: review the tool evidence before choosing a repair. A failed or unclear check does not by itself identify the cause.')
+    lines.append('No repairs were requested. These checks do not rule out hardware problems, malware, application faults or every cause of a crash. Full Windows output and progress details remain in Activity and tool evidence and the local logs.')
     return '\n\n'.join(lines)
