@@ -11,9 +11,14 @@
 <p><label for="target">Which Windows needs help? </label><select id="target" style="font:inherit;padding:8px"><option value="">Choose the target</option><option value="current">The Windows running SimplicityAI</option><option value="other">Another Windows installation / the host PC</option></select></p>
 <p class="muted">If SimplicityAI is inside a virtual machine, “the Windows running SimplicityAI” means that virtual machine. It does not mean your host PC.</p>
 <label for="symptoms">What happens, and when did it start?</label><textarea id="symptoms" maxlength="1800" placeholder="For example: websites stopped loading this morning, but other apps still work."></textarea>
+<div aria-label="Voice input"><button id="voice-check" type="button">Check voice availability</button><button id="voice-start" type="button">Speak my issue</button><button id="voice-stop" type="button" disabled>Stop listening</button>
+<p id="voice-status" role="status">Optional local voice input. Click Speak, wait for “Listening,” say one sentence, then pause. Typing is always available.</p>
+<p class="muted">Uses the default Windows microphone and installed speech language. In a VM, microphone/audio access must be passed into the VM. Audio is not saved or sent to a cloud speech service. Your words are not a command to run tools.</p>
+<div id="voice-review" hidden><label for="voice-draft">Review what was heard</label><textarea id="voice-draft" maxlength="1800"></textarea><button id="voice-use" type="button">Use these words</button><button id="voice-discard" type="button">Discard</button><p class="muted">Using these words only adds them to your issue description. It does not start a check.</p></div></div>
 <button id="prepare-guide" type="button">Show my next step</button><p id="guide-plan" role="status" style="white-space:pre-wrap"></p>
+<div aria-label="Spoken explanations"><label for="speech-voice">Installed voice </label><select id="speech-voice" aria-label="Installed local voice"></select><button id="read-step" type="button">Read next step aloud</button><button id="read-reply" type="button">Read reply aloud</button><button id="stop-speaking" type="button">Stop speaking</button><p id="speech-status" role="status">Speech playback is optional. Only installed local voices are offered.</p></div>
 </section>
-<section><strong>Recovery assessment prototype</strong><p class="muted">Assess the running Windows environment with read-only diagnostics, or try the Calculator desktop demo. Repair actions, offline Windows inspection, voice, and vision are not connected yet.</p><label for="mode">Task mode </label><select id="mode" style="font:inherit;padding:8px;margin-bottom:14px"><option value="health">Read-only health assessment</option><option value="calculator">Calculator desktop demo</option><option value="integrity">Windows file verification — current Windows only</option><option value="network">Network evidence report (no model)</option><option value="dns_simulation">SIMULATION — DNS timeout (no live checks)</option></select><textarea id="prompt" aria-label="Task">Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.</textarea><button id="start">Start task</button><button id="stop" disabled>Stop</button><p class="muted">Stop prevents further actions; a call already in progress may finish. Assessment results stay in local logs.</p></section>
+<section><strong>Recovery assessment prototype</strong><p class="muted">Assess the running Windows environment with read-only diagnostics, or try the Calculator desktop demo. Repair actions, offline Windows inspection and vision are not connected yet. Voice availability depends on Windows audio and speech support.</p><label for="mode">Task mode </label><select id="mode" style="font:inherit;padding:8px;margin-bottom:14px"><option value="health">Read-only health assessment</option><option value="calculator">Calculator desktop demo</option><option value="integrity">Windows file verification — current Windows only</option><option value="network">Network evidence report (no model)</option><option value="dns_simulation">SIMULATION — DNS timeout (no live checks)</option></select><textarea id="prompt" aria-label="Task">Assess this computer using real diagnostics. Explain what looks normal, what needs attention, and what to check next and why. Do not make repairs.</textarea><button id="start">Start task</button><button id="stop" disabled>Stop</button><p class="muted">Stop prevents further actions; a call already in progress may finish. Assessment results stay in local logs.</p></section>
 <section id="health" hidden><div class="panel-header"><strong>Measured facts</strong><button id="copy-facts" type="button">Copy facts</button></div><span id="facts-copy-status" class="copy-feedback" role="status"></span><p class="muted">Collected directly from Windows. These screening results do not establish a diagnosis. Storage is flagged for review below 10% free or 20 GiB free; that does not mean the drive is failing.</p><div id="facts"></div></section>
 <section id="reply-panel" hidden aria-label="Assistant reply"><div class="panel-header"><strong>Assistant reply</strong><button id="copy-reply" type="button">Copy reply</button></div><span id="copy-status" class="copy-feedback" role="status"></span><div id="reply" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px"></div><div id="reply-blocks"></div></section>
 <section aria-live="polite"><div class="panel-header"><strong>Activity and tool evidence</strong><button id="copy-evidence" type="button">Copy activity</button></div><span id="evidence-copy-status" class="copy-feedback" role="status"></span><div id="status">Connecting…</div><p id="elapsed"></p><div id="events"></div><p class="muted" id="log"></p></section>
@@ -36,6 +41,57 @@ el('prepare-guide').onclick=()=>{
  el('guide-plan').textContent=network?'Next step: check this Windows network settings and make one DNS query. This can show whether that query succeeds; it cannot establish every cause of a browsing problem. No settings will change. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.':'Next step: verify protected Windows files and read the recorded component-store status in this Windows. This checks one possible area; it is not a complete crash diagnosis. Administrator access is required, and the check may take several minutes. No repairs will be requested. Your description is recorded as context, not automatically diagnosed. Review the selected check below, then click Start task.';
 };
 let replyText='',factsText='',evidenceText='';
+let lastCapture='';
+async function voiceOperation(path){
+ try{if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();await api(path,{});await pollVoice();}
+ catch(e){el('voice-status').textContent=e.message;}
+}
+el('voice-check').onclick=()=>voiceOperation('/voice/check');
+el('voice-start').onclick=()=>voiceOperation('/voice/start');
+el('voice-stop').onclick=()=>voiceOperation('/voice/stop');
+el('voice-use').onclick=()=>{
+ const text=el('voice-draft').value.trim(),old=el('symptoms').value.trim();
+ if(!text){el('voice-status').textContent='No words to add. You can type your issue instead.';return;}
+ const combined=old?old+'\n'+text:text;
+ if(combined.length>1800){el('voice-status').textContent='Please shorten the description before adding more words.';return;}
+ el('symptoms').value=combined;el('voice-review').hidden=true;el('voice-status').textContent='Words added. Review your description, then choose your next step. No check has started.';
+};
+el('voice-discard').onclick=()=>{el('voice-draft').value='';el('voice-review').hidden=true;el('voice-status').textContent='Words discarded. You can type or try again.';};
+async function pollVoice(){
+ const value=await api('/voice/state');const active=['starting','listening'].includes(value.state);
+ el('voice-status').textContent=value.message||value.state;
+ el('voice-start').disabled=active||lastBusy;el('voice-check').disabled=active||lastBusy;el('voice-stop').disabled=!active;
+ const key=value.capture_id+':'+value.text;
+ if(value.state==='transcribed'&&key!==lastCapture){lastCapture=key;el('voice-draft').value=value.text||'';el('voice-review').hidden=false;}
+}
+let localVoices=[];
+function loadVoices(){
+ if(!globalThis.speechSynthesis){el('speech-status').textContent='Speech playback is unavailable in this browser. Text remains available.';return;}
+ const selected=el('speech-voice').value;
+ localVoices=globalThis.speechSynthesis.getVoices().filter(v=>v.localService===true);
+ el('speech-voice').replaceChildren();
+ for(const voice of localVoices){const option=document.createElement('option');option.value=voice.voiceURI;option.textContent=voice.name+' ('+voice.lang+')';el('speech-voice').append(option);}
+ if(localVoices.some(v=>v.voiceURI===selected))el('speech-voice').value=selected;
+ el('speech-status').textContent=localVoices.length?'Choose an installed voice. Playback starts only when you click Read.':'No local playback voice was found. Text remains available; no cloud voice will be substituted.';
+}
+function speakText(text){
+ const voice=localVoices.find(v=>v.voiceURI===el('speech-voice').value);
+ if(!voice||!globalThis.SpeechSynthesisUtterance){el('speech-status').textContent='No local playback voice is available. Please read the text instead.';return;}
+ if(!text.trim()){el('speech-status').textContent='There is no explanation to read yet.';return;}
+ if(text.length>12000){el('speech-status').textContent='This reply is too long for this playback prototype. Please use the on-screen text.';return;}
+ globalThis.speechSynthesis.cancel();const utterance=new globalThis.SpeechSynthesisUtterance(text);utterance.voice=voice;utterance.rate=0.95;
+ utterance.onend=()=>el('speech-status').textContent='Finished speaking.';
+ utterance.onerror=()=>el('speech-status').textContent='Playback did not finish. Check the speakers or use the text.';
+ el('speech-status').textContent='Reading aloud using '+voice.name+'.';globalThis.speechSynthesis.speak(utterance);
+}
+el('read-step').onclick=()=>speakText(el('guide-plan').textContent);
+el('read-reply').onclick=()=>speakText(replyText);
+el('stop-speaking').onclick=()=>{if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();el('speech-status').textContent='Speech stopped.';};
+loadVoices();if(globalThis.speechSynthesis)globalThis.speechSynthesis.addEventListener('voiceschanged',loadVoices);
+globalThis.addEventListener?.('pagehide',()=>{
+ if(globalThis.speechSynthesis)globalThis.speechSynthesis.cancel();
+ fetch('/voice/stop',{method:'POST',headers:{'X-ThemHands-Token':token,'Content-Type':'application/json'},body:'{}',keepalive:true}).catch(()=>{});
+});
 async function copyText(text,label,statusId='copy-status'){
  if(!text){el(statusId).textContent='Nothing to copy yet.';return;}
  try{await navigator.clipboard.writeText(text);el(statusId).textContent=label+' copied';}
@@ -88,6 +144,7 @@ async function poll(){
   if(s.busy&&!lastBusy&&!started)started=Date.now();
   el('elapsed').textContent=s.busy?'Running for '+Math.floor((Date.now()-started)/1000)+' seconds. Progress updates appear here.':'';
   lastBusy=s.busy;el('log').textContent=s.log?'Local evidence log: '+s.log:'';
+  pollVoice().catch(()=>{el('voice-status').textContent='Voice connection unavailable. Typing is still available.';});
  }catch(e){el('status').textContent='Connection unavailable: '+e.message}
 }
 let snapshotTime='';

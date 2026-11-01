@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from desktop import Calculator, BUTTONS
 from health import collect_health, network_report, dns_timeout_simulation
 from integrity import collect_integrity, integrity_report
+from voice import VoiceInput
 from model_connection import ModelConnection
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -24,6 +25,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent
+VOICE = VoiceInput()
 LAB = ROOT.parent / "HostTest"
 OLLAMA = "http://127.0.0.1:11434"
 MODEL = "gpt-oss:20b"
@@ -389,6 +391,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200, (ROOT / "index.html").read_text(encoding="utf-8"), "text/html")
         elif self.path == "/health" and self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}":
             self.reply(200, {"app": "ThemHands", "version": "0.2.0", "scope": "Read-only health assessment and Calculator"})
+        elif self.path == '/voice/state' and self.permitted():
+            self.reply(200, VOICE.snapshot())
         elif self.path == "/state" and self.permitted():
             with STATE.lock:
                 self.reply(200, {"busy": STATE.busy, "status": STATE.status, "events": STATE.events,
@@ -405,7 +409,17 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length < 12000:
                 raise ValueError("Invalid body length")
             data = json.loads(self.rfile.read(length))
-            if self.path == "/start":
+            if self.path == '/voice/start':
+                if STATE.busy:
+                    raise ValueError('Wait for the current task to finish before using voice input.')
+                VOICE.start()
+            elif self.path == '/voice/check':
+                VOICE.start('Probe')
+            elif self.path == '/voice/stop':
+                VOICE.stop()
+            elif self.path == "/start":
+                if VOICE.snapshot()['state'] in {'starting', 'listening'}:
+                    raise ValueError('Finish or stop voice input and review your words before starting a task.')
                 STATE.start(data.get("prompt"), data.get("mode", "health"))
             elif self.path == "/stop":
                 STATE.stop()

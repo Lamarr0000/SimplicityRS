@@ -5,6 +5,14 @@ const elements={};const elem=id=>elements[id]??=( {textContent:'',replaceChildre
 let copied='';const context=vm.createContext({document:{getElementById:elem,createElement:()=>({style:{},append(){}})},navigator:{clipboard:{writeText:async text=>{copied=text}}},location:{hash:'',pathname:'/'},sessionStorage:{getItem(){return ''}},history:{replaceState(){}},console});
 vm.runInContext(script,context);
 (async()=>{
+ elem('symptoms').value='';elem('voice-draft').value='Websites do not load';elem('voice-use').onclick();
+ assert.equal(elem('symptoms').value,'Websites do not load');assert.match(elem('voice-status').textContent,/No check has started/);
+ let spoken=null;
+ context.speechSynthesis={getVoices:()=>[{localService:true,voiceURI:'local',name:'Local',lang:'en-US'},{localService:false,voiceURI:'remote',name:'Remote',lang:'en-US'}],cancel(){},speak(u){spoken=u}};
+ context.SpeechSynthesisUtterance=function(text){this.text=text};
+ vm.runInContext('loadVoices()',context);elem('speech-voice').value='remote';vm.runInContext("speakText('hello')",context);assert.equal(spoken,null);
+ elem('speech-voice').value='local';vm.runInContext("speakText('hello')",context);assert.equal(spoken.voice.voiceURI,'local');
+ console.log('Voice review adds text only; remote playback voices rejected.');
  for(const [id,variable,text] of [['copy-reply','replyText','ANSWER ONLY'],['copy-facts','factsText','FACTS ONLY'],['copy-evidence','evidenceText','RAW TOOL EVIDENCE']]){
   vm.runInContext(`${variable}=${JSON.stringify(text)}`,context);await elem(id).onclick();assert.equal(copied,text);
  }
@@ -13,5 +21,3 @@ vm.runInContext(script,context);
  assert.equal((html.match(/class="panel-header"/g)||[]).length,3);
  elem('problem').value='web';elem('target').value='other';elem('prepare-guide').onclick();assert.equal(elem('start').disabled,true);assert.match(elem('guide-plan').textContent,/cannot inspect/);elem('target').value='current';elem('symptoms').value='Test symptom';elem('prepare-guide').onclick();assert.equal(elem('mode').value,'network');assert.equal(elem('start').disabled,false);elem('problem').value='crash';elem('prepare-guide').onclick();assert.equal(elem('mode').value,'integrity');console.log('Guided target restriction and check routing passed.'); console.log('Three isolated copy actions, clipboard failure feedback, and three panel headers passed.');
 })().catch(e=>{console.error(e);process.exitCode=1});
-
-
