@@ -169,3 +169,10 @@ against a real browser yet: the user owns the next pilot. No app was restarted.
 Exit/reopen Voice Pilot to load the new tool and launcher. Ask it to open a browser
 in the Windows running SimplicityAI and report whether a window actually appears.
 Local replay evidence is in StreamingPrototype/logs/browser-conversation-*.json.
+
+
+## November 1: general ThemHands desktop pilot
+
+Added isolated Windows-MCP stdio bridge, observed-control click/type/scroll/switch tools, fixed app/HTTPS launches, exclusive Desktop text creation with reread, and launcher/Lazesoft reference inventory. General input blocks terminal/admin/Lazesoft recovery processes. No validated clone/restore/erase/password workflows. Text-only Qwen has no visual interpretation of inaccessible controls. Desktop requests use current running Windows; another host is still not connected.
+
+Read-only driver probe verified seven actual tools, protection enabled/balanced/1.5-second idle; real UIA snapshot returned 100 controls. 28 boundary/regression checks pass. Model routing checks are synthetic, not live desktop evidence. Initial Lazesoft model answer invented limitations; catalog is now injected automatically for relevant requests. Live user test is next: Exit/reopen Voice Pilot, open Google and inspect actual page, then create Simplicity Test.txt. No running pilot was restarted and no user desktop input was issued in these checks. See streaming/DESKTOP-CONTROL.md.

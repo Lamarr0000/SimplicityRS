@@ -101,5 +101,17 @@
       },
       "think": false
     }
-  ]
+  ],
+  "desktop_driver": {
+    "name": "windows-mcp",
+    "version": "0.8.8",
+    "revision": "7fd39b4c1551d4d9da33d55c486ac5c4c6e2cf41",
+    "license": "MIT",
+    "transport": "owned local stdio",
+    "fastmcp": "4.1.4",
+    "mcp": "2.3.0",
+    "jsonschema": "4.26.0",
+    "telemetry": false,
+    "control_policy": "balanced"
+  }
 }

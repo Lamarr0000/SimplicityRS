@@ -1,3 +1,7 @@
+# Current checkpoint: broader ThemHands desktop pilot — November 1
+
+General accessibility desktop assistance is now connected in the isolated Voice Pilot: observed controls, clicking/typing/scrolling, window switching, fixed installed app/HTTPS launch, and verified new Desktop text files. Recovery-media/Lazesoft catalog is connected for explanation only; clone/restore/erase workflows remain disabled. 28 boundary/regression checks and 3 local-model synthetic routing cases pass. Actual driver registration and a read-only 100-control snapshot verified; live user action tests still pending. Exit/reopen Voice Pilot, test Google, then a new Desktop text file. Do not restart the normal installation or change BRS. See streaming/DESKTOP-CONTROL.md. Historical notes below precede this expanded scope.
+
 # Browser launch and accurate ThemHands capability facts prepared — November 1
 
 User's live conversation showed absent browser controls, poor ThemHands identity
@@ -559,3 +563,10 @@ session-tools package and this checkpoint remain easy to find.
 Preserve SimplicityBRS compatibility baseline and its ISO
 `C:\SimplicityBRS-Compatibility\Simplicity-Compatibility-12.iso`.
 No TPM, BitLocker, network, recovery disk or BRS settings were changed tonight.
+
+
+## November 1: general ThemHands desktop pilot
+
+Added isolated Windows-MCP stdio bridge, observed-control click/type/scroll/switch tools, fixed app/HTTPS launches, exclusive Desktop text creation with reread, and launcher/Lazesoft reference inventory. General input blocks terminal/admin/Lazesoft recovery processes. No validated clone/restore/erase/password workflows. Text-only Qwen has no visual interpretation of inaccessible controls. Desktop requests use current running Windows; another host is still not connected.
+
+Read-only driver probe verified seven actual tools, protection enabled/balanced/1.5-second idle; real UIA snapshot returned 100 controls. 28 boundary/regression checks pass. Model routing checks are synthetic, not live desktop evidence. Initial Lazesoft model answer invented limitations; catalog is now injected automatically for relevant requests. Live user test is next: Exit/reopen Voice Pilot, open Google and inspect actual page, then create Simplicity Test.txt. No running pilot was restarted and no user desktop input was issued in these checks. See streaming/DESKTOP-CONTROL.md.

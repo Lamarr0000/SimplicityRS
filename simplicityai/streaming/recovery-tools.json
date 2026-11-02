@@ -1,0 +1,26 @@
+{
+  "scope": "Reference inventory of the SimplicityBRS launcher and recovery-media payload, not a claim these applications are installed on this host or their operations are validated.",
+  "launcher": [
+    {"name":"File Manager","purpose":"Browse files and copy backups to another drive."},
+    {"name":"Inspect disks","purpose":"List disks using the launcher's fixed read-only DiskPart script; not partition editing."},
+    {"name":"Network information","purpose":"Display adapter configuration; configuration alone does not prove connectivity."},
+    {"name":"Notepad++","purpose":"Edit text files; portable payload recorded in apps/catalog.json."},
+    {"name":"Web browsers","purpose":"Firefox and Chrome reported working in recovery-media tests. Edge failed in that environment; host Edge launch is separately verified."},
+    {"name":"BitLocker unlock panel","purpose":"Inspect lock/key-protector information and help a user unlock with their recovery key. Never record or ask the model to handle the key. This pilot does not expose drive unlocking."},
+    {"name":"Command prompt","purpose":"Advanced manual maintenance; no arbitrary command tool is exposed in this pilot."}
+  ],
+  "lazesoft": {
+    "edition":"Recovery Suite Home 5.3.0.1, personal noncommercial use",
+    "location":"Recovery media Programs/LazesoftHome; host installation not established",
+    "validation":"User reported the suite opens in candidate 07. Individual backup, restore, clone, data-recovery and password workflows have not been validated. Do not automate their commit buttons.",
+    "modules":[
+      {"name":"Data Recovery","executable":"DataRecoveryApp.exe","purpose":"Search for deleted or lost files and recover selected files to a separate destination. Recovery is not guaranteed; avoid writing recovered data onto the source."},
+      {"name":"Windows Recovery","executable":"WindowsRecoveryApp.exe","purpose":"Boot and Windows recovery utilities. Establish the affected installation and backup before considering changes; current pilot cannot inspect offline Windows."},
+      {"name":"Disk Image & Clone","executable":"DiskImageCloneApp.exe","purpose":"Create backup images, restore images, clone disks and manage partitions. Restore and clone can overwrite destination data. Source, destination, capacity and backup must be independently verified before any operation."},
+      {"name":"Password Recovery","executable":"PasswordRecoveryApp.exe","purpose":"Account/password recovery for an authorized owner. Not an exposed or validated pilot workflow."}
+    ],
+    "sources":["https://www.lazesoft.com/lazesoft-recovery-suite-free.html","https://www.lazesoft.com/lazesoft-data-recovery.html","https://www.lazesoft.com/lazesoft-windows-recovery.html","https://www.lazesoft.com/lazesoft-disk-image-clone.html"]
+  },
+  "local_sources":["launcher/SimplicityDesktop.hta","docs/LAZESOFT.md","apps/lazesoft-home.json","apps/browsers.json","apps/catalog.json"],
+  "automation_status":"Reference/explanation only for recovery-media applications. General accessible desktop assistance is separately connected through Windows-MCP. No clone/restore/erase automation is enabled."
+}

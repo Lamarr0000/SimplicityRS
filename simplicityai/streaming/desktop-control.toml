@@ -1,0 +1,9 @@
+[server]
+transport = "stdio"
+
+[control]
+enabled = true
+policy = "balanced"
+idle_timeout_seconds = 1.5
+mouse_takeover_units = 150
+
