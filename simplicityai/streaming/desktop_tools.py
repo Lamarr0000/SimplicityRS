@@ -23,8 +23,10 @@ DESKTOP_TOOLS=[
         'text':STRING,'clear':{'type':'boolean'},'enter':{'type':'boolean'}},('snapshot','element','action')),
     definition('desktop_switch','Bring an exact window title from desktop_observe to the foreground; then observe it.',{'title':STRING},('title',)),
     definition('open_desktop_app','Open a supported installed app in this Windows, then inspect it with desktop_observe. Edge can receive an HTTPS URL. Launch does not prove a website loaded.',{
-        'app':{'type':'string','enum':['edge','notepad','explorer','calculator']},'url':STRING},('app',)),
+        'app':{'type':'string','enum':['edge','notepad','explorer','calculator','task_manager']},'url':STRING},('app',)),
     definition('create_desktop_text','Create a NEW UTF-8 .txt document on this Windows user Desktop and reread it to verify. Never overwrite an existing file. This is a file operation, not simulated GUI typing.',{'filename':STRING,'content':STRING},('filename','content')),
+    definition('export_conversation','Export the actual recorded active conversation, both user and assistant messages, to a new Desktop text file. Use for conversation/session documents; never reconstruct its contents yourself. Omit filename to choose a unique name.',{'filename':STRING}),
+    definition('get_cpu_process_snapshot','Measure current process CPU usage over about one second in this Windows. Rank sampled processes, report limitations; no process is stopped or modified.',{}),
     definition('get_recovery_tool_catalog','Read launcher and Lazesoft capabilities and their validation limits. Does not launch or perform a recovery operation.',{})]
 
 
@@ -36,12 +38,12 @@ def desktop_path():
     return Path(os.path.expandvars(value)).resolve(strict=True)
 
 
-def create_text(filename, content, folder=None):
+def create_text(filename, content, folder=None, max_bytes=64000):
     if not isinstance(filename,str) or not re.fullmatch(r'[^<>:"/\\|?*\x00-\x1f]{1,100}\.txt',filename,re.I):
         raise ValueError('Use a plain .txt filename without a path')
     if filename.rstrip(' .')!=filename or filename.startswith('.') or filename.split('.')[0].upper() in {'CON','PRN','AUX','NUL',*(f'COM{i}' for i in range(1,10)),*(f'LPT{i}' for i in range(1,10))}:
         raise ValueError('Unsupported Windows filename')
-    if not isinstance(content,str) or len(content.encode('utf-8'))>64000:raise ValueError('Text must be at most 64000 UTF-8 bytes')
+    if not isinstance(content,str) or len(content.encode('utf-8'))>max_bytes:raise ValueError(f'Text exceeds the {max_bytes}-byte export limit')
     root=folder or desktop_path();path=root/filename;data=content.encode('utf-8')
     with path.open('xb') as output:output.write(data)
     verified=path.read_bytes()==data
@@ -51,7 +53,7 @@ def create_text(filename, content, folder=None):
 def launch_app(app, url=None):
     from browser_tools import edge_path
     system=Path(os.environ['SystemRoot'])/'System32'
-    paths={'edge':edge_path(),'notepad':system/'notepad.exe','explorer':Path(os.environ['SystemRoot'])/'explorer.exe','calculator':system/'calc.exe'}
+    paths={'edge':edge_path(),'notepad':system/'notepad.exe','explorer':Path(os.environ['SystemRoot'])/'explorer.exe','calculator':system/'calc.exe','task_manager':system/'Taskmgr.exe'}
     if app not in paths or not paths[app] or not paths[app].is_file():raise ValueError('Requested app is not installed at a supported path')
     args=[]
     if url is not None:

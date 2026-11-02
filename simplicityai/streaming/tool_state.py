@@ -6,6 +6,7 @@ from conversation import CHAT_TOOLS, tool
 from browser_tools import open_browser
 from desktop_tools import DESKTOP_TOOLS, DesktopTools
 from jsonschema import validate
+from session_tools import export_conversation,sample_cpu
 
 TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+[
     tool('open_browser_window','ThemHands: open a blank Microsoft Edge window in the Windows running SimplicityAI and verify it appeared. No internet/page-load test or settings changes. Refuse another/outside-host target.'),
@@ -19,6 +20,8 @@ CAPABILITIES={
                  'Windows-MCP accessibility observation, app switching, observed-control clicking, typing and scrolling',
                  'launch Edge HTTPS websites and supported installed apps; inspect actual result',
                  'create new Desktop text files with exclusive creation and reread verification',
+                 'export app-recorded conversation, both speakers, without model reconstruction',
+                 'launch Task Manager; read-only sampled per-process CPU ranking',
                  'launcher/Lazesoft reference catalog'],
     'not_connected':['visual interpretation of inaccessible/custom controls','validated Lazesoft recovery workflows',
                      'repairs','another/offline Windows installation'],
@@ -51,7 +54,9 @@ class ToolState(State):
             if self.chat.target=='other' and name!='get_recovery_tool_catalog':raise ValueError('That computer is not connected; no desktop action performed')
             self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
             self.emit('action','ThemHands: '+name.replace('_',' ')+' in the Windows running SimplicityAI.')
-            result=self.desktop.execute(name,args,self.check_stop)
+            if name=='export_conversation':result=export_conversation(self.chat.transcript,args.get('filename'))
+            elif name=='get_cpu_process_snapshot':result=sample_cpu(self.check_stop)
+            else:result=self.desktop.execute(name,args,self.check_stop)
             self.emit('observation',json.dumps(result));return result
         if name not in {'open_browser_window','get_tool_capabilities'}:return super().execute(call)
         if not isinstance(args,dict) or args:raise ValueError('This tool takes no arguments')

@@ -4,10 +4,11 @@ import re
 
 def desktop_request(text):
     return bool(re.search(r'\b(open|launch|navigate|search|create|click|type|save|write)\b',text,re.I)
-                and re.search(r'\b(browser|edge|google|goog el|googel|desktop|document|notepad|explorer|copilot|app|file|web\s*page)\b',text,re.I))
+                and re.search(r'\b(browser|edge|google|goog el|googel|desktop|document|notepad|explorer|copilot|task\s*(?:manager|major)|app|file|web\s*page)\b',text,re.I))
 
 
 def unfinished_draft(text):
+    if re.search(r"\b(?:I (?:cannot|can't|do not|don't) (?:directly )?(?:open|create|interact)|I (?:do not|don't) have the (?:capability|ability))\b",text,re.I):return True
     if re.search(r'\b(would you like|shall I|should I|may I|can I proceed|let me (?:proceed|start|check|type|open|search|click|navigate)|I\s*(?:will|\x27ll)\s+(?:open|type|search|click|navigate|proceed|check))\b',text,re.I):return True
     return bool(re.search(r'\b(could|can) you\b.{0,90}\b(where|locate|search (?:box|bar)|control|element)\b',text,re.I))
 
