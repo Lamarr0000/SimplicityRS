@@ -1,10 +1,21 @@
 import copy
 import unittest
-from acceptance_guard import bind_document, check_document, require_document_action
+from acceptance_guard import bind_document, check_document, require_document_action, require_calculator_action
 from outcome_verifier import TEST_TEXT
 
 
 class DocumentBoundary(unittest.TestCase):
+    def test_calculator_blocks_memory_history_keys_and_unknown_modes(self):
+        nodes=[{'name':'Standard'}, {'type':'ButtonControl','automation_id':'num1Button','rect':[10,20,30,40]}]
+        require_calculator_action({'kind':'click'},nodes,True,[[15,25]])
+        for action,complete,point in [({'kind':'click'},True,[[100,100]]),
+                                      ({'kind':'hotkey','shortcut':'ctrl+m'},True,[]),
+                                      ({'kind':'type','content':'137+29'},True,[]),
+                                      ({'kind':'click'},False,[[15,25]])]:
+            with self.assertRaises(InterruptedError):require_calculator_action(action,nodes,complete,point)
+        nodes[0]['name']='Scientific'
+        with self.assertRaises(InterruptedError):require_calculator_action({'kind':'click'},nodes,True,[[15,25]])
+
     def setUp(self):
         self.identity={'hwnd':1,'pid':2,'created':3,'process':'notepad.exe','title':'Untitled - Notepad'}
         self.nodes=[{'type':'TabItemControl','name':'Untitled','selected':True,'runtime_id':[1]},

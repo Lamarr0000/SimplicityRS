@@ -3,6 +3,24 @@ from outcome_verifier import evaluate, TEST_TEXT, verify
 
 
 class OutcomeVerifier(unittest.TestCase):
+    def test_calculator_requires_expression_and_result_from_actual_display_controls(self):
+        nodes=[{'automation_id':'CalculatorResults','name':'Display is 166'},
+               {'automation_id':'CalculatorExpression','name':'137 + 29 ='}]
+        self.assertTrue(evaluate('calculator-addition','calculatorapp.exe',nodes)['verified'])
+        for wrong in ('', '100 + 66 =', '137 + 29'):
+            nodes[1]['name']=wrong
+            self.assertFalse(evaluate('calculator-addition','calculatorapp.exe',nodes)['verified'])
+        self.assertFalse(evaluate('calculator-addition','calculatorapp.exe',[{'name':'166'}])['verified'])
+
+    def test_cpu_requires_selected_cpu_and_detail_labels(self):
+        nodes=[{'name':'Performance','selected':True},{'name':'CPU','selected':True}]
+        nodes += [{'name':name} for name in ('Utilization','Speed','Processes','Threads','Handles')]
+        self.assertTrue(evaluate('task-manager-cpu','taskmgr.exe',nodes)['verified'])
+        nodes[1]['selected']=False
+        self.assertFalse(evaluate('task-manager-cpu','taskmgr.exe',nodes)['verified'])
+        nodes[1]['selected']=True
+        self.assertFalse(evaluate('task-manager-cpu','taskmgr.exe',nodes[:-1])['verified'])
+
     def test_notepad_requires_exact_document_text(self):
         for text, expected in [(TEST_TEXT, True), (TEST_TEXT+'\r\n', True),
                                ('', False), ('prefix '+TEST_TEXT, False)]:

@@ -837,3 +837,29 @@ compilation pass; read-only binding against current real blank Notepad passes.
 No UI input, app restart or security change. User next: Exit/reopen preview to
 load fix, select notepad-text, keep existing blank Untitled document active,
 Start task, Copy evidence. Agent idle awaiting live test.
+
+
+## November 2: broader CPU/Calculator acceptance cases ready
+User's bound Untitled test independently passed14.434s: driver3.427s, model8.702s,
+Type1.193s, same bound tab/document and exact text; application verifier stopped
+before a second model action. User reported second try worked; first-try readiness
+cause remains unknown (no first-failure log). No further Notepad retry required.
+
+User authorized broader testing. Added selector task-manager-cpu: selected
+Performance+CPU plus five CPU detail labels required. Added calculator-addition:
+user opens real Calculator Standard mode, model visible buttons only, verifier
+checks both137+29= expression and166 display using actual automation IDs. Restrict
+calculator input to observed allowed number/plus/clear/equals button rectangles;
+unknown mode, shortcuts/type/memory/history/other clicks stop. No arithmetic
+fast-path substituted for screenshot decisions. Acceptance cases reject wrong
+foreground process before inference. Both new cases retain early outcome stop.
+Pre-existing correct outcomes may pass with no action; inspect logs accordingly.
+CPU case retains general preview input limits, not a hardened read-only sandbox.
+
+28 automated tests and compilation pass. Read-only inventory found no visible
+Task Manager/Calculator for compatibility probe, so both live verifiers pending.
+No new app/model launch or desktop input this change. Main Voice Pilot, VM/BRS,
+security and power settings unchanged; _wmi signing issue unresolved/separate.
+NEXT USER: Exit/reopen existing Admin preview, select task-manager-cpu, wait Ready,
+Start task, Copy evidence. Then calculator-addition with Calculator Standard open.
+Do not integrate into Voice Pilot yet. Agent idle awaiting live acceptance evidence.

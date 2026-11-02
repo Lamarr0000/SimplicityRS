@@ -1,9 +1,12 @@
 """Read-only acceptance predicates, independent of the visual model's claims."""
 import time
+import re
 
 CASES = {
     'notepad-text': ('notepad.exe', 'In the blank Untitled Notepad document, type Offline visual control test. Do not save, close, or edit other tabs. Finish when that exact sentence is visible.'),
     'task-manager-performance': ('taskmgr.exe', 'Open Task Manager and select its Performance tab. Do not end any processes or change settings. Finish when the Performance view is visible.'),
+    'task-manager-cpu': ('taskmgr.exe', 'Open Task Manager, select Performance, then select CPU. Finish when the CPU detail view with utilization, speed and process counts is visible. Do not end processes, change settings, or close windows.'),
+    'calculator-addition': ('calculatorapp.exe', 'In the already-open Calculator in Standard mode, clear the current calculation and calculate 137 + 29 using its visible buttons. Finish when the expression and result are displayed. Do not use memory, history, keyboard shortcuts, or close windows.'),
 }
 TEST_TEXT = 'Offline visual control test'
 
@@ -13,18 +16,26 @@ def evaluate(case, process, nodes, complete=True):
               'reason': 'Required evidence was not observed'}
     if case not in CASES:
         result['reason'] = 'No independent verifier for this task'
-    elif process.lower() != CASES[case][0]:
+    elif process.lower() not in ({'calculatorapp.exe','calculator.exe'} if case=='calculator-addition' else {CASES[case][0]}):
         result['reason'] = 'Requested application is not foreground'
     elif not complete:
         result['reason'] = 'Accessibility observation was incomplete'
     elif case == 'notepad-text':
         result['verified'] = any(n.get('type') in {'DocumentControl', 'EditControl'}
             and n.get('text', '').rstrip('\r\n') == TEST_TEXT for n in nodes)
+    elif case == 'calculator-addition':
+        results = [n.get('name','') for n in nodes if n.get('automation_id')=='CalculatorResults']
+        expressions = [n.get('name','') for n in nodes if n.get('automation_id')=='CalculatorExpression']
+        result['verified'] = (len(results)==1 and results[0].strip()=='Display is 166'
+            and len(expressions)==1 and re.sub(r'\s+','',expressions[0])=='137+29=')
     else:
         selected = any(n.get('name', '').strip() == 'Performance' and n.get('selected') is True
                        for n in nodes)
         metrics = {n.get('name', '').strip() for n in nodes}
         result['verified'] = selected and 'CPU' in metrics and 'Memory' in metrics
+        if case == 'task-manager-cpu':
+            cpu_selected = any(re.match(r'^CPU(?:\s|$)',n.get('name','')) and n.get('selected') is True for n in nodes)
+            result['verified'] = selected and cpu_selected and {'Utilization','Speed','Processes','Threads','Handles'} <= metrics
     if result['verified']:
         result['reason'] = 'Acceptance outcome observed; does not certify all task constraints'
     return result
@@ -42,13 +53,15 @@ def collect(hwnd, check, limit=400, seconds=3):
             if len(nodes) >= limit or time.monotonic() > deadline:
                 return nodes, False
             control, depth = pending.pop()
-            node = {'name': control.Name, 'type': control.ControlTypeName}
+            node = {'name': control.Name, 'type': control.ControlTypeName,
+                    'automation_id': control.AutomationId}
             if not control.IsOffscreen and not control.IsPassword:
-                if node['type'] in {'DocumentControl', 'TabItemControl'}:
+                if node['type'] in {'DocumentControl', 'TabItemControl', 'ButtonControl'}:
                     node['runtime_id'] = list(control.Element.GetRuntimeId())
                     box = control.BoundingRectangle
                     node['rect'] = [box.left, box.top, box.right, box.bottom]
-                if node['name'].strip() == 'Performance' or node['type'] == 'TabItemControl':
+                if (node['name'].strip() == 'Performance' or node['type'] == 'TabItemControl'
+                        or re.match(r'^CPU(?:\s|$)',node['name'])):
                     pattern = control.GetPattern(uia.PatternId.SelectionItemPattern)
                     node['selected'] = bool(pattern and pattern.IsSelected)
                 if node['type'] in {'DocumentControl', 'EditControl'}:

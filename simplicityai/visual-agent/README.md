@@ -190,3 +190,33 @@ No input or new live agent test ran during this change. Next live test: Exit the
 preview, reopen it, choose `notepad-text`, open a new blank Untitled Notepad tab,
 then Start task. Expect document_bound, typing, and application-verifier completion
 without an extra model turn. Existing named documents should be rejected, not edited.
+
+
+## Broader acceptance set — November 2
+
+Two new selector cases are prepared (28 automated tests pass, live cases pending):
+- `task-manager-cpu`: existing catalog opens Task Manager. Model navigates
+  Performance then CPU. UIA must observe selected Performance, selected CPU,
+  and Utilization, Speed, Processes, Threads, Handles labels. Performance overview
+  alone does not pass. English label/selection support remains to be live tested.
+- `calculator-addition`: open Calculator yourself in Standard mode before Start.
+  The task deliberately starts in the already-open app (calc.exe is a launch stub,
+  not the actual Calculator window process). Both CalculatorApp.exe and
+  Calculator.exe are accepted. The model clicks visible arithmetic buttons;
+  no arithmetic fast-path tool is used. Independent UIA requires CalculatorResults
+  `Display is 166` AND CalculatorExpression `137 + 29 =` (whitespace normalized).
+  Only observed 1/2/3/7/9, plus, clear/clear-entry and equals buttons may receive
+  clicks. Typing, shortcuts, memory/history, other modes and unrelated clicks stop.
+
+Every acceptance case now rejects an unexpected foreground process before
+inference. Both new outcomes use the existing early verifier stop. A pre-existing
+correct outcome may pass without model input; inspect action records when assessing
+visual-control capability. The CPU navigation case still uses the general preview
+input boundary, not a hardened read-only sandbox; task text alone cannot guarantee
+all actions stay read-only. Keep Stop available and review the evidence.
+
+No new native/model launch or desktop input was performed to prepare these cases.
+No visible Task Manager/Calculator was available for a read-only compatibility probe.
+The user-confirmed bound Untitled trial passed in14.434s: driver3.427s, one model
+call8.702s, one Type1.193s, application verifier stopped without a follow-up action.
+This validates that case, not universal adherence or voice integration.

@@ -19,7 +19,7 @@ from agent_context import AgentContext
 from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
 from outcome_verifier import CASES, TEST_TEXT, collect, verify
-from acceptance_guard import bind_document, check_document, require_document_action
+from acceptance_guard import bind_document, check_document, require_document_action, require_calculator_action
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
 LAUNCH_APPS=next(tool['function']['parameters']['properties']['app']['enum']
@@ -216,6 +216,9 @@ class Preview(Lab):
                 if time.perf_counter()-started>240:raise TimeoutError('Four-minute task limit reached')
                 image,physical,identity,stamp=self.ui(self.observe_desktop)
                 if case:
+                    expected_processes={'calculatorapp.exe','calculator.exe'} if case=='calculator-addition' else {CASES[case][0]}
+                    if identity['process'] not in expected_processes:
+                        raise InterruptedError('Acceptance test requires its requested application in foreground; no input sent')
                     if case=='notepad-text':
                         nodes,complete=collect(identity['hwnd'],self.check)
                         self.ui(lambda:self.validate_desktop(identity,stamp))
@@ -302,6 +305,9 @@ class Preview(Lab):
                     require_document_action(action,doc,points)
                     if action['kind']=='type':
                         require_document_action({'kind':'click'},doc,points)
+                if case=='calculator-addition':
+                    nodes,complete=collect(identity['hwnd'],self.check)
+                    require_calculator_action(action,nodes,complete,points)
                 self.ui(lambda:self.validate_desktop(identity,stamp,points))
                 self.check();phase=time.perf_counter()
                 kind=action['kind']

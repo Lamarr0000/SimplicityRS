@@ -47,3 +47,20 @@ def require_document_action(action, doc, points):
         if left <= x < right and top <= y < bottom:
             return
     raise InterruptedError('Action is outside the bound Notepad text-entry test; no input sent')
+
+
+def require_calculator_action(action, nodes, complete, points):
+    if not complete or not any(n.get('name') in {'Standard','Standard Calculator'} for n in nodes):
+        raise InterruptedError('Calculator test requires an observable Standard-mode window; no input sent')
+    if action['kind'] in {'wait','finished','call_user'}:
+        return
+    allowed={'num1Button','num2Button','num3Button','num7Button','num9Button',
+             'plusButton','equalButton','clearButton','clearEntryButton'}
+    if action['kind']=='click' and len(points)==1:
+        x,y=points[0]
+        for node in nodes:
+            if node.get('type')=='ButtonControl' and node.get('automation_id') in allowed and node.get('rect'):
+                left,top,right,bottom=node['rect']
+                if left<=x<right and top<=y<bottom:
+                    return
+    raise InterruptedError('Calculator test permits only observed arithmetic/clear buttons; no input sent')
