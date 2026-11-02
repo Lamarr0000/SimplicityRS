@@ -159,3 +159,34 @@ Python compilation and administrator-launcher syntax validation pass. Explicit
 catalog launches now proceed directly to launch/foreground observation rather
 than depending on an unrelated window behind the controller. This does not add
 freeform browser launch routing, universal task verification or voice integration.
+
+
+## Bound Notepad test and early outcome stop — November 2
+
+The Notepad acceptance case now requires a blank, selected English `Untitled`
+tab. Before inference, it binds the window/process creation identity, selected
+UIA tab runtime ID and document runtime ID. Named files, existing text, multiple
+visible documents, missing identities and incomplete observations stop without
+input. The original `New Text Document.txt` trial verified text but did not meet
+this stricter document requirement.
+
+Before each Notepad input the binding is checked again. Only the exact test text,
+ordinary clicks inside the bound editor and wait/finish/help are allowed. Tab,
+window, launch and keyboard shortcut actions stop the acceptance run. Typing
+requires a focused point inside that same editor, an empty document and no submit.
+A title auto-renamed by Notepad after typing is allowed if the runtime IDs remain
+unchanged. Unknown/unexpected content stops without attempting cleanup.
+
+Both acceptance cases check the fresh outcome before another inference. On a
+pass the application stops and logs `completion_source: application verifier`;
+it does not wait for a model completion claim or allow extra model cleanup. This
+is controller behavior for explicit cases, not proof of improved model reasoning
+or general task adherence. Custom tasks retain existing behavior. Snapshot/input
+races remain; this is not a hardened sandbox. No automatic save/undo/close occurs.
+
+24 tests and compilation pass. A real read-only Notepad UIA probe found one
+visible document and one selected tab with runtime IDs (92 controls, complete).
+No input or new live agent test ran during this change. Next live test: Exit the
+preview, reopen it, choose `notepad-text`, open a new blank Untitled Notepad tab,
+then Start task. Expect document_bound, typing, and application-verifier completion
+without an extra model turn. Existing named documents should be rejected, not edited.

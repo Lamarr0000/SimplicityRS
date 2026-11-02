@@ -18,7 +18,8 @@ from desktop_actions import decode, to_screen, requested_app, action_context_err
 from agent_context import AgentContext
 from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
-from outcome_verifier import CASES, verify
+from outcome_verifier import CASES, TEST_TEXT, collect, verify
+from acceptance_guard import bind_document, check_document, require_document_action
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
 LAUNCH_APPS=next(tool['function']['parameters']['properties']['app']['enum']
@@ -194,6 +195,8 @@ class Preview(Lab):
             parse_failures=0
             app=requested_app(task,LAUNCH_APPS)
             expected_executable=None
+            case=self.acceptance_case if self.acceptance_case and task==CASES[self.acceptance_case][1] else None
+            document_binding=None
             if app:
                 # A directly requested utility uses the same existing catalog tool
                 # as the main app; do not type a launch command into the previous app.
@@ -212,6 +215,27 @@ class Preview(Lab):
                 self.check()
                 if time.perf_counter()-started>240:raise TimeoutError('Four-minute task limit reached')
                 image,physical,identity,stamp=self.ui(self.observe_desktop)
+                if case:
+                    if case=='notepad-text':
+                        nodes,complete=collect(identity['hwnd'],self.check)
+                        self.ui(lambda:self.validate_desktop(identity,stamp))
+                        if document_binding is None:
+                            document_binding=bind_document(identity,nodes,complete)
+                            self.save({'phase':'document_bound','binding':document_binding})
+                        doc=check_document(document_binding,identity,nodes,complete)
+                        outcome={'case':case,'verified':doc['text'].rstrip('\r\n')==TEST_TEXT,
+                                 'method':'bound Notepad tab/document UI Automation',
+                                 'reason':'Exact text observed in the original bound document'}
+                    else:
+                        outcome=verify(case,identity,window_identity,user32.GetForegroundWindow,self.check)
+                    self.check()
+                    if outcome['verified']:
+                        self.save({'phase':'acceptance_outcome','completion_source':'application verifier',
+                                   'completion_claim':False,'independent_verification':True,
+                                   'outcome_verification':outcome,
+                                   'elapsed_seconds':round(time.perf_counter()-started,3)})
+                        self.ui(lambda:self.status.set('Acceptance outcome verified. Stopped before further model actions.'))
+                        return
                 # Detect UIPI before spending another model turn or reporting a click.
                 input_permissions=require_input_rights(identity['pid'])
                 stream=io.BytesIO();image.save(stream,'PNG')
@@ -250,6 +274,8 @@ class Preview(Lab):
                     if action['kind']=='finished' and self.acceptance_case:
                         if task != CASES[self.acceptance_case][1]:
                             outcome={'verified':False,'reason':'Acceptance task was edited; verifier does not apply'}
+                        elif case=='notepad-text':
+                            outcome={'verified':False,'reason':'Bound document outcome was not observed'}
                         else:
                             outcome=verify(self.acceptance_case,identity,window_identity,
                                            user32.GetForegroundWindow,self.check)
@@ -270,6 +296,12 @@ class Preview(Lab):
                         feedback='Tool observation: '+str(error)
                         row['tool_feedback']=feedback;self.flush()
                         continue
+                if case=='notepad-text':
+                    nodes,complete=collect(identity['hwnd'],self.check)
+                    doc=check_document(document_binding,identity,nodes,complete)
+                    require_document_action(action,doc,points)
+                    if action['kind']=='type':
+                        require_document_action({'kind':'click'},doc,points)
                 self.ui(lambda:self.validate_desktop(identity,stamp,points))
                 self.check();phase=time.perf_counter()
                 kind=action['kind']

@@ -794,3 +794,33 @@ bridge currently replaces specific takeover error with generic user-control text
 20 tests and compilation pass; no new model/UI/input test. Next investigation:
 exact driver takeover reason and runtime provenance/compatible signed dependencies;
 do not repeat Task Manager prompts as if they repair either issue.
+
+
+## November 2: verified trials and bound-document acceptance controller
+
+User clarified the earlier takeover was intentional interruption to capture the
+security toast. Not a driver failure; takeover protection worked. Subsequent
+Task Manager trial passed independent UIA verification in15.919s, one real click,
+model4.243+6.018s. Initial minimized description still wrong. Notepad trial verified
+exact text in20.404s but active document was New Text Document.txt; unnecessary
+follow-up tab click and inaccurate Untitled claim. No recorded save/close. Thus
+text-entry outcome passed, original document/task adherence did not. _wmi.pyd
+signing block remains separate/unresolved; no security setting changes.
+
+User authorized improving adherence. Added acceptance_guard.py: require blank
+Untitled/selected Notepad tab and one visible document; bind HWND/PID/creation,
+UIA selected-tab and document runtime IDs. Before input, recheck binding/content;
+allow only exact no-submit test text or editor-contained click, plus wait/final/help.
+No tab switches/save/close/launch/shortcut accepted for this narrow case. Repeated
+text cannot append. Auto-renamed title after typing allowed with stable identities.
+Both acceptance cases check completion before each inference and stop immediately
+on independently observed outcome, labeled application-verifier completion rather
+than model reasoning. Existing custom-task path unchanged. Snapshot races remain.
+
+24 automated tests and compilation pass. Real read-only UIA compatibility probe:
+92 controls, complete, one document and one selected tab with stable-ID fields.
+No new preview/model launch or desktop input during implementation. Main Voice
+Pilot, BRS/VM/security unchanged. NEXT USER: Exit/reopen preview, choose notepad-text,
+open a new blank Untitled Notepad tab, Start task, Copy evidence. Expect binding,
+type, then application verification without redundant model action. Named document
+should be refused before input. Agent idle awaiting live result; no silent work.

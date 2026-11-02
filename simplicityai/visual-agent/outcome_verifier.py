@@ -44,7 +44,11 @@ def collect(hwnd, check, limit=400, seconds=3):
             control, depth = pending.pop()
             node = {'name': control.Name, 'type': control.ControlTypeName}
             if not control.IsOffscreen and not control.IsPassword:
-                if node['name'].strip() == 'Performance':
+                if node['type'] in {'DocumentControl', 'TabItemControl'}:
+                    node['runtime_id'] = list(control.Element.GetRuntimeId())
+                    box = control.BoundingRectangle
+                    node['rect'] = [box.left, box.top, box.right, box.bottom]
+                if node['name'].strip() == 'Performance' or node['type'] == 'TabItemControl':
                     pattern = control.GetPattern(uia.PatternId.SelectionItemPattern)
                     node['selected'] = bool(pattern and pattern.IsSelected)
                 if node['type'] in {'DocumentControl', 'EditControl'}:
