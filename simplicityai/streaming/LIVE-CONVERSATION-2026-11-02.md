@@ -74,3 +74,26 @@ The report does not claim a successful real Fast.com retry, a proven bot-detecti
 cause, or reliable arbitrary desktop autonomy. Existing regular installation, VM,
 BRS, firewall and Windows security unchanged. Source is prepared for one pilot reload;
 actual post-reload runtime status is recorded in the session checkpoint.
+
+
+## November 2: test123 repairs loaded as 0.7.3
+Read Desktop/test123.txt and matching stream-20261102-123015.jsonl as evidence.
+Google returned an actual unusual-traffic verification page, not search results.
+Added owned-worker blocker metadata and explicit application reporting; no bypass.
+Recognizes Goggle search wording and numeric x multiplication; explicit try-again
+can recover recent arithmetic, but cancellation/unrelated actions stop recovery.
+Driver-health requests now collect devices and drivers and report measured problem
+codes/signing counts with limits. Signing is not proof of functionality or currency.
+Grounded follow-up explanation and thanks avoid the prior model/stream failures;
+stream output no longer rewrites an already released prefix.
+
+84 streaming +43 visual/shared regression tests pass (effects simulated in test123
+regressions). Real owned Playwright worker offline fixture passed, including cleanup.
+No new live Google search, microphone test or real Calculator result established.
+The sandwich wording exists as recognized input; its actual audio/source is unknown.
+User export preserved. Normal installed app, VM, BRS and security settings unchanged.
+
+Current runtime independently verified: /health 0.7.3-prototype, native UI Ready.
+Type a message or click Talk; Mute mic disabled. Pilot OPEN, microphone OFF.
+No UAC required. Agent idle at handoff. Read saved logs for subsequent evidence;
+do not request repeated clipboard exports. General live reliability remains limited.

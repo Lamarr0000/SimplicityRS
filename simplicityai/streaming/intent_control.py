@@ -38,6 +38,22 @@ def arithmetic(text):
     value=re.sub(r'\b(?:multiplied by|times)\b','*',value,flags=re.I)
     value=re.sub(r'\bplus\b','+',value,flags=re.I);value=re.sub(r'\bminus\b','-',value,flags=re.I)
     value=re.sub(r'\bdivided by\b','/',value,flags=re.I)
+    value=re.sub(r'(?<=\d)\s*[xX]\s*(?=\d)','*',value)
     match=re.search(r'(?<!\d)(\d{1,4}(?:\.\d{1,4})?)\s*([+*/×÷-])\s*(\d{1,4}(?:\.\d{1,4})?)(?!\d)',value)
     if match and re.match(r'\s*[+*/×÷-]\s*\d',value[match.end():]):return None
+    if match and re.search(r'-\s*$',value[:match.start()]):return None
     return ''.join(match.groups()) if match else None
+
+
+def retry_arithmetic(text,transcript):
+    if not re.search(r'\b(?:try again|retry)\b',text,re.I):return None
+    from target_scope import OTHER
+    count=0
+    for row in reversed(transcript):
+        if row.get('role')!='user' or row.get('content')==text:continue
+        previous=row.get('content','');count+=1
+        if count>6 or cancelled(previous) or OTHER.search(previous):return None
+        expression=arithmetic(previous)
+        if expression:return expression
+        if re.search(r'\b(?:open|run|check|inspect|search|create|close)\b',previous,re.I):return None
+    return None

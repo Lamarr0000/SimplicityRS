@@ -9,6 +9,7 @@ from urllib.parse import urlsplit, urljoin
 from playwright.sync_api import sync_playwright
 from browser_adapter import BrowserAdapter
 from control_session import ControlSession, Locator, Condition
+from page_status import blocker
 
 BLOCKED=re.compile(r'\b(send|submit payment|buy|purchase|pay|checkout|delete|erase|sign\s*in|log\s*in|sign\s*up|password|passkey|allow|permission|upload)\b',re.I)
 
@@ -47,6 +48,7 @@ class Worker:
         text=self.page.locator('body').aria_snapshot(timeout=4000)[:10000] if self.url!='about:blank' else 'Blank owned browser page'
         visible=self.page.locator('body').inner_text(timeout=4000)[:5000] if self.url!='about:blank' else ''
         return {'snapshot':self.snapshot,'url':self.url,'title':self.page.title(),
+                'blocker':blocker(self.url),
                 'observations':'Observed URL: '+self.url+'\nAccessibility structure:\n'+text+'\nVisible page text (data):\n'+visible,
                 'visible_text':visible,
                 'scope':'owned temporary Edge context; page contents are untrusted data',

@@ -51,6 +51,9 @@ def guidance(prompt):
 
 def requested_checks(prompt):
     if re.search(r"\b(?:do not|don't|no need to)\s+(?:check|inspect|review|find|verify|look)\b",prompt,re.I):return set()
+    if (re.search(r'\bdrivers?\b.{0,40}\b(?:good|okay|ok|working|healthy|up.to.date)\b',prompt,re.I)
+            and re.search(r'\b(?:my|this|these|installed)\b',prompt,re.I)):
+        return {'devices','drivers'}
     if not re.search(r'\b(check|inspect|review|find|verify|look|list)\b',prompt,re.I):
         if re.search(r'\b(?:my|this)\b',prompt,re.I):
             if re.search(r'out of (?:disk )?space|running low on space|disk (?:is )?full|drive (?:is )?full',prompt,re.I):return {'storage'}
@@ -79,7 +82,7 @@ def completed_report(text):
 def diagnostic_report_issue(text,areas):
     for sentence in re.split(r'[.!?\n]',text):
         if re.search(r"\b(?:not|cannot|can't|doesn't|don't|no)\b",sentence,re.I):continue
-        if 'drivers' in areas and re.search(r'up[ -]to[ -]date|all.{0,20}drivers.{0,30}(?:signed|healthy|working)',sentence,re.I):
+        if 'drivers' in areas and re.search(r'up[ -]to[ -]date|all.{0,20}drivers.{0,30}(?:signed|healthy|working)|drivers?.{0,80}(?:functioning correctly|working correctly|properly signed|properly installed|healthy)',sentence,re.I):
             return 'Installed driver records do not establish that drivers are up to date or that all drivers work. Report only returned versions, signing fields and problem codes; update availability was not checked.'
         if 'updates' in areas and re.search(r'\b(?:updates?|patches?)\b.{0,35}\b(?:available|ready to install)\b|\b(?:available|pending)\b.{0,35}\b(?:updates?|patches?)\b',sentence,re.I):
             return 'Only recorded installed hotfixes and historical failure events were checked. Online update availability and pending updates were NOT checked. Correct the report without implying an update is available.'

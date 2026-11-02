@@ -33,7 +33,8 @@ from troubleshooting import guidance,requested_checks,completed_report,diagnosti
 from evidence_context import model_evidence,model_messages
 from findings import clean_reply,spoken_text,table_view,table_text
 from task_agenda import TaskAgenda, close_intent, export_filename
-from intent_control import cancelled,continuation,arithmetic,diagnostic_request,repeated_target_question,window_request
+from driver_assessment import report as driver_assessment
+from intent_control import cancelled,continuation,arithmetic,retry_arithmetic,diagnostic_request,repeated_target_question,window_request
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -103,6 +104,7 @@ class Agent:
         self.state.chat=TargetConversation()
         self.state.emit=lambda kind,text,**extra:self.emit('findings',view=json.loads(text)) if kind=='findings' else self.emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
+        self.last_assessment=None
         self.agenda=TaskAgenda()
         self.desktop_task=False
         self.desktop_search_pending=False
@@ -125,6 +127,11 @@ class Agent:
         for text in Segments().feed(report,final=True):self.emit('text.delta',text=text+' ');segment(text)
         messages.append({'role':'assistant','content':report});self.state.check_stop();self.state.chat.finish(messages,start)
 
+    def browser_blocked(self,result,messages,start,segment):
+        if (result.get('blocker') or {}).get('kind')!='human_verification':return False
+        self.report(messages,start,'Google is requesting human verification for unusual traffic; search results were not reached. Please complete that verification yourself in the browser window. I did not bypass it.',segment)
+        return True
+
     def run(self,prompt,segment):
         self.turn_reply=''
         state=self.state;state.check_stop();messages,start=state.chat.begin(prompt)
@@ -133,6 +140,13 @@ class Agent:
             self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False;self.actions_paused=True
             report='Stopped. Completed measurements remain available in this session.'
             self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
+        if re.fullmatch(r'\s*(?:thanks|thank you)(?: very much)?[.!\s]*',prompt,re.I):
+            self.report(messages,start,"You're welcome.",segment);return
+        if self.last_assessment=='drivers' and re.fullmatch(r'\s*(?:what does that mean|what do you mean|explain that)[?!.\s]*',prompt,re.I):
+            self.report(messages,start,driver_assessment(state.recent_findings,explain=True),segment);return
+        self.last_assessment=None
+        retry_expression=retry_arithmetic(prompt,state.chat.transcript) if not self.actions_paused else None
+        if retry_expression:self.actions_paused=False
         self.agenda.begin(prompt)
         related=self.agenda.related(prompt)
         fresh_browser=False
@@ -203,6 +217,7 @@ class Agent:
             if observed.get('error'):
                 self.agenda.opened=False
                 self.report(messages,start,'The browser page is no longer available: '+observed['error']+'. I cannot read its completed results from current evidence.',segment);return
+            if self.browser_blocked(observed,messages,start,segment):return
             fresh_browser=True;browser_evidence=observed
             messages[0]['content']+='\nA fresh browser observation has just been collected. Use its actual text and values. Do not say you cannot view the page, invent results or ask the user to provide values that are visible in the observation.'
         window_action=window_request(prompt) if not related else None
@@ -229,7 +244,7 @@ class Agent:
             self.emit('activity',activity_kind='report_source',text='Connected ThemHands capability facts from the application registry; no diagnostic or model call.')
             for text in Segments().feed(explanation,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
-        expression=arithmetic(prompt)
+        expression=arithmetic(prompt) or retry_expression
         if expression:
             result=state.execute({'function':{'name':'calculate_in_calculator','arguments':{'expression':expression}}})
             state.check_stop()
@@ -265,6 +280,7 @@ class Agent:
                     self.emit('text.delta',text=label);segment(label);simulation_labelled=True
                 messages.append({'role':'assistant','content':'','tool_calls':[call]})
                 messages.append({'role':'tool','tool_name':name,'content':model_evidence(result)})
+                if name=='browser_observe' and self.browser_blocked(result,messages,start,segment):return
                 if name in {'desktop_observe','browser_observe'}:
                     desktop_evidence=not tool_failed
                     if search_result_observed(result.get('observations','')):self.desktop_search_pending=False
@@ -287,6 +303,9 @@ class Agent:
         if required_checks and required_checks<=completed_checks:
             self.diagnostic_pending=False
             messages[0]['content']+='\nThe requested diagnostic categories have now been collected. Report their findings and uncertainty. Do not repeat a completed collector, promise another check, or ask permission for the checks already requested. Empty driver records mean the query found no matching record, not proof of hardware failure. A further recommendation is a recommendation, not an action you performed.'
+        if 'drivers' in completed_checks:
+            self.last_assessment='drivers'
+            self.report(messages,start,driver_assessment(state.recent_findings),segment);return
         for step in range(16):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
             payload={'model':self.model,'messages':model_messages(messages,start),'tools':TOOLS,'stream':True,
@@ -302,7 +321,7 @@ class Agent:
                     raw+=clean_reply(message.get('content',''))
                     if len(raw)>4000:raise ValueError('Model reply exceeded limit')
                     if raw and first is None:first=time.monotonic()-started
-                    if not calls and not desktop_task and state.chat.target!='current':
+                    if not calls and not desktop_task and state.chat.target!='current' and not state.recent_findings:
                         for text in parts.feed(raw):
                             if reply_issues(raw):raise ValueError('Unsupported advice withheld from the reply stream')
                             self.emit('text.delta',text=text+' ');segment(text)
@@ -328,6 +347,7 @@ class Agent:
                     if name=='inspect_windows' and not tool_failed:
                         completed_checks.add(args['area']);desktop_evidence=True
                     if name in {'browser_observe','browser_wait'} and isinstance(result,dict) and not result.get('error'):
+                        if self.browser_blocked(result,messages,start,segment):return
                         fresh_browser=True;browser_evidence=result
                     if name in {'desktop_observe','browser_observe'} and isinstance(result,dict) and search_result_observed(result.get('observations','')):self.desktop_search_pending=False
                     if isinstance(result,dict) and result.get('simulation') is True and not simulation_labelled:
@@ -343,12 +363,13 @@ class Agent:
                         try:observed=state.execute(follow)
                         except InterruptedError:raise
                         except Exception as error:observed={'ok':False,'error':str(error)}
+                        if self.browser_blocked(observed,messages,start,segment):return
                         desktop_evidence=not observed.get('error')
                         if search_result_observed(observed.get('observations','')):self.desktop_search_pending=False
                         messages.append({'role':'assistant','content':'','tool_calls':[follow]})
                         messages.append({'role':'tool','tool_name':follow['function']['name'],'content':json.dumps(observed)})
                 continue
-            raw=re.sub(r'\bIs there anything else[^?]*\?','',raw,flags=re.I).strip()
+            if not parts.released:raw=re.sub(r'\bIs there anything else[^?]*\?','',raw,flags=re.I).strip()
             if not raw.strip():raise ValueError('The local model returned no usable answer')
             if state.chat.target=='current' and repeated_target_question(raw):
                 if draft_retries>=2:raise ValueError('The model repeated an already confirmed target; no new diagnosis was verified')
@@ -367,6 +388,7 @@ class Agent:
                 waited=self.receipt(messages,'browser_wait',{'seconds':5})
                 if waited.get('error'):
                     self.report(messages,start,'The page wait failed: '+waited['error'],segment);return
+                if self.browser_blocked(waited,messages,start,segment):return
                 browser_evidence=waited
                 messages.append({'role':'system','content':'A bounded wait has now finished and a fresh page observation is above. Report actual current values or unknowns. Do not promise future/background work or ask permission to continue the already authorized task.'})
                 continue
@@ -587,7 +609,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.2-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.3-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)

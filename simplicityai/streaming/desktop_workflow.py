@@ -33,13 +33,15 @@ def unfinished_draft(text):
 
 def search_result_observed(text):
     # Require an observed search destination, not a launch/typing promise.
+    if re.search(r'/sorry/|unusual traffic|verify.{0,15}(?:human|robot)',text,re.I):return False
     return bool(re.search(r'https?://[^\s"<>\\]+(?:[?&](?:q|query|search_query)=|/search\?)',text,re.I))
 
 
 def web_search_request(text):
     if re.search(r"\b(?:don't|do not|never)\s+(?:do a |perform a )?search\b",text,re.I):return None
     if not re.search(r'\b(?:can you|could you|please|open|do a search)\b|^\s*search\b',text,re.I):return None
-    match=re.search(r'\bsearch(?:\s+(?:on\s+)?(?:google|googal|googel))?\s+for\s+(.+)',text,re.I)
+    named=re.search(r'\b(?:google|goggle|googel|googal)\s+search(?:\s+for)?\s+(.+)',text,re.I)
+    match=re.search(r'\bsearch(?:\s+(?:on\s+)?(?:google|googal|googel))?\s+for\s+(.+)',text,re.I) or named
     if not match:return None
     query=re.sub(r'\s+(?:(?:on\s+)?(?:google|googal|googel)\s*(?:search)?\s*)?(?:please)?[.!?]*\s*$','',match[1],flags=re.I).strip(' \"\'.!?')
     return query if 0<len(query)<=300 else None
