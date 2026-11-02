@@ -45,3 +45,18 @@ This does not clone Codex's private runtime or confer the same model intelligenc
 - Full local probe evidence: the StreamingPrototype logs folder, `baseline-*.json`. These may contain local device details and are not committed.
 
 Exit/reopen **SimplicityAI Voice Pilot** to load the baseline. A useful first test is a request to check device problems, driver records and available drive space, explaining findings without changing anything. Then use an actual reported symptom rather than testing every utility individually.
+
+
+## November 1: recovery-context, interrupted findings and table correction
+
+User supplied the latest exported conversation. Log showed recovery/affected-Windows confusion, unsupported driver freshness claims, generic emoji/boilerplate replies, and lost findings. Storage/device/driver/event collection finished in a request that was then interrupted by new voice input before Conversation.finish, so later table requests had no facts in normal model history. Viewer launch was attempted twice but the old exception path did not log its result; elevation cause is not established from that log.
+
+Added session-owned recent_findings independent of completed model turns, get_recent_findings, immediate scoped tables, copy including all values, and direct cached-table recall without recollecting or model reconstruction. Baseline and CPU findings enter the recorded transcript as measured-fact cards. Interrupted visible replies and interrupted user requests are retained; New chat clears facts and preferences, reopening remains fresh. Cached model excerpts are bounded.
+
+Recovery-boot descriptions now keep an unbooted affected Windows separate from current-Windows diagnostics until explicit local-target confirmation. Local desktop viewer actions remain distinct and can open in the recovery environment; explicit outside-host actions remain blocked. This does NOT add offline Windows inspection. The local-model replay held offline scope, blocked current collectors, and opened a simulated local Device Manager.
+
+Fixed viewer requests have an app-owned launch/observe route. Normal Popen elevation-required errors for known viewers can fall back to Windows ShellExecute open, allowing Windows to present its normal permission prompt. No prompt was approved, suppressed or bypassed and no real administrative viewer launched during development. Errors are now logged as observations. Viewer GUI verification still needs the user's live test.
+
+Removed assistant emoji at generation and speech boundaries; preserved arithmetic symbols. Driver reports cannot infer up-to-date from installed records. Conversation exports honor explicit requested filenames without overwriting. Primary issue no longer sticks to a greeting.
+
+54 Python regression checks and client voice/table/copy checks pass. Seven baseline, five desktop and three recovery-scope local-model cases pass using simulated observations. They do not certify general reasoning. No app restarted. Next user: Exit/reopen Voice Pilot; collect current-Windows storage/device facts and ask for the drive table again after an interruption. Offline Windows diagnosis remains a major missing capability; do not hide it with recovery-OS results.

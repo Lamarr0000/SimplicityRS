@@ -4,7 +4,15 @@ import re
 
 def desktop_request(text):
     return bool(re.search(r'\b(open|launch|navigate|search|create|click|type|save|write)\b',text,re.I)
-                and re.search(r'\b(browser|edge|google|goog el|googel|desktop|document|notepad|explorer|copilot|task\s*(?:manager|major)|app|file|web\s*page)\b',text,re.I))
+                and re.search(r'\b(browser|edge|google|goog el|googel|desktop|document|notepad|explorer|copilot|(?:task|device)\s*(?:manager|major)|disk\s*management|event\s*viewer|settings|app|file|web\s*page)\b',text,re.I))
+
+
+def requested_app(text):
+    if not re.search(r'\b(open|launch|I meant)\b',text,re.I):return None
+    if re.search(r"\b(?:do not|don't|never)\s+(?:open|launch)\b",text,re.I):return None
+    for name in ['device_manager','disk_management','event_viewer','task_manager','system_information','reliability_monitor','notepad','explorer','calculator','settings']:
+        if re.search(r'\b'+name.replace('_',r'\s*')+r'\b',text,re.I):return name
+    return None
 
 
 def unfinished_draft(text):

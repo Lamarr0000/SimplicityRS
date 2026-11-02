@@ -28,12 +28,15 @@ from protocol import Segments
 from target_scope import TargetConversation
 from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
 from browser_tools import browser_report
-from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, web_search_request, CONTINUE
+from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, web_search_request, requested_app, CONTINUE
 from troubleshooting import guidance,requested_checks,completed_report,diagnostic_report_issue
 from evidence_context import model_evidence,model_messages
+from findings import clean_reply,table_view,table_text
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
+    'Use no emoji or decorative symbols. Do not repeat generic offers instead of addressing the current request. '
+    'For earlier measurements use get_recent_findings; they survive interrupted replies. Do not ask the user to re-provide data already collected. '
     'Use native tool calls when needed. Never announce completed checks before tool evidence. '
     'Do not output JSON or internal reasoning as a conversational answer. '
     'ThemHands is your connected local tool layer, not something the user needs to install or explain. '
@@ -97,14 +100,18 @@ class VoiceWorker:
 
 class Agent:
     def __init__(self,emit,model):
-        self.emit=emit;self.model=model;self.state=ToolState();self.state.mode='chat'
+        self.output_emit=emit;self.turn_reply='';self.model=model;self.state=ToolState();self.state.mode='chat';self.table_requested=False
         self.state.chat=TargetConversation()
-        self.state.emit=lambda kind,text,**extra:emit('activity',activity_kind=kind,text=text)
+        self.state.emit=lambda kind,text,**extra:self.emit('findings',view=json.loads(text)) if kind=='findings' else self.emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
         self.desktop_task=False
         self.desktop_search_pending=False
         if self.connection.remote:raise ValueError('This offline host prototype requires the local loopback model service')
+    def emit(self,kind,**data):
+        if kind=='text.delta':self.turn_reply+=data.get('text','')
+        return self.output_emit(kind,**data)
     def run(self,prompt,segment):
+        self.turn_reply=''
         state=self.state;state.check_stop();messages,start=state.chat.begin(prompt)
         messages[0]['content']=messages[0]['content'].replace(
             'arbitrary commands, drive unlocking or general desktop controls are connected.',
@@ -119,8 +126,24 @@ class Agent:
         desktop_task=self.desktop_task
         if desktop_task:messages[0]['content']+='\n'+CONTINUE
         state.messages=messages
-        if re.search(r'\b(conversation|session|chat)\b',prompt,re.I) and re.search(r'\b(document|file|export|save)\b',prompt,re.I):
-            result=state.execute({'function':{'name':'export_conversation','arguments':{}}})
+        if re.search(r'\btable\b',prompt,re.I):self.table_requested=True
+        recall=bool(re.search(r'\btable\b|just (?:posted|checked|said)|earlier (?:results|findings)|this information',prompt,re.I))
+        export_request=bool(re.search(r'\b(conversation|session|chat)\b',prompt,re.I) and re.search(r'\b(document|file|export|save)\b',prompt,re.I))
+        if not export_request and (recall or (self.table_requested and re.search(r'disk|drive|storage|information',prompt,re.I))) and state.recent_findings:
+            area='storage' if re.search(r'disk|drive|storage',prompt,re.I) and not re.search(r'driver',prompt,re.I) else next(reversed(state.recent_findings))
+            result=state.recent_findings.get(area) or next(reversed(state.recent_findings.values()))
+            view=table_view(result);self.emit('findings',view=view)
+            report='Here are the earlier measured facts in a table. These describe the Windows running SimplicityAI, not a separate offline installation.'
+            self.emit('text.delta',text=report);segment(report)
+            messages.append({'role':'assistant','content':table_text(view)})
+            state.chat.finish(messages,start);return
+        if export_request:
+            named=re.search(r'\b(?:name it|named|call it)\s+(.{1,95})$',prompt,re.I)
+            args={}
+            if named:
+                filename=re.sub(r'\s+please[.!?]*$','',named[1],flags=re.I).strip(' .!?\"')
+                args['filename']=filename if filename.lower().endswith('.txt') else filename+'.txt'
+            result=state.execute({'function':{'name':'export_conversation','arguments':args}})
             report=f"Saved {result['message_count']} recorded messages, including both your words and my replies, to {result['path']}. The file was reread and verified; it includes this request but not this later confirmation."
             for text in Segments().feed(report,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':report});state.chat.finish(messages,start)
@@ -137,8 +160,13 @@ class Agent:
             messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
         simulation_labelled=False;draft_retries=0;desktop_evidence=False;tool_failed=False
         search_query=web_search_request(prompt)
-        if search_query:
-            for name,args in [('search_web',{'query':search_query}),('desktop_observe',{})]:
+        app=requested_app(prompt)
+        # Calculator arithmetic belongs to its existing verified control tool,
+        # rather than a window-only launch workflow.
+        if app=='calculator' and re.search(r'\d|times|plus|minus|calculate',prompt,re.I):app=None
+        if search_query or app:
+            first=('search_web',{'query':search_query}) if search_query else ('open_desktop_app',{'app':app})
+            for name,args in [first,('desktop_observe',{})]:
                 state.check_stop();call={'function':{'name':name,'arguments':args}}
                 try:result=state.execute(call)
                 except InterruptedError:raise
@@ -182,7 +210,7 @@ class Agent:
                     state.check_stop();item=json.loads(line)
                     if 'error' in item:raise ValueError(item['error'])
                     message=item.get('message',{});calls.extend(message.get('tool_calls',[]))
-                    raw+=message.get('content','')
+                    raw+=clean_reply(message.get('content',''))
                     if len(raw)>4000:raise ValueError('Model reply exceeded limit')
                     if raw and first is None:first=time.monotonic()-started
                     if not calls and not desktop_task:
@@ -339,7 +367,14 @@ class Session:
                 if self.closed or turn!=self.turn or self.agent.state.cancel.is_set():raise InterruptedError('Turn stopped')
                 asyncio.run_coroutine_threadsafe(self.segments.put((turn,text)),self.loop).result(timeout=30)
             try:await asyncio.to_thread(self.agent.run,prompt,segment)
-            except InterruptedError:await self.send('turn.stopped',turn=turn)
+            except InterruptedError:
+                if self.agent.turn_reply.strip():self.agent.state.chat.fail(self.agent.turn_reply.strip()+'\n[Response interrupted.]')
+                else:
+                    # Preserve the interrupted request when the next utterance
+                    # is a continuation such as "and what should I do next?".
+                    self.agent.state.chat.turns.append([{'role':'user','content':self.agent.state.chat.current_user}])
+                    self.agent.state.chat.turns=self.agent.state.chat.turns[-5:]
+                await self.send('turn.stopped',turn=turn)
             except Exception as error:
                 self.speaker.cancel();self.turn+=1
                 await self.send('audio.clear');await self.send('error',text=str(error))
@@ -350,6 +385,8 @@ class Session:
                 turn,text=await self.segments.get()
                 if turn!=self.turn or not self.output:continue
                 started=time.monotonic()
+                text=clean_reply(text).strip()
+                if not text:continue
                 try:audio=await asyncio.to_thread(self.speaker.synthesize,text)
                 except ValueError:
                     if turn==self.turn and self.output:await self.send('error',text='Speech preparation stopped; text remains available.')
@@ -387,6 +424,7 @@ class Session:
             if self.actor and not self.actor.done():raise ValueError('Stop the active task before New chat')
             self.agent.state.chat=TargetConversation();self.turn+=1;self.speaker.cancel()
             self.agent.desktop_task=False;self.agent.desktop_search_pending=False
+            self.agent.state.recent_findings.clear();self.agent.table_requested=False
             await self.send('audio.clear');await self.send('chat.reset')
         elif kind=='close':await self.ws.close()
         else:raise ValueError('Unknown session control')

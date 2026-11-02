@@ -15,7 +15,13 @@ function voiceDisplay(text){
   return text.toLowerCase().replace(/\b[a-z][a-z0-9]*\b/g,word=>terms[word]||word).replace(/(^|[.!?]\s+)([a-z])/g,(_,prefix,char)=>prefix+char.toUpperCase());
 }
 function message(text,role){const node=document.createElement('div');node.className='message '+role;const body=document.createElement('span');body.textContent=text;node.append(body);$('messages').append(node);scroll();return node;}
-function copyButton(node){if(node.querySelector('button'))return;const button=document.createElement('button');button.className='copy';button.textContent='Copy';button.onclick=()=>navigator.clipboard.writeText(node.querySelector('span').textContent).catch(()=>status('Copy unavailable. Select the text to copy.'));node.append(button);}
+function copyButton(node){if(node.querySelector('button'))return;const button=document.createElement('button');button.className='copy';button.textContent='Copy';button.onclick=()=>navigator.clipboard.writeText(node.dataset.copyText||node.querySelector('span').textContent).catch(()=>status('Copy unavailable. Select the text to copy.'));node.append(button);}
+function findings(view){
+  const node=message(view.title,'assistant measured-facts'),table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:.9em;white-space:normal;margin:12px 0';
+  const row=(cells,header)=>{const tr=document.createElement('tr');for(const value of cells){const cell=document.createElement(header?'th':'td');cell.textContent=value===null||value===undefined?'Unknown':String(value);cell.style.cssText='text-align:left;padding:8px;border-bottom:1px solid #40516a;overflow-wrap:anywhere';tr.append(cell);}table.append(tr);};
+  row(view.columns,true);for(const values of view.rows)row(values,false);node.append(table);const note=document.createElement('small');note.textContent=view.note;node.append(note);
+  node.dataset.copyText=view.title+'\n'+[view.columns,...view.rows].map(values=>values.map(x=>x??'Unknown').join('\t')).join('\n')+'\n'+view.note;copyButton(node);scroll();
+}
 
 // Keep playback offsets across an interruption. New confirmed requests clear it.
 class Playback {
@@ -50,6 +56,7 @@ ws.onmessage=event=>{
   if(kind!=='audio'){activity.push(value);if(/timing|activity|review/.test(kind))evidence.push(value);}
   if(kind==='ready'){ready=true;$('talk').disabled=$('send').disabled=false;status(value.text);}
   else if(kind==='status')status(value.text);
+  else if(kind==='findings')findings(value.view);
   else if(kind==='activity'&&['action','status'].includes(value.activity_kind))status(value.text);
   else if(kind==='transcript.partial'){$('partial').textContent=voiceDisplay(value.text);scroll();}
   else if(kind==='transcript.final')$('partial').textContent='';

@@ -4,6 +4,9 @@ import json
 
 
 def model_evidence(result,limit=6000):
+    if isinstance(result,dict) and 'findings' in result:
+        records=result['findings'];value={**result,'findings':[json.loads(model_evidence(item,max(800,limit//max(1,len(records))))) for item in records]}
+        return json.dumps(value)
     if not isinstance(result,dict) or 'sections' not in result:return json.dumps(result)
     value=copy.deepcopy(result)
     while len(json.dumps(value))>limit:

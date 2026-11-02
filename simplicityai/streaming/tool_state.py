@@ -9,6 +9,7 @@ from jsonschema import validate
 from session_tools import export_conversation,sample_cpu
 from windows_baseline import BASELINE_TOOLS,inspect_windows
 from troubleshooting import guidance
+from findings import table_view,table_text
 
 TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+[
     tool('open_browser_window','ThemHands: open a blank Microsoft Edge window in the Windows running SimplicityAI and verify it appeared. No internet/page-load test or settings changes. Refuse another/outside-host target.'),
@@ -45,7 +46,7 @@ def capability_reply(text):
 
 class ToolState(State):
     def __init__(self):
-        super().__init__();self.desktop=DesktopTools()
+        super().__init__();self.desktop=DesktopTools();self.recent_findings={}
 
     def close(self):self.desktop.close()
 
@@ -54,13 +55,29 @@ class ToolState(State):
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()
-            if self.chat.target=='other' and name!='get_recovery_tool_catalog':raise ValueError('That computer is not connected; no desktop action performed')
+            local_actions={'desktop_observe','desktop_switch','desktop_interact','open_desktop_app','search_web','create_desktop_text','export_conversation'}
+            from target_scope import OTHER
+            explicitly_other=OTHER.search(self.chat.current_user or '')
+            if self.chat.target=='other' and name not in {'get_recovery_tool_catalog','get_recent_findings'} and (name not in local_actions or explicitly_other or not self.chat.current_user):raise ValueError('The affected Windows is not connected. Current recovery-environment checks would not diagnose that installation.')
             self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
             self.emit('action','ThemHands: '+name.replace('_',' ')+' in the Windows running SimplicityAI.')
-            if name=='export_conversation':result=export_conversation(self.chat.transcript,args.get('filename'))
-            elif name=='get_cpu_process_snapshot':result=sample_cpu(self.check_stop)
-            elif name=='inspect_windows':result=inspect_windows(args['area'],args.get('query',''),self.check_stop)
-            else:result=self.desktop.execute(name,args,self.check_stop)
+            try:
+                if name=='export_conversation':result=export_conversation(self.chat.transcript,args.get('filename'))
+                elif name=='get_cpu_process_snapshot':result=sample_cpu(self.check_stop)
+                elif name=='inspect_windows':result=inspect_windows(args['area'],args.get('query',''),self.check_stop)
+                elif name=='get_recent_findings':result={'source':'earlier session evidence, not a new check','findings':list(self.recent_findings.values())}
+                else:result=self.desktop.execute(name,args,self.check_stop)
+            except InterruptedError:raise
+            except Exception as error:
+                self.emit('observation',json.dumps({'tool':name,'ok':False,'error':str(error)}));raise
+            if name in {'inspect_windows','get_cpu_process_snapshot'}:
+                area=args['area'] if name=='inspect_windows' else 'processes'
+                recorded=result if name=='inspect_windows' else {**result,'area':area}
+                self.recent_findings.pop(area,None)
+                self.recent_findings[area]=recorded
+                view=table_view(recorded)
+                self.chat.transcript.append({'id':len(self.chat.transcript),'role':'assistant','kind':'measured_facts','content':table_text(view)})
+                self.emit('findings',json.dumps(view))
             self.emit('observation',json.dumps(result));return result
         if name not in {'open_browser_window','get_tool_capabilities'}:return super().execute(call)
         if not isinstance(args,dict) or args:raise ValueError('This tool takes no arguments')

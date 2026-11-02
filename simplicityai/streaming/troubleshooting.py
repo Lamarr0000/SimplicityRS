@@ -77,9 +77,10 @@ def completed_report(text):
 
 
 def diagnostic_report_issue(text,areas):
-    if 'updates' not in areas:return None
     for sentence in re.split(r'[.!?\n]',text):
         if re.search(r"\b(?:not|cannot|can't|doesn't|don't|no)\b",sentence,re.I):continue
-        if re.search(r'\b(?:updates?|patches?)\b.{0,35}\b(?:available|ready to install)\b|\b(?:available|pending)\b.{0,35}\b(?:updates?|patches?)\b',sentence,re.I):
+        if 'drivers' in areas and re.search(r'up[ -]to[ -]date|all.{0,20}drivers.{0,30}(?:signed|healthy|working)',sentence,re.I):
+            return 'Installed driver records do not establish that drivers are up to date or that all drivers work. Report only returned versions, signing fields and problem codes; update availability was not checked.'
+        if 'updates' in areas and re.search(r'\b(?:updates?|patches?)\b.{0,35}\b(?:available|ready to install)\b|\b(?:available|pending)\b.{0,35}\b(?:updates?|patches?)\b',sentence,re.I):
             return 'Only recorded installed hotfixes and historical failure events were checked. Online update availability and pending updates were NOT checked. Correct the report without implying an update is available.'
     return None

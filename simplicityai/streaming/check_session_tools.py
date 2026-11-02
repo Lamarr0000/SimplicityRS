@@ -25,8 +25,9 @@ class SessionToolTests(unittest.TestCase):
         agent=server.Agent(lambda *a,**kw:None,'qwen3:8b')
         agent.state.chat.transcript=[{'id':0,'role':'user','content':'Earlier issue'}, {'id':1,'role':'assistant','content':'Earlier answer'}]
         with tempfile.TemporaryDirectory() as folder,patch('session_tools.create_text',side_effect=lambda name,content,unused=None,**kw:create_text(name,content,Path(folder),**kw)),patch.object(agent.connection,'open',side_effect=AssertionError('No model call')):
-            spoken=[];agent.run('Create a document of this entire conversation on my desktop.',spoken.append)
+            spoken=[];agent.run('Create a document of this entire conversation on my desktop and name it Latest Conversation.',spoken.append)
             files=list(Path(folder).glob('*.txt'));self.assertEqual(len(files),1)
+            self.assertEqual(files[0].name,'Latest Conversation.txt')
             text=files[0].read_text(encoding='utf-8');self.assertIn('Earlier answer',text);self.assertIn('Earlier issue',text)
             self.assertIn('3 recorded messages',' '.join(spoken))
 

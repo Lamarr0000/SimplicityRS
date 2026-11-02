@@ -29,6 +29,7 @@ DESKTOP_TOOLS=[
     definition('export_conversation','Export the actual recorded active conversation, both user and assistant messages, to a new Desktop text file. Use for conversation/session documents; never reconstruct its contents yourself. Omit filename to choose a unique name.',{'filename':STRING}),
     definition('get_cpu_process_snapshot','Measure current process CPU usage over about one second in this Windows. Rank sampled processes, report limitations; no process is stopped or modified.',{}),
     definition('get_recovery_tool_catalog','Read launcher and Lazesoft capabilities and their validation limits. Does not launch or perform a recovery operation.',{})]
+DESKTOP_TOOLS.append(definition('get_recent_findings','Retrieve actual earlier collected findings from this session, including interrupted requests. No new collection. Scope and timestamps remain attached.',{}))
 
 
 def desktop_path():
@@ -68,10 +69,28 @@ def launch_app(app, url=None):
         if app!='edge' or parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() or ord(c)<32 for c in url):
             raise ValueError('Only an HTTPS website URL in Edge is supported')
     if app=='edge':args=['--new-window',url or 'about:blank']
-    process=subprocess.Popen([str(paths[app]),*args],shell=False,stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_BREAKAWAY_FROM_JOB)
+    try:
+        process=subprocess.Popen([str(paths[app]),*args],shell=False,stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_BREAKAWAY_FROM_JOB)
+    except OSError as error:
+        if getattr(error,'winerror',None)!=740 or app not in viewers:raise
+        return shell_open_viewer(paths[app],args,app)
     return {'launch_requested':True,'app':app,'pid':process.pid,'url':url,'completion_verified':False,
             'next':'Use desktop_observe to verify the window, address and page content. Launch alone is not success.'}
+
+
+def shell_open_viewer(path,args,app):
+    """Let Windows present any required permission prompt for a fixed viewer."""
+    from ctypes import wintypes as w
+    class Info(ctypes.Structure):
+        _fields_=[('cbSize',w.DWORD),('fMask',w.ULONG),('hwnd',w.HWND),('lpVerb',w.LPCWSTR),('lpFile',w.LPCWSTR),('lpParameters',w.LPCWSTR),('lpDirectory',w.LPCWSTR),('nShow',ctypes.c_int),('hInstApp',w.HINSTANCE),('lpIDList',w.LPVOID),('lpClass',w.LPCWSTR),('hkeyClass',w.HKEY),('dwHotKey',w.DWORD),('hIcon',w.HANDLE),('hProcess',w.HANDLE)]
+    info=Info();info.cbSize=ctypes.sizeof(info);info.fMask=0x40|0x100;info.lpVerb='open';info.lpFile=str(path);info.lpParameters=subprocess.list2cmdline(args);info.nShow=1
+    shell=ctypes.WinDLL('shell32',use_last_error=True);shell.ShellExecuteExW.argtypes=[ctypes.POINTER(Info)];shell.ShellExecuteExW.restype=w.BOOL
+    if not shell.ShellExecuteExW(ctypes.byref(info)):raise OSError(ctypes.get_last_error(),'Windows viewer launch was cancelled or denied; no permission was bypassed')
+    if info.hProcess:
+        kernel=ctypes.WinDLL('kernel32');kernel.CloseHandle.argtypes=[w.HANDLE];kernel.CloseHandle(info.hProcess)
+    return {'app':app,'launch_requested':True,'completion_verified':False,'windows_shell_used':True,
+            'next':'Windows may have requested permission. Inspect the actual resulting window; no privilege or launch success is assumed.'}
 
 
 class DesktopTools:
