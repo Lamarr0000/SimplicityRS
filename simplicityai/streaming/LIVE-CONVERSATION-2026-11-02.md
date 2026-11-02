@@ -153,3 +153,29 @@ request-to-event and event-to-shutdown/track/window-close, duplicate exit protec
 No live microphone/self-exit acceptance test claimed. Old pilot exited using Exit;
 new /health0.7.6-prototype and native UI Ready verified. Pilot OPEN, microphone OFF.
 No UAC/security/VM/BRS/normal installation changes. Saved logs preserved. Agent idle.
+
+
+## November 2: reproduced and removed blocking speech fallback; 0.7.7
+User confirmed live self-exit worked; latest144555 log confirms CLOSE YOURSELF ->
+app.exit and microphone off. Investigated older142244 repeated backlog messages.
+Normal real worker archived fixtures processed4.33s/2.42s/2.70s audio in0.38s/0.22s/
+0.24s respectively; no microphone or physical playback. Found synchronous lazy
+Whisper single-word fallback on the same worker that must drain32ms capture frames.
+Real synthetic Settings baseline blocked one worker request4.507s, exceeding the
+64-frame (~2.048s) queue. Reports under ControlAdapter/speech-*-baseline.json.
+
+Removed second-model fallback from streaming capture only (legacy installed app
+untouched). Uncertain isolated words now yield review=true and ask repeat/type,
+never submitted to action planning; recognized stop/cancel/yes/no remain immediate.
+Review also resumes interrupted playback instead of leaving it paused. Tradeoff:
+ambiguous single-word speech is no longer automatically re-transcribed by Whisper.
+Three repeated real worker synthetic Settings tests: longest request0.070/0.063/
+0.063s, total0.229/0.218/0.218s for2.396s audio, all review=true. Report:
+ControlAdapter/speech-single-word-fixed.json. 91 streaming tests+client checks pass.
+This fixes a reproduced blocking path, not proof that every backlog or recognition
+error is solved. No live mic/background-noise/model-contention soak test performed.
+Pilot was closed; loaded updated0.7.7. Record actual health/UI state below.
+No UAC/security/VM/BRS/normal-installation changes. User recordings not captured.
+
+0.7.7 runtime verified independently: /health0.7.7-prototype, native UI Ready. Type
+a message or click Talk; Mute mic disabled. Pilot OPEN, microphone OFF. Agent idle.

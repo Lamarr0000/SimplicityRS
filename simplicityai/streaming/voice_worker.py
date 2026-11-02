@@ -2,12 +2,19 @@
 import base64
 from collections import deque
 import contextlib
-import io
 import json
 import os
 from pathlib import Path
 import sys
-import wave
+
+
+def final_event(text,limited=False):
+    # A synchronous second-model fallback can stall capture beyond its 2 s bound.
+    # Ambiguous isolated words require review rather than executing a guess.
+    words=text.strip().lower().split()
+    review=len(words)==1 and words[0] not in {'stop','cancel','yes','no','okay','ok','hello','hi','thanks'}
+    return {'type':'transcript.final','text':text,'limited':limited,
+            'review':review,'backend':'zipformer-online'}
 
 
 class Gate:
@@ -34,8 +41,7 @@ class Recognizer:
         import numpy as np
         import onnxruntime as ort
         import sherpa_onnx
-        from zipformer_worker import ShortWordFallback
-        self.np=np;self.fallback=ShortWordFallback(legacy.parent/'SpeechConversation')
+        self.np=np
         ort.disable_telemetry_events();options=ort.SessionOptions()
         options.intra_op_num_threads=1;options.inter_op_num_threads=1
         self.vad=ort.InferenceSession(str(assets/'models/silero-vad.onnx'),sess_options=options,providers=['CPUExecutionProvider'])
@@ -74,14 +80,8 @@ class Recognizer:
         if phase=='end':
             self.stream.accept_waveform(16000,np.zeros(12800,dtype=np.float32));self.stream.input_finished()
             while self.asr.is_ready(self.stream):self.asr.decode_stream(self.stream)
-            text=self.asr.get_result(self.stream).strip();backend='zipformer-online'
-            from zipformer_worker import verify_short
-            if verify_short(text):
-                wav=io.BytesIO()
-                with wave.open(wav,'wb') as output:
-                    output.setnchannels(1);output.setsampwidth(2);output.setframerate(16000);output.writeframes(b''.join(self.audio))
-                text=self.fallback.transcribe(wav.getvalue());backend='whisper-short-word-fallback'
-            events.append({'type':'transcript.final','text':text,'limited':limited,'backend':backend})
+            text=self.asr.get_result(self.stream).strip()
+            events.append(final_event(text,limited))
             self.stream=None;self.audio=[];self.previous=''
         return events
 
@@ -101,7 +101,7 @@ def main():
                 elif value.get('op')=='frame':events=recognizer.feed(base64.b64decode(value['pcm'],validate=True))
                 else:raise ValueError('Unknown audio operation')
             print(json.dumps({'events':events}),flush=True)
-    finally:recognizer.fallback.close()
+    finally:recognizer.reset()
 
 
 if __name__=='__main__':

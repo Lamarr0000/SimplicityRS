@@ -471,7 +471,9 @@ class Session:
                     elif event['type']=='transcript.final':
                         await self.send('transcript.final',text=event['text'],backend=event['backend'])
                         text=event['text'].strip()
-                        if event['limited']:await self.send('review',text=text);continue
+                        if event['limited'] or event.get('review'):
+                            self.paused=False;await self.send('voice.resume')
+                            await self.send('review',text=text);continue
                         if not text:
                             self.paused=False;await self.send('voice.resume');continue
                         if text.lower().strip('.!?') in {'continue','go on','resume','keep going'} and self.paused and self.retained_audio:
@@ -624,7 +626,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.6-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.7-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)
