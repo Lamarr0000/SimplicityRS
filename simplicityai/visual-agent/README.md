@@ -63,3 +63,34 @@ desktop driver: foreground/occlusion can change in the interval before input.
 Loopback model requests use a per-launch random bearer credential, inherited only
 by the owned model process; no cloud account/token is involved. Runtime logs and
 bounded-canvas captures stay under the external VisualAgent folder, outside Git.
+
+## General desktop preview (experimental)
+
+`Start-Desktop-Preview.cmd` starts a separate native task controller. It has primary
+desktop screenshots rather than sample-area restrictions, and accepts literal click,
+double/right click, focused text entry, shortcuts, scrolling and drag actions. The
+existing local Windows-MCP driver executes them. Its default tool set remains
+unchanged for the working app; only this preview opts into the additional Move tool.
+
+The controller minimizes and activates the eligible application behind it using
+normal Windows foreground APIs. If focus cannot be established, no task starts.
+It retains the last two screenshot turns, actual assistant action history, and tool
+failure feedback. Invalid model actions are not executed. Foreground changes,
+expired screenshots, user takeover and protected targets stop the run. A repeated
+action loop, 24-step limit and four-minute deadline bound execution. Text input
+requires an observed focused editable, non-password control. Windows permissions
+and UAC are not bypassed. Terminals, authentication/security targets and Codex are
+not automation targets. No arbitrary model-authored shell/code is executed.
+
+**Validation remains limited.** In a live Notepad test the local agent focused the
+blank document and typed `Offline visual control test`; the developer independently
+verified the visible text. The agent then proposed an unrequested close action,
+which was blocked. An earlier Task Manager navigation test did not pass. Early
+runs also exposed foreground-handoff bugs that were corrected; those runs cannot
+serve as clean model comparisons. This preview is not a general-autonomy pass or
+a replacement for the main SimplicityAI installation. It is not speech-connected.
+
+Arbitrary task completion is a model claim, clearly labeled unverified by the app;
+there is no universal independent verifier. The preview's desktop input boundary
+has race limitations and is not a hardened sandbox. Windows application testing,
+task adherence and final-action verification need further work before integration.

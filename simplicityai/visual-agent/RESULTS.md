@@ -108,3 +108,30 @@ of every release-indicator transition. No driver policy or user takeover was rem
 
 The attempted Qwen unload + isolated-test command was rejected by automatic policy
 review. It was not retried by another route, and the isolated rerun remains pending.
+
+## User isolated rerun and general-desktop preview
+
+User provided a successful isolated Drive report run: driver startup 3.238 s;
+screenshots 0.119–0.129 s; model calls 2.227, 2.095, 1.753 s; driver calls 0.975,
+0.570 s; total 12.208 s with completion verified. This strongly supports competing
+model memory demand as the cause of the previous large inference slowdown. The
+separate claimed release-indicator delay was not measured in these records.
+
+Added an experimental primary-desktop controller, native UI-TARS action parser,
+real per-turn screenshot history (latest two images), literal action history and
+recoverable tool feedback. Existing working app and its default tool scope remain
+unchanged. Early live runs exposed controller foreground/minimization errors; these
+were corrected with fresh HWND binding, deferred normal target activation, and
+refusal to capture the controller. Those early runs are not clean planning evidence.
+
+Final live Notepad run (local `desktop-preview-20261101-*.json`):
+the agent clicked the Untitled tab, clicked the document body, and typed
+`Offline visual control test`. Model decisions 3.798, 3.437, 5.641 s; driver calls
+1.053, 0.583, 0.739 s. Independent Computer Use screenshot inspection verified the
+exact text in the new unsaved tab (27 characters). Existing tabs/files were not edited.
+It then proposed closing a window contrary to the task; the destination was protected
+and blocked. Therefore text-entry capability passed, but full-task adherence did not.
+Do not promote this as a reliable autonomous desktop agent or integrate it broadly.
+
+The blank-test document remains unsaved as visible evidence. No save, close,
+process termination, security change or recovery operation was performed by this test.

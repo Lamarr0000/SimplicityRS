@@ -11,7 +11,8 @@ ALLOWED = {'Snapshot', 'App', 'Click', 'Type', 'Shortcut', 'Scroll', 'ControlSta
 
 
 class DesktopBridge:
-    def __init__(self):
+    def __init__(self, allowed=None):
+        self.allowed = set(ALLOWED if allowed is None else allowed)
         self.loop = None
         self.client = None
         self.names = set()
@@ -29,13 +30,13 @@ class DesktopBridge:
                    WINDOWS_MCP_MAX_TREE_ELEMENTS='100')
         transport = StdioTransport(sys.executable, args=[
             '-m', 'windows_mcp', 'serve', '--transport', 'stdio', '--config',
-            str(Path(__file__).with_name('desktop-control.toml')), '--tools', ','.join(sorted(ALLOWED))],
+            str(Path(__file__).with_name('desktop-control.toml')), '--tools', ','.join(sorted(self.allowed))],
             env=env, keep_alive=False, log_file=folder/'desktop-driver.log')
         try:
             async with Client(transport, timeout=25, init_timeout=30) as client:
                 self.client = client
                 self.names = {item.name for item in await client.list_tools()}
-                if not ALLOWED <= self.names:
+                if not self.allowed <= self.names:
                     raise RuntimeError('Desktop driver did not load the required tools')
                 self.ready.set_result(True)
                 await self.stop.wait()
@@ -68,7 +69,7 @@ class DesktopBridge:
                 raise
 
     def call(self, name, arguments, check_stop):
-        if name not in ALLOWED: raise ValueError('Desktop tool is not exposed')
+        if name not in self.allowed: raise ValueError('Desktop tool is not exposed')
         self._start(check_stop)
         async def invoke():
             result = await self.client.call_tool(name, arguments, timeout=25)
@@ -89,7 +90,7 @@ class DesktopBridge:
             if any(code in str(error) for code in ('CONTROL_PREEMPTED','USER_CONTROL','TAKEOVER_PENDING')):
                 raise InterruptedError('Desktop control returned to the user; no automatic retry') from error
             raise
-        if name in {'App','Click','Type','Scroll','Shortcut'} and any(code in response for code in ('CONTROL_PREEMPTED','USER_CONTROL','TAKEOVER_PENDING')):
+        if name in {'App','Click','Type','Scroll','Shortcut','Move'} and any(code in response for code in ('CONTROL_PREEMPTED','USER_CONTROL','TAKEOVER_PENDING')):
             raise InterruptedError('Desktop control returned to the user; no automatic retry')
         return response
 

@@ -666,3 +666,30 @@ Lab closed at handoff. User next: open desktop shortcut, wait Ready, select a te
 Start visual test, keep window visible. Stop/Esc ends actions; Exit stops owned service.
 No speech integration yet. Working SimplicityAI/VM/BRS preserved. Next development
 is non-lab Windows validation and reliability, not broad integration based on these tests.
+
+## November 1: general offline desktop preview, capability and adherence separated
+
+User isolated lab rerun restored model decisions to 1.75–2.23 s, driver calls
+0.57–0.98 s, total 12.208 s. This strongly supports GPU model contention as the
+previous slowdown. Driver startup was 3.238 s; separate release-indicator duration
+was not measured. Startup preflight now rejects an Ollama resident GPU model >1 GiB.
+
+Built visual-agent/desktop_preview.py: primary desktop screenshots, literal native
+UI-TARS mouse/keyboard/type/scroll/drag actions via existing Windows-MCP, real action
+turn history and last two screen images, tool feedback, bounded execution, cancellation,
+normal target activation and protected-target handling. Working main app was preserved.
+The DesktopBridge optional allowed-set defaults remain unchanged for the main app.
+
+Live testing found and corrected stale/minimization foreground handoff, malformed-action
+handling and missing recoverable text-focus feedback. Final Notepad run clicked the
+new blank tab/document and typed Offline visual control test. Independent screenshot
+verified all 27 characters. Model decisions ~3.4–5.6 s, driver ~0.6–1.1 s.
+It then proposed closing a window despite instructions; protected destination was blocked.
+Thus real input capability is demonstrated, full task adherence is NOT. Earlier Task
+Manager run did not pass and included focus problems; do not call it a clean model test.
+
+Six parser/window-boundary test methods and compilation pass. Main app not replaced,
+speech not integrated, no general-autonomy readiness claim. Preview closed to free
+its model service. New Notepad test tab remains unsaved; existing tabs/files unchanged.
+No user action needed at checkpoint. Next work: model/harness task adherence and
+independent outcome checks before main-app integration. See visual-agent/RESULTS.md.
