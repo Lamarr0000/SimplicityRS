@@ -12,14 +12,13 @@ from troubleshooting import guidance
 from findings import table_view,table_text
 
 TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+[
-    tool('open_browser_window','ThemHands: open a blank Microsoft Edge window in the Windows running SimplicityAI and verify it appeared. No internet/page-load test or settings changes. Refuse another/outside-host target.'),
     tool('get_tool_capabilities','Read the actual connected ThemHands capabilities and target. No desktop action or diagnostic.')]
 
 CAPABILITIES={
     'name':'ThemHands',
     'role':'The connected local tool layer used by SimplicityAI, already installed in this pilot.',
     'connected':['read-only running-Windows health/network checks','protected Windows file verification (not repair)',
-                 'real Calculator controls','open Microsoft Edge blank window and verify its appearance',
+                 'real Calculator controls','owned Edge browser navigation and fresh page observations',
                  'Windows-MCP accessibility observation, app switching, observed-control clicking, typing and scrolling',
                  'launch Edge HTTPS websites and supported installed apps; inspect actual result',
                  'create new Desktop text files with exclusive creation and reread verification',
@@ -56,7 +55,7 @@ class ToolState(State):
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()
-            local_actions={'desktop_observe','desktop_switch','desktop_interact','desktop_click_control','browser_open','browser_observe','browser_act','open_desktop_app','search_web','create_desktop_text','export_conversation','list_windows','manage_window'}
+            local_actions={'desktop_observe','desktop_switch','desktop_interact','desktop_click_control','browser_open','browser_observe','browser_act','browser_wait','close_app_windows','open_desktop_app','search_web','create_desktop_text','export_conversation','list_windows','manage_window'}
             from target_scope import OTHER
             explicitly_other=OTHER.search(self.chat.current_user or '')
             if self.chat.target=='other' and name not in {'get_recovery_tool_catalog','get_recent_findings'} and (name not in local_actions or explicitly_other or not self.chat.current_user):raise ValueError('The affected Windows is not connected. Current recovery-environment checks would not diagnose that installation.')
@@ -101,6 +100,6 @@ class ToolState(State):
             self.emit('observation',json.dumps(result));return result
         if self.chat.target=='other':raise ValueError('That computer is not connected. No browser was opened.')
         self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
-        result=open_browser(self.check_stop,self.emit)
+        result=self.desktop.execute('browser_open',{'url':'about:blank'},self.check_stop)
         self.emit('observation',json.dumps(result))
         return result

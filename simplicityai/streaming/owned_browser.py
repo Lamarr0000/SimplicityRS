@@ -13,9 +13,10 @@ WORKER=Path(__file__).resolve().parent.parent/'visual-agent/owned_browser_worker
 
 
 class BrowserToolError(ValueError):
-    def __init__(self,message,may_have_acted):
+    def __init__(self,message,may_have_acted,closed_before_action=False):
         super().__init__(message)
         self.may_have_acted=may_have_acted
+        self.closed_before_action=closed_before_action
 
 
 class OwnedBrowser:
@@ -53,7 +54,7 @@ class OwnedBrowser:
         self.reader=threading.Thread(target=read,daemon=True)
         self.reader.start()
 
-    def call(self,op,args,check):
+    def call(self,op,args,check,_recover=True):
         with self.lock:
             try:
                 check()
@@ -74,10 +75,13 @@ class OwnedBrowser:
                     if isinstance(response,Exception):raise response
                     if response.get('id')!=request_id:raise RuntimeError('Stale browser response; request not replayed')
                     result=response['result']
-                    if result.get('error'):raise BrowserToolError(result['error'],result.get('may_have_acted',True))
+                    if result.get('error'):raise BrowserToolError(result['error'],result.get('may_have_acted',True),result.get('closed_before_action',False))
                     return result
                 raise TimeoutError('Owned browser request timed out; action outcome unknown')
             except BrowserToolError as error:
+                if op=='open' and _recover and error.closed_before_action and not error.may_have_acted:
+                    self.close()
+                    return self.call(op,args,check,_recover=False)
                 if error.may_have_acted:self.close()
                 raise
             except BaseException:

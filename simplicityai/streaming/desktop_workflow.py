@@ -25,6 +25,7 @@ def requested_app(text):
 
 
 def unfinished_draft(text):
+    if re.search(r"\b(?:let me (?:first )?(?:confirm|try|attempt|ensure|wait)|I (?:can|will|'ll) (?:attempt|try|wait)|keep you updated|let you know when|provide.{0,60}once.{0,20}ready)\b",text,re.I):return True
     if re.search(r"\b(?:I (?:cannot|can't|do not|don't) (?:directly )?(?:open|create|interact)|I (?:do not|don't) have the (?:capability|ability))\b",text,re.I):return True
     if re.search(r'\b(would you like|shall I|should I|may I|can I proceed|let me (?:proceed|start|check|type|open|search|click|navigate)|I\s*(?:will|\x27ll)\s+(?:open|type|search|click|navigate|proceed|check))\b',text,re.I):return True
     return bool(re.search(r'\b(could|can) you\b.{0,90}\b(where|locate|search (?:box|bar)|control|element)\b',text,re.I))
@@ -46,7 +47,7 @@ def web_search_request(text):
 
 CONTINUE=('The user has already authorized this ordinary desktop task. Do not ask permission to open, '
           'observe, click, type or submit the requested web search. A web search is not sending a message '
-          'to another person. Use desktop_observe yourself to locate controls; never ask the user for '
+          'to another person. Use browser_observe for owned web pages and desktop_observe for native apps to locate controls; never ask the user for '
           'control IDs or locations you can inspect. Continue the ENTIRE original task using tools now. '
           'Do not finish with a promise to act. Finish only with actual observed results or a concrete '
           'tool failure/blocker. User takeover, Stop and unavailable tools still stop work. Consequential '

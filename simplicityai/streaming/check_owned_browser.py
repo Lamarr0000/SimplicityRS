@@ -17,6 +17,9 @@ def main():
         results.append(call('open',{'url':'https://fixture.invalid/'},check))
         observed=call('observe',{},check)
         results.append({'observed_fixture':'Local control check' in observed['observations']})
+        waited=call('wait',{'text':'Ready result 42 Mbps','seconds':2},check)
+        assert waited['condition_met'] and 'Visible page text' in waited['observations']
+        results.append({'asynchronous_result_observed':True})
         for url in ('file:///C:/private.txt','javascript:alert(1)','https://user:pass@example.com'):
             try:call('open',{'url':url},check)
             except ValueError:pass

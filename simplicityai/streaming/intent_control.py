@@ -3,6 +3,7 @@ import re
 
 
 def cancelled(text):
+    if re.match(r"^\s*(?:time(?:'s|s)?(?: is)? up|that's enough|that is enough|stop here)(?:[.! ,]|$)",text,re.I):return True
     return bool(re.search(r"\b(?:never mind|nevermind|forget it|don't (?:even )?worry about it|do not worry about it|cancel (?:that|this|it))\b",text,re.I) or re.fullmatch(r'\s*(?:stop|cancel)[.!\s]*',text,re.I))
 
 
@@ -24,7 +25,9 @@ def repeated_target_question(text):
 
 def window_request(text):
     if re.search(r'\bminimi[sz]e\b',text,re.I) and re.search(r'everything|all',text,re.I) and re.search(r'except|yourself|your window',text,re.I):return 'minimize_others'
-    if re.search(r'\bclose\b',text,re.I) and re.search(r'\bbrowser\b',text,re.I):return 'close_browser'
+    from task_agenda import close_intent
+    close=close_intent(text)
+    if close and close['app']=='browser':return 'close_browser'
     return None
 
 

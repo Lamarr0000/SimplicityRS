@@ -13,6 +13,13 @@ const sandbox={console,WebSocket:WS,AudioContext:Audio,AudioWorkletNode:Worklet,
  history:{replaceState(){}},window:{addEventListener(){},scrollTo(){}},setTimeout,clearTimeout};
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync(__dirname+'/client.js','utf8'),sandbox);
 (async()=>{
+ for(const event of [{type:'turn.start',turn:1,text:'test',source:'typed'},
+                    {type:'turn.done',turn:1},{type:'error',text:'test error'}]){
+   nodes.set('partial',node());nodes.get('partial').textContent='proceed';
+   sandbox.nextEvent=event;
+   vm.runInContext('ws.onmessage({data:JSON.stringify(nextEvent)})',sandbox);
+   assert.equal(nodes.get('partial').textContent,'');
+ }
  await vm.runInContext('microphone(true)',sandbox);
  vm.runInContext('ws.bufferedAmount=129000;capture.port.onmessage({data:new ArrayBuffer(1024)})',sandbox);
  assert.equal(vm.runInContext('listening && transportPaused',sandbox),true);assert.equal(stopped,0);

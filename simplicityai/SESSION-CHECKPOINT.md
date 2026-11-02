@@ -1019,3 +1019,36 @@ checkpoint. Agent goes idle at handoff; user may try natural browser/Windows tas
 Read saved logs directly rather than requesting clipboard exports. General model
 planning and arbitrary-site behavior still need live validation; no broad readiness
 claim. Preserve _wmi signing issue as separate unresolved item, no security changes.
+
+
+## November 2:43-message live failure diagnosed;0.7.2 repair prepared
+Read user export Conversation-20261102-120210-519776.txt and corresponding stream
+113810 log. Found closeCalculator/openbrowser compound misclassified as closebrowser,
+retained prompt directing oldblanklauncher, dropped task continuity, stale result
+claims, closedpageerrors, unsupportedStartbutton guess and exportfilename mismatch.
+No completed numerical Fast.com result established in inspected logs; AI-detection
+cause unproven. Existing export/logs untouched. Detailed causes/limits and checks
+in streaming/LIVE-CONVERSATION-2026-11-02.md.
+
+Implemented TaskAgenda for explicit ordinary URL/known close operations, close target
+binding/allbrowsers selection, verified-step continuity/fresh result observations,
+retirement of blankdiagnostic model tool/guidance, visible DOM text + bounded browser
+wait, draft/contradiction withholding and fresh-evidence fallback, closed-before-open
+recovery once, primary-page popup guard, filename parser and speech-preview cleanup.
+Stop/timesup/Newchat clearagenda. No repeating sent/unknown actions, no forced close
+or permission bypass. Not a general compound-task planner or semantic outcome proof.
+
+79 streaming+42 shared/visual tests and voice-client suite pass. Real owned browser
+fixture checks asyncwait/visibletext/cancelcleanup. Local Qwen8B four-turn replay
+passed using simulated OS/browser responses; prior failed replays exposed remaining
+wait/confirmation drafts. No real browser speedtest or user-window closes in replay.
+0.7.1 pilot left untouched during investigation; source0.7.2 prepared for one reload
+with mic off. Record actual reload state below after verification. No UAC required
+so far, no security/network/BRS/VM changes. User exported history remains preserved.
+
+
+0.7.2 reload verified: old pilot exited through its own Exit (mic capture stopped),
+new /health reports0.7.2-prototype and independent UI says Ready. Type a message or
+click Talk, with Mute mic disabled. Updated pilot is OPEN, capture OFF. Existing
+export untouched. No UAC used. Source checks and replay are described above;
+real Fast.com retry remains unverified. Agent idle at handoff; no cut/paste request.

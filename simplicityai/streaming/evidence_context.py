@@ -7,7 +7,21 @@ def model_evidence(result,limit=6000):
     if isinstance(result,dict) and 'findings' in result:
         records=result['findings'];value={**result,'findings':[json.loads(model_evidence(item,max(800,limit//max(1,len(records))))) for item in records]}
         return json.dumps(value)
-    if not isinstance(result,dict) or 'sections' not in result:return json.dumps(result)
+    if not isinstance(result,dict):return json.dumps(result)
+    if 'sections' not in result:
+        value=copy.deepcopy(result)
+        if 'observations' not in value:return json.dumps(value)
+        while len(json.dumps(value))>limit:
+            value['model_context_truncated']=True
+            fields=[key for key in ('observations','visible_text') if isinstance(value.get(key),str) and len(value[key])>80]
+            if fields:
+                key=max(fields,key=lambda key:len(value[key]));text=value[key]
+                size=max(10,len(text)//4)
+                value[key]=text[:size]+'\n[... omitted ...]\n'+text[-size:]
+            elif len(value.get('structured_controls',[]))>1:
+                value['structured_controls'].pop()
+            else:break
+        return json.dumps(value)
     value=copy.deepcopy(result)
     while len(json.dumps(value))>limit:
         candidates=[section for section in value['sections'] if len(section.get('data',[]))>1]
