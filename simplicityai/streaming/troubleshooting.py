@@ -51,6 +51,7 @@ def guidance(prompt):
 
 def requested_checks(prompt):
     if re.search(r"\b(?:do not|don't|no need to)\s+(?:check|inspect|review|find|verify|look)\b",prompt,re.I):return set()
+    if re.search(r'\b(?:driver status|status of (?:my |the |these |installed )?drivers)\b',prompt,re.I):return {'devices','drivers'}
     if (re.search(r'\bdrivers?\b.{0,40}\b(?:good|okay|ok|working|healthy|up.to.date)\b',prompt,re.I)
             and re.search(r'\b(?:my|this|these|installed)\b',prompt,re.I)):
         return {'devices','drivers'}

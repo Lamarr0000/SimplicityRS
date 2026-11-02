@@ -63,6 +63,20 @@ class ReportedTests(unittest.TestCase):
         self.assertEqual(calls.count('inspect_windows'),2)
         self.assertTrue(diagnostic_report_issue('The drivers listed are all signed and functioning correctly.',{'drivers'}))
 
+    def test_driver_status_wording_requests_both_collectors(self):
+        for prompt in ['THE DRIVER STATUS OF MY DEVICES','OPEN THE VICE MANAGER AND LET ME KNOW THE STATUS OF MY DRIVERS']:
+            self.assertEqual(requested_checks(prompt),{'devices','drivers'})
+        self.assertEqual(requested_checks("don't check the driver status"),set())
+
+    def test_output_audio_requests_do_not_become_scope_acknowledgments_or_fake_checks(self):
+        agent=server.Agent(Mock(),'qwen3:8b');agent.state.chat.target='current'
+        agent.state.execute=Mock(side_effect=AssertionError('No endpoint tool exists'))
+        with patch.object(agent.connection,'open',side_effect=AssertionError('No invented audio checks')):
+            for prompt in ['PLEASE UNMUTE THIS COMPUTER','I cannot hear your voice','check basic sound settings','increase volume by fifty percent']:
+                spoken=[];agent.run(prompt,spoken.append)
+                self.assertIn('cannot read or change',' '.join(spoken))
+                self.assertNotIn('confirmed',' '.join(spoken))
+
     def test_progressively_released_chat_prefix_is_not_rewritten(self):
         agent=server.Agent(Mock(),'qwen3:8b')
         chunks=[{'message':{'content':'Hello. '},'done':False},

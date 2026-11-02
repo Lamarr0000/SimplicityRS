@@ -142,6 +142,9 @@ class Agent:
             self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         if re.fullmatch(r'\s*(?:thanks|thank you)(?: very much)?[.!\s]*',prompt,re.I):
             self.report(messages,start,"You're welcome.",segment);return
+        if re.search(r'\b(?:unmute|mute|volume|sound settings|hear your voice|hear you)\b',prompt,re.I) and not re.search(r'\b(?:explain|difference|what is|how does)\b',prompt,re.I):
+            self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False
+            self.report(messages,start,"This build cannot read or change the Windows output mute or volume state. I have not checked or changed it. Check the Windows speaker mute/volume and this app's Sound toggle; microphone settings control input, not speaker output.",segment);return
         if self.last_assessment=='drivers' and re.fullmatch(r'\s*(?:what does that mean|what do you mean|explain that)[?!.\s]*',prompt,re.I):
             self.report(messages,start,driver_assessment(state.recent_findings,explain=True),segment);return
         self.last_assessment=None
@@ -169,7 +172,7 @@ class Agent:
         desktop_task=self.desktop_task
         if desktop_task:messages[0]['content']+='\n'+CONTINUE
         state.messages=messages
-        binding_reply=state.chat.target=='current' and (CURRENT.search(prompt) or re.search(r'\bthis computer\b',prompt,re.I)) and not re.search(r'\b(run|check|inspect|review|verify|open|launch|list)\b',prompt,re.I)
+        binding_reply=state.chat.target=='current' and bool(re.fullmatch(r'\s*(?:yes[,! ]*|I mean |I meant |for this exercise I mean |I am referring to |I.m referring to )?(?:this computer|(?:the )?windows(?: installation)? (?:that is |that.s |is )?running simplicity\s*(?:ai|a i))[.! ]*',prompt,re.I))
         if binding_reply and not self.diagnostic_pending:
             report='The Windows running SimplicityAI is confirmed; no further target confirmation is needed.'
             if re.search(r'start|boot',state.chat.original_issue,re.I):report+=' The measurements alone do not establish a startup cause. What is the last screen or error message you see?'
@@ -609,7 +612,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.3-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.4-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)

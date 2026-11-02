@@ -1075,3 +1075,21 @@ Current runtime independently verified: /health 0.7.3-prototype, native UI Ready
 Type a message or click Talk; Mute mic disabled. Pilot OPEN, microphone OFF.
 No UAC required. Agent idle at handoff. Read saved logs for subsequent evidence;
 do not request repeated clipboard exports. General live reliability remains limited.
+
+
+## November 2: 14:04 export investigation; 0.7.4 source prepared
+Referenced Conversation-20261102-140403-957779.txt is absent from supplied Desktop
+path and searched export directories. Matching stream-20261102-135142.jsonl retains
+its export receipt and conversation. Export body not read; logs used as evidence.
+Real Calculator receipt reports49; Google challenge handling worked. Driver-status
+phrasing missed deterministic collection, unmute-this-computer hit scope-only reply,
+and voice troubleshooting became unexecuted promises with stale Calculator replies.
+Added explicit driver-status routing, restricted scope-only acknowledgment to actual
+binding utterances, and honest application-owned output-audio capability response.
+No Windows endpoint mute/volume API exists in this build; no sound check/change was
+performed or added. This is a limitation report, not an audio repair. 86 streaming
+tests pass; tests simulate tool effects. Speech errors, stale model task context,
+requested Firefox selection and spoken export-name recognition remain unresolved.
+Source health version is0.7.4; running pilot was NOT reloaded/interrupted in this turn.
+Do not claim these source fixes are live or broad reliability achieved. No UAC,
+security/VM/BRS/normal-installation changes. Agent idle at handoff.
