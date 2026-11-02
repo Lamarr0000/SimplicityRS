@@ -13,7 +13,7 @@ import psutil
 from PIL import ImageGrab
 from desktop_lab import Lab, ROOT, user32
 from desktop_bridge import DesktopBridge, ALLOWED
-from desktop_actions import decode, to_screen, requested_app
+from desktop_actions import decode, to_screen, requested_app, action_context_error
 from agent_context import AgentContext
 from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
@@ -177,12 +177,14 @@ class Preview(Lab):
             feedback=''
             parse_failures=0
             app=requested_app(task,LAUNCH_APPS)
+            expected_executable=None
             if app:
                 # A directly requested utility uses the same existing catalog tool
                 # as the main app; do not type a launch command into the previous app.
                 before=user32.GetForegroundWindow()
                 self.check();phase=time.perf_counter()
                 result=launch_app(app)
+                expected_executable=os.path.basename(result['executable']).lower()
                 self.save({'phase':'requested_app_launch','app':app,'result':result,
                            'seconds':round(time.perf_counter()-phase,3),
                            'selection':'explicit user request + existing catalog; not model inference'})
@@ -213,6 +215,13 @@ class Preview(Lab):
                     parse_failures+=1
                     if parse_failures>=3:raise RuntimeError('Three invalid actions; stopped without executing them')
                     feedback='No action was executed: '+str(error)+'. Use one supported action from the listed tools.'
+                    continue
+                context_error=action_context_error(action,expected_executable,identity['process'])
+                if context_error:
+                    row['action_rejected']=context_error;self.flush()
+                    parse_failures+=1
+                    if parse_failures>=3:raise RuntimeError('Three invalid or context-inappropriate actions; stopped')
+                    feedback=context_error
                     continue
                 parse_failures=0
                 feedback='Previous action completed; inspect the current result.'

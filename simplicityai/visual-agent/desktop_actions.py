@@ -67,3 +67,14 @@ def to_screen(point, image_size, screen_size, origin=(0,0)):
     sw,sh=screen_size
     if not (0<=x<w and 0<=y<h):raise ValueError('Point outside screenshot')
     return [origin[0]+min(sw-1,round(x*sw/w)),origin[1]+min(sh-1,round(y*sh/h))]
+
+
+def action_context_error(action, expected_executable, foreground_executable):
+    """Reject an app switch when the explicitly requested app is already active."""
+    if (expected_executable and expected_executable.lower()==foreground_executable.lower()
+            and action['kind']=='hotkey'
+            and set(action['shortcut'].split('+')) in ({'alt','tab'},{'alt','shift','tab'})):
+        return ('No keys were sent. The requested application is already foreground. '
+                'Alt+Tab switches applications; it does not select a tab within this application. '
+                'Inspect the screenshot and use the visible navigation control for the requested view.')
+    return None

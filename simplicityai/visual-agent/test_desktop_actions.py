@@ -1,8 +1,14 @@
 import unittest
-from desktop_actions import decode,to_screen,requested_app
+from desktop_actions import decode,to_screen,requested_app,action_context_error
 
 
 class DesktopActions(unittest.TestCase):
+    def test_app_switch_is_rejected_only_when_requested_app_is_already_foreground(self):
+        switch={'kind':'hotkey','shortcut':'alt+tab'}
+        self.assertIn('No keys were sent',action_context_error(switch,'taskmgr.exe','taskmgr.exe'))
+        self.assertIsNone(action_context_error(switch,'taskmgr.exe','notepad.exe'))
+        self.assertIsNone(action_context_error(switch,None,'taskmgr.exe'))
+        self.assertIsNone(action_context_error({'kind':'click','point':[40,226]},'taskmgr.exe','taskmgr.exe'))
     def test_catalog_launch_request_is_explicit_and_not_negated(self):
         apps=['task_manager','device_manager','notepad']
         self.assertEqual(requested_app('Open Task Manager and select Performance.',apps),'task_manager')
