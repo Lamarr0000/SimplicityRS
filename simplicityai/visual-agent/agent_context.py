@@ -13,6 +13,7 @@ Thought: ...
 Action: ...
 
 ## Action Space
+click_control(name='observed name', role='button', id='observed ID') # Prefer exact observed structured controls; ID is optional. Missing or ambiguous targets cause no input.
 click(start_box='<|box_start|>(x1,y1)<|box_end|>')
 left_double(start_box='<|box_start|>(x1,y1)<|box_end|>')
 right_single(start_box='<|box_start|>(x1,y1)<|box_end|>')
@@ -58,6 +59,7 @@ class AgentContext:
             if message['role']=='user' and isinstance(message['content'],list):
                 old_text=next((item['text'] for item in message['content'] if item['type']=='text'),'')
                 evidence=old_text.split('Tool observation: ',1)[-1] if 'Tool observation: ' in old_text else 'Earlier observation.'
+                evidence=evidence.split('\nAvailable structured controls:',1)[0]
                 message['content']=([{'type':'text','text':'Tool observation: '+evidence[:1800]}]+
                     [item for item in message['content'] if item['type']=='image_url'])
         text=f'## User Instruction\n{self.task}\n\nCurrent foreground application: {window_title}. The screenshot shows this application, already active.\nTool observation: {feedback}'

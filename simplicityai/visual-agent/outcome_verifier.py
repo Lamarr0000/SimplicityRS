@@ -62,7 +62,8 @@ def collect(hwnd, check, limit=400, seconds=3):
             node = {'name': control.Name, 'type': control.ControlTypeName,
                     'automation_id': control.AutomationId}
             if not control.IsOffscreen and not control.IsPassword:
-                if node['type'] in {'DocumentControl', 'TabItemControl', 'ButtonControl'}:
+                node['enabled']=bool(control.IsEnabled)
+                if node['type'] in {'DocumentControl', 'TabItemControl', 'ButtonControl', 'ListItemControl', 'TreeItemControl'}:
                     node['runtime_id'] = list(control.Element.GetRuntimeId())
                     box = control.BoundingRectangle
                     node['rect'] = [box.left, box.top, box.right, box.bottom]

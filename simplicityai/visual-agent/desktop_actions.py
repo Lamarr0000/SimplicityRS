@@ -31,6 +31,11 @@ def decode(text,width,height,apps=()):
     if any(item.arg is None for item in node.keywords): raise ValueError('Expanded arguments are not supported')
     args={item.arg:ast.literal_eval(item.value) for item in node.keywords}
     if len(args)!=len(node.keywords): raise ValueError('Duplicate arguments')
+    if name=='click_control' and set(args)<={'name','role','id'}:
+        from control_session import Locator
+        if not all(isinstance(value,str) for value in args.values()):raise ValueError('Control locator must contain literal strings')
+        locator=Locator(args.get('name',''),args.get('role',''),args.get('id',''))
+        return {'kind':name,'name':locator.name,'role':locator.role,'id':locator.automation_id}
     if name=='open_app' and set(args)=={'name'} and args['name'] in apps:
         return {'kind':name,'name':args['name']}
     if name in {'click','left_double','right_single'} and set(args)=={'start_box'}:

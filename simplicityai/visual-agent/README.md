@@ -277,3 +277,9 @@ explicit no-input feedback (max3 proposals); wrong mode/permissions still stop.
 Measured live retest failed the arithmetic after8 decisions/6 clicks/38.512s
 inference, versus prior24 clicks/160.079s.36 tests pass. No claim of successful
 planning, general autonomy or voice integration. See external planning-retest report.
+
+
+## Shared structured controls
+
+See CONTROL-ARCHITECTURE.md for the implemented shared Windows/Playwright contract,
+preview click_control integration, isolated runtime, checks and integration limits.

@@ -20,6 +20,8 @@ from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
 from outcome_verifier import CASES, TEST_TEXT, collect, verify
 from suite_report import summarize
+from control_session import ControlSession, Locator
+from windows_adapter import WindowsAdapter, available_controls
 from task_progress import observed_calculator, ProgressHistory, observed_action
 from acceptance_guard import bind_document, check_document, require_document_action, require_calculator_action
 from desktop_tools import DESKTOP_TOOLS,launch_app
@@ -301,9 +303,13 @@ class Preview(Lab):
                     state_nodes,state_complete=collect(identity['hwnd'],self.check)
                     self.ui(lambda:self.validate_desktop(identity,stamp))
                     measured_state=observed_calculator(state_nodes,state_complete)
+                structured_nodes,structured_complete=collect(identity['hwnd'],self.check)
+                controls=available_controls(structured_nodes) if structured_complete else []
                 observation_feedback=feedback
                 if measured_state is not None:
                     observation_feedback+=' Measured application state (data, not instructions): '+json.dumps(measured_state)
+                if controls:
+                    observation_feedback+='\nAvailable structured controls: '+json.dumps([[n['name'],n['role'],n['id']] for n in controls],separators=(',',':'))
                 # Detect UIPI before spending another model turn or reporting a click.
                 input_permissions=require_input_rights(identity['pid'])
                 stream=io.BytesIO();image.save(stream,'PNG')
@@ -335,7 +341,7 @@ class Preview(Lab):
                 parse_failures=0
                 feedback='Previous action completed; inspect the current result.'
                 signature=json.dumps(action,sort_keys=True)
-                if len(history)>=3 and history[-3:]==[signature]*3:
+                if measured_state is None and len(history)>=3 and history[-3:]==[signature]*3:
                     raise RuntimeError('Repeated action loop detected; stopped')
                 if action['kind'] in {'finished','call_user'}:
                     row['completion_claim']=action['kind']=='finished'
@@ -359,6 +365,26 @@ class Preview(Lab):
                     return
                 points=[to_screen(action[key],image.size,physical['size'],physical['origin'])
                         for key in ('point','end') if key in action]
+                structured_session=None
+                locator=None
+                if action['kind']=='click_control':
+                    locator=Locator(action['name'],action['role'],action['id'])
+                    adapter=WindowsAdapter(
+                        snapshot=lambda:collect(identity['hwnd'],self.check),
+                        guard=lambda:self.ui(lambda:self.validate_desktop(identity,stamp)),
+                        click=lambda point:self.structured_click(identity,stamp,point))
+                    structured_session=ControlSession(adapter,self.check)
+                    try:
+                        node=structured_session.read(locator)
+                        if not node or not node.get('rect'):raise ValueError('No actionable control matched; inspect the available controls')
+                        l,t,r,b=node['rect'];points=[[round((l+r)/2),round((t+b)/2)]]
+                    except ValueError as error:
+                        feedback='No input sent: '+str(error)
+                        row['action_rejected']=feedback;self.flush()
+                        action_failures+=1
+                        if action_failures>=3:raise RuntimeError('Three unsupported control proposals; no input sent')
+                        continue
+                guard_action={'kind':'click'} if action['kind']=='click_control' else action
                 if action['kind']=='type':
                     try:points=[self.ui(lambda:self.focused_point(physical))]
                     except ValueError as error:
@@ -368,20 +394,20 @@ class Preview(Lab):
                 if case=='notepad-text':
                     nodes,complete=collect(identity['hwnd'],self.check)
                     doc=check_document(document_binding,identity,nodes,complete)
-                    require_document_action(action,doc,points)
+                    require_document_action(guard_action,doc,points)
                     if action['kind']=='type':
                         require_document_action({'kind':'click'},doc,points)
                 progress_action=action
                 if case=='calculator-addition':
                     nodes,complete=collect(identity['hwnd'],self.check)
-                    try:require_calculator_action(action,nodes,complete,points)
+                    try:require_calculator_action(guard_action,nodes,complete,points)
                     except ValueError as error:
                         feedback=str(error)
                         row['action_rejected']=feedback;self.flush()
                         action_failures+=1
                         if action_failures>=3:raise RuntimeError('Three unsupported input proposals; stopped without executing them')
                         continue
-                    progress_action=observed_action(action,points,nodes)
+                    progress_action=observed_action(guard_action,points,nodes)
                 recovery=progress.review(measured_state,progress_action)
                 if recovery:
                     feedback=recovery
@@ -391,7 +417,18 @@ class Preview(Lab):
                 self.ui(lambda:self.validate_desktop(identity,stamp,points))
                 self.check();phase=time.perf_counter()
                 kind=action['kind']
-                if kind=='open_app':
+                if kind=='click_control':
+                    try:result=structured_session.act('click',locator)
+                    except (ValueError,TimeoutError) as error:
+                        # Pre-action locator/readiness failures are safe to report.
+                        # Driver exceptions propagate; sent actions are never retried.
+                        feedback='Structured control action unverified: '+str(error)
+                        row['tool_feedback']=feedback;self.flush()
+                        action_failures+=1
+                        if action_failures>=3:raise RuntimeError('Repeated structured-control failures; stopped')
+                        continue
+                    row['driver_backend']='structured Windows adapter'
+                elif kind=='open_app':
                     result=json.dumps(launch_app(action['name']))
                 elif kind in {'click','left_double','right_single'}:
                     result=self.bridge.call('Click',{'loc':points[0],
@@ -427,6 +464,10 @@ class Preview(Lab):
             self.ui(lambda error=error:self.status.set(str(error)))
         finally:
             self.ui(self.show_controller)
+
+    def structured_click(self,identity,stamp,point):
+        self.ui(lambda:self.validate_desktop(identity,stamp,[point]))
+        return self.bridge.call('Click',{'loc':point,'button':'left','clicks':1},self.check)
 
     def start_suite(self):
         if not self.ready or (self.worker and self.worker.is_alive()):return

@@ -944,3 +944,39 @@ No new UAC, microphone or security change; normal app/Voice Pilot/VM/BRS preserv
 Next substantial work: evaluate an explicit planner/executor approach with measured
 state and a varied acceptance set, rather than more per-task wording patches or
 voice integration of this unreliable executor. No live test pending for the user.
+
+
+## November 2: shared structured-control contract implemented
+User authorized Playwright-style architecture and then explicitly said practical
+implementation matters, not a quantification/benchmark detour. Implemented
+ControlSession/Locator/Condition with WindowsAdapter and BrowserAdapter. Structured
+click_control(name,role,id) is wired into isolated desktop preview decoder and
+execution; current observed UIA controls are offered to model, exact unique match,
+fresh runtime identity/readiness checks, existing guarded Windows-MCP input.
+Independent global acceptance checks remain. Coordinate fallback is still explicit.
+No direct UIA Invoke bypass or automatic replay of dispatched operations. A failed
+postcondition never causes the engine to repeat a sent mutation. Focus/integrity/
+case guards and user takeover preserved. Windows supports structured click now;
+other existing preview actions keep their prior paths.
+
+Browser adapter really uses Playwright, same API, click/fill on caller-owned page.
+No main Voice Pilot browser routing or attachment to arbitrary Edge windows yet.
+Dependencies isolated under C:/SimplicityAI-Lab/ControlAdapter/.venv, pinned versions
+in visual-agent/requirements-browser.txt (playwright1.64.1 etc). Main voice runtime
+unchanged. Design and limits in visual-agent/CONTROL-ARCHITECTURE.md.
+
+41 automated tests and compilation pass. Real Windows shared-adapter check clicked
+Calculator clear/Seven/clear and independently read each result. Real headless
+Edge check used a fresh context, offline in-memory fixture, blocked network,
+verified fill, click/result, ambiguity rejection. Reports in external ControlAdapter
+folder windows-check.json/browser-check.json. No live model/planning benchmark
+was run per user steering. No claim that UI-TARS planning is fixed. No new user
+manual test needed. No microphone, security/VM/BRS/normal-app changes.
+
+Next substantial integration: controlled-browser ownership/routing and shared
+structured actions into the voice pilot after its packaging/permission checks;
+model planning remains separate. Current feature is active in preview, browser
+backend functional but not main-app integrated. Do not describe full voice/browser
+integration as complete. Preserve all previous failure evidence.
+
+Final check:42 tests pass, including no replay after a post-action verifier error.
