@@ -94,7 +94,8 @@ def launch_app(app, url=None):
     except OSError as error:
         if getattr(error,'winerror',None)!=740 or app not in viewers:raise
         return shell_open_viewer(paths[app],args,app)
-    return {'launch_requested':True,'app':app,'pid':process.pid,'url':url,'completion_verified':False,
+    return {'launch_requested':True,'app':app,'pid':process.pid,'url':url,
+            'executable':str(paths[app]),'completion_verified':False,
             'next':'Use desktop_observe to verify the window, address and page content. Launch alone is not success.'}
 
 

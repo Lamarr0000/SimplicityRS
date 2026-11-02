@@ -94,3 +94,32 @@ Arbitrary task completion is a model claim, clearly labeled unverified by the ap
 there is no universal independent verifier. The preview's desktop input boundary
 has race limitations and is not a hardened sandbox. Windows application testing,
 task adherence and final-action verification need further work before integration.
+
+## Native context and administrator input checkpoint
+
+The prompt now follows UI-TARS Desktop's `getSystemPromptV1_5`: persistent system
+role, native `finished()`/`call_user()`, real action turns and the latest two images.
+The active user task and actual tool result accompany each current observation.
+Foreground-window captures include an explicit physical origin and resize transform;
+this reduces confusion with background application caption buttons. Supported app
+launches reuse the main app's existing catalog. A leading explicit open/launch/start
+request is routed by the app, not claimed as model-selected reasoning.
+
+Completed/blank Notepad replay checks passed four cases without sending UI input.
+A live blank-document run typed the requested text and stopped with `finished()`.
+Task Manager tests exposed an additional Windows input-integrity problem: the input
+runtime was medium integrity (`0x2000`), while Task Manager was high (`0x3000`), both
+without UIAccess. Windows UIPI blocks that input. An injection request is not proof
+that the target received it. The new token preflight rejects this case before model
+actions, rather than reporting repeated successful clicks. Unknown token access
+also prevents input. Semantic action signatures now bound repeated-action loops.
+
+**SimplicityAI Desktop Preview (Admin)** is a separate user-invoked launcher. It
+uses normal Windows `runas`/UAC and changes no UAC settings. For this experiment it
+elevates the whole preview, including child input/model processes. The user must
+approve UAC. A production build should separate the privileged input broker from
+the reasoning process. No administrator test has yet been performed.
+
+References:
+- https://github.com/bytedance/UI-TARS-desktop/blob/main/apps/ui-tars/src/main/agent/prompts.ts
+- https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput

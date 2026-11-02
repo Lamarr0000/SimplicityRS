@@ -20,5 +20,9 @@
   "parallel_slots": 1,
   "cpu_threads": 6,
   "image_min_tokens": 1024,
-  "cloud_inference": false
+  "cloud_inference": false,
+  "context": "UI-TARS Desktop 1.5 system-role prompt; bounded real turns and latest two images",
+  "observation": "foreground window on primary display with physical origin mapping",
+  "input_integrity_preflight": true,
+  "administrator_launcher": "user-invoked normal Windows UAC; whole experimental preview"
 }

@@ -135,3 +135,40 @@ Do not promote this as a reliable autonomous desktop agent or integrate it broad
 
 The blank-test document remains unsaved as visible evidence. No save, close,
 process termination, security change or recovery operation was performed by this test.
+
+## Native-context completion correction and Task Manager permission diagnosis
+
+Read the official Desktop `getSystemPromptV1_5`, not just the current Doubao prompt.
+Adapted its persistent system role/native completion actions. Added bounded context
+tests, current-task reminders, actual tool feedback and a no-input replay runner.
+
+Four real screenshot replays (two completed, two blank states) selected correct
+completion/noncompletion actions in 3.486, 3.309, 2.846 and 3.469 seconds. No input
+driver is imported by that replay. Images remain local outside Git.
+
+A subsequent live blank Notepad run typed the expected 27 characters and then
+returned `finished()` with no save or close attempt. Model calls 4.166 and 5.650 s;
+text-driver call 1.258 s. Independent Computer Use screenshot verified the text.
+This corrects the previously demonstrated completion failure for this task only.
+
+Further Task Manager runs failed. One model-only launch run rejected unsupported
+shortcuts, then the model typed `taskmgr` into the unsaved test document and closed
+Notepad. No disk file was saved. The test tab remains in Notepad's retained session;
+original user file tabs were not edited. Do not hide this failure.
+
+Explicit launcher routing subsequently opened Task Manager through the existing
+catalog. Model clicks/Alt+Tab requests reported execution, but the visible interface
+did not change. Read-only token inspection found a concrete mismatch: representative
+input runtime medium integrity RID 8192/0x2000, Task Manager PID 25220 high integrity
+RID 12288/0x3000, neither with UIAccess. Standard child input workers inherit the
+preview's token. Microsoft documents UIPI preventing lower-to-higher input injection.
+Inspection of the exact product-captured frame also showed that `(40,226)` was near
+the actual Performance icon. Thus the repeated unchanged screen cannot be attributed
+solely to model grounding/planning. Other incorrect model choices remain observed.
+
+Added token input preflight (live test correctly rejects the medium-to-high case),
+an explicit user-approved administrator launcher, semantic repeated-action detection,
+and a three-invalid-action stop. No UAC approval, token modification or security
+setting change was automated. Administrator retest remains pending user approval.
+Preview/server closed; Task Manager remains open. Do not claim its Performance task
+passed. Next required action is the Admin shortcut and normal Windows UAC approval.

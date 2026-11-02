@@ -693,3 +693,45 @@ speech not integrated, no general-autonomy readiness claim. Preview closed to fr
 its model service. New Notepad test tab remains unsaved; existing tabs/files unchanged.
 No user action needed at checkpoint. Next work: model/harness task adherence and
 independent outcome checks before main-app integration. See visual-agent/RESULTS.md.
+
+## November 1: native prompt completion fix and confirmed input-integrity mismatch
+
+User asked to proceed and explicitly announce idle status. Work completed this turn:
+- Compared official UI-TARS Desktop getSystemPromptV1_5; introduced persistent system
+  instructions/native finished(), current-task reminders, bounded real action turns,
+  last two screenshots and actual tool-result feedback (agent_context.py).
+- Four no-input real-Notepad screenshot replays passed completion/noncompletion checks.
+- Live blank Notepad task typed the 27-character test text and finished without save
+  or close. Independent screenshot verified it. Model calls 4.166/5.650 s, type 1.258 s.
+- Foreground-window captures now include physical origin transforms. Shared existing
+  12-app launch catalog is exposed; explicit leading launch requests use app-owned
+  routing, not claimed as autonomous model tool selection. Invalid actions are never
+  executed, repeated actions use semantic signatures, three invalid outputs stop.
+
+Task Manager tests still did not complete, but a concrete OS issue was found:
+Task Manager PID 25220 is high integrity 0x3000, UIAccess false. Representative input
+runtime is medium 0x2000, UIAccess false; its standard driver children inherit token.
+Windows UIPI blocks lower-to-higher injected input. Exact product screenshot inspection
+showed a proposed (40,226) click near the real Performance icon, yet UI stayed unchanged.
+Do NOT blame those loops solely on model grounding; prior driver Click strings proved
+requests, not delivery. Other bad model choices are real: an earlier run typed taskmgr
+into our unsaved test tab and closed Notepad (no disk file save); preserved session has
+that evidence. The native completion fix is demonstrated only for its Notepad test.
+
+Added windows_integrity.py read-only token preflight before input/model work. Live
+medium-to-high check correctly denies input. Unknown access stops; protected dialogs,
+remote/VM host controls and secure targets are not automated. No UAC settings changed.
+Normal launch metadata now includes executable, allowing already-foreground utility
+validation without falsely requiring a different HWND (shared MMC hosts still need
+new observation). Main working app behavior/UI not replaced; metadata change additive.
+
+Prepared desktop shortcut SimplicityAI Desktop Preview (Admin), backed by reviewed
+Start-Desktop-Preview-Admin.vbs. Uses normal Windows runas/UAC for whole experimental
+preview and child input/model processes. User must approve UAC; it has NOT been invoked
+or tested elevated. Production should isolate an elevated input broker. 12 tests,
+compilation and VBS syntax validation pass. Preview/server closed; Task Manager open.
+
+NEXT USER ACTION: open Admin shortcut, approve UAC, wait Ready, click Start task on
+prefilled read-only Task Manager/Performance request; paste Copy evidence. No process
+termination or settings changes requested. Work is paused at this required manual UAC
+step, not silently continuing. Announce explicitly that the agent is idle awaiting test.

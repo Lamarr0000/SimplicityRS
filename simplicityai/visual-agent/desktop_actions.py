@@ -8,7 +8,19 @@ KEYS = {'ctrl','alt','shift','enter','return','tab','esc','escape','space','back
         'f5','f6','f7','f8','f9','f10','f11','f12'}
 
 
-def decode(text,width,height):
+def requested_app(task,apps):
+    """Route only an explicit leading launch request, using the existing catalog."""
+    text=task.strip().lower()
+    text=re.sub(r'^(?:(?:please|can you|could you)\s+)+','',text)
+    match=re.match(r'^(?:open|launch|start)\s+(?:up\s+)?(?:the\s+)?(.+)$',text)
+    if not match:return None
+    rest=match[1]
+    matches=[app for app in apps if re.match(re.escape(app.replace('_',' '))+
+        r'(?=$|[.?!,;:]|\s+(?:and|then|to|please)\b)',rest)]
+    return max(matches,key=len) if matches else None
+
+
+def decode(text,width,height,apps=()):
     lines=re.findall(r'^Action:\s*(.+)$',text,re.M)
     if not lines and len(text.strip().splitlines())==1: lines=[text.strip()]
     if len(lines)!=1: raise ValueError('Expected one action')
@@ -19,6 +31,8 @@ def decode(text,width,height):
     if any(item.arg is None for item in node.keywords): raise ValueError('Expanded arguments are not supported')
     args={item.arg:ast.literal_eval(item.value) for item in node.keywords}
     if len(args)!=len(node.keywords): raise ValueError('Duplicate arguments')
+    if name=='open_app' and set(args)=={'name'} and args['name'] in apps:
+        return {'kind':name,'name':args['name']}
     if name in {'click','left_double','right_single'} and set(args)=={'start_box'}:
         canonical='Action: click(start_box='+repr(args['start_box'])+')'
         return {'kind':name,'point':parse_click(canonical,width,height)}
@@ -47,9 +61,9 @@ def decode(text,width,height):
     raise ValueError('Unsupported action or argument shape')
 
 
-def to_screen(point, image_size, screen_size):
+def to_screen(point, image_size, screen_size, origin=(0,0)):
     x,y=point
     w,h=image_size
     sw,sh=screen_size
     if not (0<=x<w and 0<=y<h):raise ValueError('Point outside screenshot')
-    return [min(sw-1,round(x*sw/w)),min(sh-1,round(y*sh/h))]
+    return [origin[0]+min(sw-1,round(x*sw/w)),origin[1]+min(sh-1,round(y*sh/h))]
