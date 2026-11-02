@@ -1157,3 +1157,22 @@ No UAC/security/VM/BRS/normal-installation changes. User recordings not captured
 
 0.7.7 runtime verified independently: /health0.7.7-prototype, native UI Ready. Type
 a message or click Talk; Mute mic disabled. Pilot OPEN, microphone OFF. Agent idle.
+
+
+## November 2: speech-test refusal and self-exit synonyms; 0.7.8
+User pasted speech-test refusal, garbled drum conversation and turn-yourself-off
+failures. Added explicit turn/switch yourself off (+please) to anchored session exit
+intent, same owned shutdown path as verified close yourself; no OS power-off.
+Speech-test requests now receive grounded application help: compare recognized text
+with intended words; app does not claim direct access to original audio. Broader
+clarification guidance discourages invented meanings and claims of having heard.
+92 streaming tests pass. Local Qwen text replay accepts initial test but STILL gives
+unhelpful guessed meanings and says I heard despite guidance; final replay report
+ControlAdapter/speech-clarification-replay-final.json. This remaining model behavior
+is unresolved; do not call speech understanding fixed. No raw mic/new recording or
+live turn-yourself-off acceptance test. Earlier replay preserved as separate report.
+Pilot was closed; launched0.7.8 with mic off, actual verification recorded below.
+No UAC/security/VM/BRS/normal-installation changes. Agent idle at handoff.
+
+Verified /health0.7.8-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
+microphone OFF. Clarification replay remained poor; no broader quality claim.

@@ -97,6 +97,14 @@ class ReportedTests(unittest.TestCase):
         self.assertTrue(internal_output('```click(42)```',control_task=True))
         self.assertTrue(internal_output('{"function": {"name": "desktop_interact", "arguments": {}}}'))
 
+    def test_speech_test_is_supported_without_claiming_access_to_raw_audio(self):
+        agent=server.Agent(Mock(),'qwen3:8b');spoken=[]
+        with patch.object(agent.connection,'open',side_effect=AssertionError('Application speech help is grounded')):
+            agent.run('This is a test to see how well you can detect audio and slurt words',spoken.append)
+        self.assertIn('we can test',' '.join(spoken))
+        self.assertIn('recognized text',' '.join(spoken))
+        self.assertNotIn('not to test',' '.join(spoken))
+
     def test_progressively_released_chat_prefix_is_not_rewritten(self):
         agent=server.Agent(Mock(),'qwen3:8b')
         chunks=[{'message':{'content':'Hello. '},'done':False},
@@ -108,7 +116,7 @@ class ReportedTests(unittest.TestCase):
 class ExitTests(unittest.IsolatedAsyncioTestCase):
     async def test_exit_is_explicit_and_uses_session_event_without_model_or_window_guessing(self):
         from intent_control import exit_request
-        for text in ['Close yourself','please close yourself','quit this app','exit SimplicityAI']:
+        for text in ['Close yourself','please close yourself','quit this app','exit SimplicityAI','Turn yourself off please','Turn yourself off','switch yourself off']:
             self.assertTrue(exit_request(text))
         for text in ['do not close yourself','close Calculator','explain how to close yourself','Said they','close yourself and delete my files']:
             self.assertFalse(exit_request(text))

@@ -38,6 +38,7 @@ from intent_control import exit_request,cancelled,continuation,arithmetic,retry_
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
+    'Speech recognition tests are supported. User messages may contain recognition errors; you receive text, not direct access to the original audio. Do not refuse a speech test, claim perfect hearing, invent a hardware meaning for unclear words, or treat a recognition guess as a diagnosis. Ask one brief neutral question when a key symptom is unclear, such as What is your computer doing wrong? Do not suggest imagined meanings or list hardware categories for a garbled term. Do not say I heard; say the recognized text if relevant. Accept corrections without repeating the mistaken term as fact. '
     'Use no emoji or decorative symbols. Do not repeat generic offers instead of addressing the current request. '
     'For earlier measurements use get_recent_findings; they survive interrupted replies. Do not ask the user to re-provide data already collected. '
     'Use native tool calls when needed. Never announce completed checks before tool evidence. '
@@ -140,6 +141,9 @@ class Agent:
             self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False;self.actions_paused=True
             report='Stopped. Completed measurements remain available in this session.'
             self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
+        if re.search(r'\btest(?:ing)?\b',prompt,re.I) and re.search(r'\b(?:speech|audio|slur\w*|recognition|understand me)\b',prompt,re.I):
+            self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False
+            self.report(messages,start,'Yes, we can test speech recognition. Compare the words shown in chat with what you said. I receive the recognized text, so I may need a correction or a short repeat when a phrase is unclear.',segment);return
         if re.fullmatch(r'\s*(?:thanks|thank you)(?: very much)?[.!\s]*',prompt,re.I):
             self.report(messages,start,"You're welcome.",segment);return
         if re.search(r'\b(?:unmute|mute|volume|sound settings|hear your voice|hear you)\b',prompt,re.I) and not re.search(r'\b(?:explain|difference|what is|how does)\b',prompt,re.I):
@@ -626,7 +630,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.7-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.8-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)
