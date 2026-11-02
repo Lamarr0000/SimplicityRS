@@ -34,7 +34,7 @@ from evidence_context import model_evidence,model_messages
 from findings import clean_reply,spoken_text,table_view,table_text
 from task_agenda import TaskAgenda, close_intent, export_filename
 from driver_assessment import report as driver_assessment
-from intent_control import cancelled,continuation,arithmetic,retry_arithmetic,diagnostic_request,repeated_target_question,window_request
+from intent_control import exit_request,cancelled,continuation,arithmetic,retry_arithmetic,diagnostic_request,repeated_target_question,window_request
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -459,7 +459,10 @@ class Session:
         try:
             while True:
                 capture,pcm=await self.frames.get()
+                started=time.monotonic()
                 events=await asyncio.to_thread(self.worker.request,pcm)
+                elapsed=time.monotonic()-started
+                if elapsed>.25:await self.send('activity',activity_kind='speech_processing_delay',text='Speech frame processing exceeded 250 ms.',seconds=round(elapsed,3),queued_frames=self.frames.qsize())
                 if capture!=self.capture:continue
                 for event in events:
                     if event['type']=='speech.start':
@@ -491,6 +494,13 @@ class Session:
         self.frames.put_nowait((self.capture,None))
     async def submit(self,text,source='typed'):
         if not isinstance(text,str) or not text.strip() or len(text)>4000:raise ValueError('Enter a message up to4000 characters')
+        if exit_request(text):
+            self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
+            self.agent.agenda.clear();self.agent.actions_paused=True
+            await self.set_listening(False)
+            await asyncio.to_thread(self.agent.state.desktop.browser.close)
+            await self.send('app.exit',text='Closing SimplicityAI at your request.')
+            return
         if cancelled(text):
             self.cancelled_turns.add(getattr(self.agent,'running_turn',self.turn));self.pending=None
             self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
@@ -614,7 +624,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.5-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.6-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)
@@ -637,6 +647,9 @@ def create_app(model='gpt-oss:20b'):
                             except asyncio.QueueFull:
                                 await session.set_listening(True)
                                 session.frames.put_nowait((session.capture,message.data))
+                                await session.send('transcript.partial',text='')
+                                session.paused=False;await session.send('voice.resume')
+                                await session.send('activity',activity_kind='speech_backlog_reset',text='Discarded queued audio and reset recognition; incomplete phrase must be repeated.')
                                 await session.send('status',text='Audio processing caught a backlog. Voice remains on; please repeat the last phrase.')
                         elif message.type==WSMsgType.TEXT:
                             value=json.loads(message.data)

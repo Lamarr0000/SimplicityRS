@@ -135,3 +135,21 @@ Pilot was closed; launched updated source (includes prepared0.7.4 routing fixes)
 Pilot OPEN, microphone OFF. No UAC needed. Normal installation, VM, BRS and security
 settings unchanged. Existing exports/logs preserved. Speech recognition, stale model
 context and missing Windows endpoint mute/volume tool remain unresolved. Agent idle.
+
+
+## November 2: self-exit intent and backlog recovery; 0.7.6 loaded
+User pasted Calculator48 success followed by close-yourself refusal and audio backlog.
+Added narrowly anchored explicit self-exit intent at Session.submit before the model.
+Stops listening/cancels pending work, closes owned browser and emits app.exit. Client
+uses the same authenticated shutdown/track-stop/playback-close path as Exit, guarded
+against duplicate exit. Negated, quoted/explanatory and ambiguous compound requests
+are not accepted as exit. No desktop window-ID guessing or forced process ending.
+Backlog recovery now clears stale partial text and releases speech-start playback
+pause after recognition reset; delay/reset metadata logged without raw audio.
+Root cause/performance improvement of recognition backlog not established. Existing
+bounded queue/audio-discard policy retained; repeat incomplete phrase required.
+89 streaming tests + real-client simulated transport/mic tests pass, including exit
+request-to-event and event-to-shutdown/track/window-close, duplicate exit protection.
+No live microphone/self-exit acceptance test claimed. Old pilot exited using Exit;
+new /health0.7.6-prototype and native UI Ready verified. Pilot OPEN, microphone OFF.
+No UAC/security/VM/BRS/normal installation changes. Saved logs preserved. Agent idle.

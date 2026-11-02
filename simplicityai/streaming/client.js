@@ -54,7 +54,8 @@ ws.onopen=()=>send({token});
 ws.onmessage=event=>{
   const value=JSON.parse(event.data),kind=value.type;
   if(kind!=='audio'){activity.push(value);if(/timing|activity|review/.test(kind))evidence.push(value);}
-  if(kind==='ready'){ready=true;$('talk').disabled=$('send').disabled=false;status(value.text);}
+  if(kind==='app.exit'){status(value.text);exitPilot().catch(()=>status('Could not close automatically. Use Exit to try again.'));}
+  else if(kind==='ready'){ready=true;$('talk').disabled=$('send').disabled=false;status(value.text);}
   else if(kind==='status')status(value.text);
   else if(kind==='findings')findings(value.view);
   else if(kind==='activity'&&['action','status'].includes(value.activity_kind))status(value.text);
@@ -84,5 +85,7 @@ $('new').onclick=()=>{if(busy){status('Stop the current reply before starting a 
 for(const [id,items] of [['activity',activity],['evidence',evidence]])$(id).onclick=()=>{$('detail-text').textContent=items.map(x=>JSON.stringify(x,null,2)).join('\n');$('details').showModal();};
 $('copy-details').onclick=()=>navigator.clipboard.writeText($('detail-text').textContent).catch(()=>status('Select the evidence text to copy.'));
 $('close-details').onclick=()=>$('details').close();
-$('exit').onclick=async()=>{await microphone(false);await playback.close();send({type:'cancel'});await fetch('/shutdown',{method:'POST',headers:{'X-ThemHands-Token':token}});window.close();};
+let exiting=false;
+async function exitPilot(){if(exiting)return;exiting=true;try{await microphone(false);await playback.close();send({type:'cancel'});const response=await fetch('/shutdown',{method:'POST',headers:{'X-ThemHands-Token':token}});if(!response.ok)throw Error('Shutdown refused');window.close();}catch(error){exiting=false;throw error;}}
+$('exit').onclick=()=>exitPilot().catch(()=>status('Could not close automatically. Use Exit to try again.'));
 window.addEventListener('pagehide',()=>{stream?.getTracks().forEach(t=>t.stop());send({type:'close'});ws.close();});

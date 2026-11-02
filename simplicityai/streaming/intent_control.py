@@ -57,3 +57,7 @@ def retry_arithmetic(text,transcript):
         if expression:return expression
         if re.search(r'\b(?:open|run|check|inspect|search|create|close)\b',previous,re.I):return None
     return None
+
+
+def exit_request(text):
+    return bool(re.fullmatch(r"\s*(?:please\s+)?(?:close yourself|exit yourself|shut yourself down|(?:close|exit|quit) (?:simplicity\s*ai|this app|the app))(?:\s+please)?[.!?\s]*",text,re.I))

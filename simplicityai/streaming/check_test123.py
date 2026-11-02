@@ -105,4 +105,23 @@ class ReportedTests(unittest.TestCase):
         with patch.object(agent.connection,'open',return_value=response):agent.run('Hello',lambda _:None)
 
 
+class ExitTests(unittest.IsolatedAsyncioTestCase):
+    async def test_exit_is_explicit_and_uses_session_event_without_model_or_window_guessing(self):
+        from intent_control import exit_request
+        for text in ['Close yourself','please close yourself','quit this app','exit SimplicityAI']:
+            self.assertTrue(exit_request(text))
+        for text in ['do not close yourself','close Calculator','explain how to close yourself','Said they','close yourself and delete my files']:
+            self.assertFalse(exit_request(text))
+        ws=Mock();ws.send_json=__import__('unittest.mock',fromlist=['AsyncMock']).AsyncMock()
+        session=server.Session(ws,'qwen3:8b',io.StringIO())
+        session.agent.run=Mock(side_effect=AssertionError('No model needed'))
+        session.agent.state.desktop.browser.close=Mock()
+        await session.submit('Close yourself',source='voice')
+        self.assertFalse(session.listening)
+        self.assertIsNone(session.pending)
+        self.assertIsNone(session.actor)
+        self.assertTrue(session.agent.state.cancel.is_set())
+        self.assertEqual(ws.send_json.call_args.args[0]['type'],'app.exit')
+
+
 if __name__=='__main__':unittest.main()
