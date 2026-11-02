@@ -28,7 +28,9 @@ from protocol import Segments
 from target_scope import TargetConversation
 from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
 from browser_tools import browser_report
-from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, CONTINUE
+from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, web_search_request, CONTINUE
+from troubleshooting import guidance,requested_checks,completed_report,diagnostic_report_issue
+from evidence_context import model_evidence,model_messages
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -47,6 +49,7 @@ INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail i
     'web access based on launch alone. Use desktop_observe, desktop_switch and desktop_interact for other '
     'accessible Windows apps, including Copilot if present; never claim inaccessible controls are usable. '
     'Desktop tasks default to the Windows running this app without repeated target questions. '
+    'For a web search request use search_web with the requested query, then inspect the real resulting page. '
     'Use create_desktop_text for a requested new text document. '
     'If no document content was requested, create an empty file rather than inventing placeholder text. '
     'For a conversation/session document use export_conversation, which exports the actual app transcript; '
@@ -107,7 +110,9 @@ class Agent:
             'arbitrary commands, drive unlocking or general desktop controls are connected.',
             'arbitrary commands or drive unlocking are connected. Desktop assistance is available through the tools listed below.')
         messages[0]['content']+='\n'+INSTRUCTIONS
-        if desktop_request(prompt):
+        messages[0]['content']+='\n'+guidance(prompt)
+        required_checks=requested_checks(prompt);completed_checks=set()
+        if desktop_request(prompt) or required_checks:
             self.desktop_task=True
             self.desktop_search_pending=bool(re.search(r'\bsearch\s+for\b',prompt,re.I))
         elif not re.search(r'\b(yes|please|proceed|continue|permission|authority|control|ask|search|type|stop|cancel)\b',prompt,re.I):self.desktop_task=False
@@ -131,9 +136,43 @@ class Agent:
             for text in Segments().feed(explanation,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
         simulation_labelled=False;draft_retries=0;desktop_evidence=False;tool_failed=False
+        search_query=web_search_request(prompt)
+        if search_query:
+            for name,args in [('search_web',{'query':search_query}),('desktop_observe',{})]:
+                state.check_stop();call={'function':{'name':name,'arguments':args}}
+                try:result=state.execute(call)
+                except InterruptedError:raise
+                except Exception as error:result={'ok':False,'error':str(error)}
+                tool_failed=bool(result.get('error'))
+                if result.get('simulation') and not simulation_labelled:
+                    label='SIMULATION ONLY — synthetic tool evidence; no live action was performed. '
+                    self.emit('text.delta',text=label);segment(label);simulation_labelled=True
+                messages.append({'role':'assistant','content':'','tool_calls':[call]})
+                messages.append({'role':'tool','tool_name':name,'content':model_evidence(result)})
+                if name=='desktop_observe':
+                    desktop_evidence=not tool_failed
+                    if search_result_observed(result.get('observations','')):self.desktop_search_pending=False
+                if tool_failed:break
+        # Explicit diagnostic requests have an app-owned skill router. Collect
+        # their named evidence before prose, rather than relying on the model
+        # to remember a tool or request permission for an already authorized check.
+        for area in sorted(required_checks):
+            state.check_stop();call={'function':{'name':'inspect_windows','arguments':{'area':area}}}
+            try:result=state.execute(call)
+            except InterruptedError:raise
+            except Exception as error:result={'ok':False,'error':str(error)}
+            completed_checks.add(area);tool_failed=bool(result.get('error'));desktop_evidence=not tool_failed
+            if result.get('simulation') and not simulation_labelled:
+                label='SIMULATION ONLY — synthetic diagnostic evidence; no live check was performed. '
+                self.emit('text.delta',text=label);segment(label);simulation_labelled=True
+            messages.append({'role':'assistant','content':'','tool_calls':[call]})
+            messages.append({'role':'tool','tool_name':'inspect_windows','content':model_evidence(result,max(1500,6000//max(1,len(required_checks))))})
+            if tool_failed:break
+        if required_checks and required_checks<=completed_checks:
+            messages[0]['content']+='\nThe requested diagnostic categories have now been collected. Report their findings and uncertainty. Do not repeat a completed collector, promise another check, or ask permission for the checks already requested. Empty driver records mean the query found no matching record, not proof of hardware failure. A further recommendation is a recommendation, not an action you performed.'
         for step in range(16):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
-            payload={'model':self.model,'messages':messages,'tools':TOOLS,'stream':True,
+            payload={'model':self.model,'messages':model_messages(messages,start),'tools':TOOLS,'stream':True,
                      'keep_alive':'30m','options':{'num_ctx':8192,'num_predict':400,'temperature':0}}
             if self.model=='gpt-oss:20b':payload['think']='low'
             if self.model=='qwen3:8b':payload['think']=False
@@ -163,16 +202,19 @@ class Agent:
                     except InterruptedError:raise
                     except Exception as error:result={'ok':False,'error':str(error)}
                     tool_failed=isinstance(result,dict) and bool(result.get('error'))
+                    if not tool_failed:draft_retries=0
                     name=call.get('function',{}).get('name')
                     args=call.get('function',{}).get('arguments',{})
                     if name=='create_desktop_text' and isinstance(result,dict) and result.get('content_verified'):desktop_evidence=True
+                    if name=='inspect_windows' and not tool_failed:
+                        completed_checks.add(args['area']);desktop_evidence=True
                     if name=='desktop_observe' and isinstance(result,dict) and search_result_observed(result.get('observations','')):self.desktop_search_pending=False
                     if isinstance(result,dict) and result.get('simulation') is True and not simulation_labelled:
                         label='SIMULATION ONLY — no live desktop action was performed. '
                         self.emit('text.delta',text=label);segment(label);simulation_labelled=True
                     messages.append({'role':'tool','tool_name':call.get('function',{}).get('name',''),
-                                     'content':json.dumps(result)})
-                    if call.get('function',{}).get('name') in {'open_desktop_app','desktop_interact','desktop_switch'} and isinstance(result,dict) and not result.get('error'):
+                                     'content':model_evidence(result)})
+                    if call.get('function',{}).get('name') in {'open_desktop_app','desktop_interact','desktop_switch','search_web'} and isinstance(result,dict) and not result.get('error'):
                         # A mutating action is never a completion signal. Always collect its
                         # real result before allowing another model decision or spoken claim.
                         follow={'function':{'name':'desktop_observe','arguments':{}}}
@@ -192,16 +234,22 @@ class Agent:
                     state.check_stop();state.chat.finish(messages,start);return
                 continue
             if not raw.strip():raise ValueError('The local model returned no usable answer')
-            if desktop_task and desktop_evidence and not self.desktop_search_pending:
+            report_issue=diagnostic_report_issue(raw,completed_checks)
+            if report_issue:
+                if draft_retries>=2:raise ValueError('Diagnostic report exceeded its evidence; measured facts remain in the evidence log')
+                draft_retries+=1;messages.append({'role':'system','content':report_issue});continue
+            if required_checks and required_checks<=completed_checks:raw=completed_report(raw)
+            if desktop_task and desktop_evidence and not self.desktop_search_pending and required_checks<=completed_checks:
                 # Drop an unsolicited offer after a completed ordinary task, rather
                 # than make the user approve a task that already finished.
                 raw=re.sub(r'\bWould you like[^?]*\?','',raw,flags=re.I).strip()
-            if desktop_task and (unfinished_draft(raw) or (self.desktop_search_pending and not tool_failed)):
+            if desktop_task and (not raw.strip() or unfinished_draft(raw) or ((self.desktop_search_pending or not required_checks<=completed_checks) and not tool_failed)):
                 if draft_retries>=2:raise ValueError('The model did not complete the authorized task; no further action was verified')
                 draft_retries+=1
                 self.emit('activity',activity_kind='status',text='Continuing the authorized desktop task; permission-only/planning draft withheld.')
-                messages.append({'role':'assistant','content':raw})
-                messages.append({'role':'system','content':CONTINUE})
+                remaining=sorted(required_checks-completed_checks)
+                correction=('The requested read-only evidence is already collected. Give the observed findings and unknowns now; do not promise or repeat another check.' if required_checks and not remaining else CONTINUE)
+                messages.append({'role':'system','content':correction+(' Run the remaining requested inspect_windows categories: '+', '.join(remaining)+'.' if remaining else '')})
                 continue
             if reply_issues(raw):raise ValueError('Reply failed reporting checks')
             for text in parts.feed(raw,final=True):self.emit('text.delta',text=text+' ');segment(text)

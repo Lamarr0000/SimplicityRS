@@ -11,7 +11,7 @@ def run():
            ('What can the Lazesoft tools in the Simplicity launcher do? Do not run them.',
             {'get_recovery_tool_catalog'}),
            ('HEY CAN YOU OPEN UP A WET BROWSER FOR ME AND NAVIGATE THE GOOGEL AND SEARCH FOR COMPUTER SPEE TEST',
-            {'open_desktop_app','desktop_observe','desktop_interact'}),
+            {'desktop_observe','search_web'}),
            ('NO I SAID CAN YOU OPEN THE TASK MANAGER AND FIND OUT WHICH PROCESS IS THE MOST SEA P U INTENSIVE',
             {'open_desktop_app','desktop_observe','get_cpu_process_snapshot'})]
     reports=[]
@@ -23,6 +23,9 @@ def run():
             if name=='open_desktop_app':
                 active.append(call['function']['arguments']['app'])
                 return {'simulation':True,'launch_requested':True,'completion_verified':False,'next':'Observe actual window'}
+            if name=='search_web':
+                active.append('edge');submitted.append(call['function']['arguments']['query'])
+                return {'simulation':True,'launch_requested':True,'completion_verified':False,'next':'Observe actual search results'}
             if name=='get_cpu_process_snapshot':return {'simulation':True,'sample_seconds':1.01,'highest_sampled_process':{'pid':123,'name':'BusyTest.exe','cpu_percent_of_machine':27.4},'top_processes':[{'pid':123,'name':'BusyTest.exe','cpu_percent_of_machine':27.4}], 'changes_made':False,'limitations':'Short CPU-time sample normalized across all logical processors; not a diagnosis or Task Manager CPU Utility.'}
             if name=='desktop_observe' and active and active[-1]=='task_manager':return {'simulation':True,'snapshot':'fixture','observations':'Task Manager foreground. Processes tab visible. CPU column visible.'}
             if name=='desktop_observe':return {'simulation':True,'snapshot':'fixture','observations':

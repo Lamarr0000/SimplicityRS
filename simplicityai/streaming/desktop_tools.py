@@ -22,8 +22,9 @@ DESKTOP_TOOLS=[
         'snapshot':STRING,'element':{'type':'integer'},'action':{'type':'string','enum':['click','double_click','type','scroll_down','scroll_up']},
         'text':STRING,'clear':{'type':'boolean'},'enter':{'type':'boolean'}},('snapshot','element','action')),
     definition('desktop_switch','Bring an exact window title from desktop_observe to the foreground; then observe it.',{'title':STRING},('title',)),
+    definition('search_web','Search the web in Edge using the requested query. Prefer this for ordinary web-search requests instead of asking permission or walking through a search form. Actual page results must still be observed.',{'query':{'type':'string','minLength':1,'maxLength':300}},('query',)),
     definition('open_desktop_app','Open a supported installed app in this Windows, then inspect it with desktop_observe. Edge can receive an HTTPS URL. Launch does not prove a website loaded.',{
-        'app':{'type':'string','enum':['edge','notepad','explorer','calculator','task_manager']},'url':STRING},('app',)),
+        'app':{'type':'string','enum':['edge','notepad','explorer','calculator','task_manager','device_manager','disk_management','event_viewer','services','system_information','reliability_monitor','settings']},'url':STRING},('app',)),
     definition('create_desktop_text','Create a NEW UTF-8 .txt document on this Windows user Desktop and reread it to verify. Never overwrite an existing file. This is a file operation, not simulated GUI typing.',{'filename':STRING,'content':STRING},('filename','content')),
     definition('export_conversation','Export the actual recorded active conversation, both user and assistant messages, to a new Desktop text file. Use for conversation/session documents; never reconstruct its contents yourself. Omit filename to choose a unique name.',{'filename':STRING}),
     definition('get_cpu_process_snapshot','Measure current process CPU usage over about one second in this Windows. Rank sampled processes, report limitations; no process is stopped or modified.',{}),
@@ -54,8 +55,13 @@ def launch_app(app, url=None):
     from browser_tools import edge_path
     system=Path(os.environ['SystemRoot'])/'System32'
     paths={'edge':edge_path(),'notepad':system/'notepad.exe','explorer':Path(os.environ['SystemRoot'])/'explorer.exe','calculator':system/'calc.exe','task_manager':system/'Taskmgr.exe'}
+    viewers={'device_manager':('mmc.exe',['devmgmt.msc']), 'disk_management':('mmc.exe',['diskmgmt.msc']),
+             'event_viewer':('mmc.exe',['eventvwr.msc']),'services':('mmc.exe',['services.msc']),
+             'system_information':('msinfo32.exe',[]),'reliability_monitor':('perfmon.exe',['/rel']),
+             'settings':('explorer.exe',['ms-settings:'])}
+    if app in viewers:paths[app]=system/viewers[app][0] if app!='settings' else Path(os.environ['SystemRoot'])/'explorer.exe'
     if app not in paths or not paths[app] or not paths[app].is_file():raise ValueError('Requested app is not installed at a supported path')
-    args=[]
+    args=list(viewers[app][1]) if app in viewers else []
     if url is not None:
         from urllib.parse import urlsplit
         parsed=urlsplit(url)
@@ -93,6 +99,9 @@ class DesktopTools:
                 'vision':False,'scope':'Windows running SimplicityAI; visible accessibility data only'}
 
     def execute(self,name,args,check_stop):
+        if name=='search_web':
+            from urllib.parse import urlencode
+            return launch_app('edge','https://www.google.com/search?'+urlencode({'q':args['query']}))
         if name=='desktop_observe':return self.observe(check_stop)
         if name=='desktop_switch':
             if not self.snapshot:raise ValueError('Observe windows first')

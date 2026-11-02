@@ -113,5 +113,23 @@
     "jsonschema": "4.26.0",
     "telemetry": false,
     "control_policy": "balanced"
+  },
+  "troubleshooting_baseline": {
+    "collector": "Inspect-Windows.ps1",
+    "areas": [
+      "system",
+      "storage",
+      "devices",
+      "drivers",
+      "services",
+      "events",
+      "updates",
+      "security",
+      "startup"
+    ],
+    "runtime": "Built-in Windows PowerShell/CIM and .NET native event reader; no new packages",
+    "execution_policy_changed": false,
+    "scope": "current running Windows only",
+    "repair_enabled": false
   }
 }

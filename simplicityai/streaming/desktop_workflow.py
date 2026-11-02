@@ -18,6 +18,15 @@ def search_result_observed(text):
     return bool(re.search(r'https?://[^\s"<>\\]+(?:[?&](?:q|query|search_query)=|/search\?)',text,re.I))
 
 
+def web_search_request(text):
+    if re.search(r"\b(?:don't|do not|never)\s+(?:do a |perform a )?search\b",text,re.I):return None
+    if not re.search(r'\b(?:can you|could you|please|open|do a search)\b|^\s*search\b',text,re.I):return None
+    match=re.search(r'\bsearch(?:\s+(?:on\s+)?(?:google|googal|googel))?\s+for\s+(.+)',text,re.I)
+    if not match:return None
+    query=re.sub(r'\s+(?:(?:on\s+)?(?:google|googal|googel)\s*(?:search)?\s*)?(?:please)?[.!?]*\s*$','',match[1],flags=re.I).strip(' \"\'.!?')
+    return query if 0<len(query)<=300 else None
+
+
 CONTINUE=('The user has already authorized this ordinary desktop task. Do not ask permission to open, '
           'observe, click, type or submit the requested web search. A web search is not sending a message '
           'to another person. Use desktop_observe yourself to locate controls; never ask the user for '

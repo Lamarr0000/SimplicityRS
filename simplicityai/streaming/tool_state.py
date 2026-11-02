@@ -7,8 +7,10 @@ from browser_tools import open_browser
 from desktop_tools import DESKTOP_TOOLS, DesktopTools
 from jsonschema import validate
 from session_tools import export_conversation,sample_cpu
+from windows_baseline import BASELINE_TOOLS,inspect_windows
+from troubleshooting import guidance
 
-TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+[
+TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+[
     tool('open_browser_window','ThemHands: open a blank Microsoft Edge window in the Windows running SimplicityAI and verify it appeared. No internet/page-load test or settings changes. Refuse another/outside-host target.'),
     tool('get_tool_capabilities','Read the actual connected ThemHands capabilities and target. No desktop action or diagnostic.')]
 
@@ -22,6 +24,7 @@ CAPABILITIES={
                  'create new Desktop text files with exclusive creation and reread verification',
                  'export app-recorded conversation, both speakers, without model reconstruction',
                  'launch Task Manager; read-only sampled per-process CPU ranking',
+                 'focused system/storage/device/driver/service/event/update/security/startup diagnostics',
                  'launcher/Lazesoft reference catalog'],
     'not_connected':['visual interpretation of inaccessible/custom controls','validated Lazesoft recovery workflows',
                      'repairs','another/offline Windows installation'],
@@ -48,7 +51,7 @@ class ToolState(State):
 
     def execute(self,call):
         name=call.get('function',{}).get('name');args=call.get('function',{}).get('arguments',{})
-        schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS if entry['function']['name']==name),None)
+        schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()
             if self.chat.target=='other' and name!='get_recovery_tool_catalog':raise ValueError('That computer is not connected; no desktop action performed')
@@ -56,6 +59,7 @@ class ToolState(State):
             self.emit('action','ThemHands: '+name.replace('_',' ')+' in the Windows running SimplicityAI.')
             if name=='export_conversation':result=export_conversation(self.chat.transcript,args.get('filename'))
             elif name=='get_cpu_process_snapshot':result=sample_cpu(self.check_stop)
+            elif name=='inspect_windows':result=inspect_windows(args['area'],args.get('query',''),self.check_stop)
             else:result=self.desktop.execute(name,args,self.check_stop)
             self.emit('observation',json.dumps(result));return result
         if name not in {'open_browser_window','get_tool_capabilities'}:return super().execute(call)
@@ -63,6 +67,8 @@ class ToolState(State):
         self.check_stop()
         if name=='get_tool_capabilities':
             result={**CAPABILITIES,'target':self.chat.target}
+            result['registered_tools']=[entry['function']['name'] for entry in TOOLS]
+            result['troubleshooting_approach']=guidance('')
             result['desktop_runtime']={'initialized':self.desktop.bridge.client is not None,
                                        'loaded_tools':sorted(self.desktop.bridge.names),
                                        'last_observation':self.desktop.snapshot}
