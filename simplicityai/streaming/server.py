@@ -32,7 +32,7 @@ from desktop_workflow import desktop_request, unfinished_draft, search_result_ob
 from troubleshooting import guidance,requested_checks,completed_report,diagnostic_report_issue
 from evidence_context import model_evidence,model_messages
 from findings import clean_reply,spoken_text,table_view,table_text
-from task_agenda import TaskAgenda, close_intent, export_filename
+from task_agenda import TaskAgenda, close_intent, export_filename, conversation_export_request,driver_backup_request,DRIVER_BACKUP_LIMIT
 from driver_assessment import report as driver_assessment
 from intent_control import exit_request,cancelled,continuation,arithmetic,retry_arithmetic,diagnostic_request,repeated_target_question,window_request
 
@@ -106,6 +106,7 @@ class Agent:
         self.state.emit=lambda kind,text,**extra:self.emit('findings',view=json.loads(text)) if kind=='findings' else self.emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
         self.last_assessment=None
+        self.driver_backup_pending=False
         self.agenda=TaskAgenda()
         self.desktop_task=False
         self.desktop_search_pending=False
@@ -149,6 +150,13 @@ class Agent:
         if re.search(r'\b(?:unmute|mute|volume|sound settings|hear your voice|hear you)\b',prompt,re.I) and not re.search(r'\b(?:explain|difference|what is|how does)\b',prompt,re.I):
             self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False
             self.report(messages,start,"This build cannot read or change the Windows output mute or volume state. I have not checked or changed it. Check the Windows speaker mute/volume and this app's Sound toggle; microphone settings control input, not speaker output.",segment);return
+        backup=driver_backup_request(prompt)
+        if backup:self.driver_backup_pending=True
+        elif self.driver_backup_pending and re.search(r'\b(?:third.party|tools? that you recommended)\b',prompt,re.I):
+            self.report(messages,start,DRIVER_BACKUP_LIMIT,segment);return
+        elif not re.search(r'\b(?:yes|please|continue|proceed)\b',prompt,re.I):self.driver_backup_pending=False
+        if backup and not requested_checks(prompt):
+            self.report(messages,start,DRIVER_BACKUP_LIMIT,segment);return
         if self.last_assessment=='drivers' and re.fullmatch(r'\s*(?:what does that mean|what do you mean|explain that)[?!.\s]*',prompt,re.I):
             self.report(messages,start,driver_assessment(state.recent_findings,explain=True),segment);return
         self.last_assessment=None
@@ -183,7 +191,7 @@ class Agent:
             self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         if re.search(r'\btable\b',prompt,re.I):self.table_requested=True
         recall=bool(re.search(r'\btable\b|just (?:posted|checked|said)|earlier (?:results|findings)|this information',prompt,re.I))
-        export_request=bool(re.search(r'\b(conversation|session|chat)\b',prompt,re.I) and re.search(r'\b(document|file|export|save)\b',prompt,re.I))
+        export_request=conversation_export_request(prompt)
         if not export_request and (recall or (self.table_requested and re.search(r'disk|drive|storage|information',prompt,re.I))) and state.recent_findings:
             area='storage' if re.search(r'disk|drive|storage',prompt,re.I) and not re.search(r'driver',prompt,re.I) else next(reversed(state.recent_findings))
             result=state.recent_findings.get(area) or next(reversed(state.recent_findings.values()))
@@ -312,7 +320,7 @@ class Agent:
             messages[0]['content']+='\nThe requested diagnostic categories have now been collected. Report their findings and uncertainty. Do not repeat a completed collector, promise another check, or ask permission for the checks already requested. Empty driver records mean the query found no matching record, not proof of hardware failure. A further recommendation is a recommendation, not an action you performed.'
         if 'drivers' in completed_checks:
             self.last_assessment='drivers'
-            self.report(messages,start,driver_assessment(state.recent_findings),segment);return
+            self.report(messages,start,driver_assessment(state.recent_findings)+(' '+DRIVER_BACKUP_LIMIT if backup else ''),segment);return
         for step in range(16):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
             payload={'model':self.model,'messages':model_messages(messages,start),'tools':TOOLS,'stream':True,
@@ -630,7 +638,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.8-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.9-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)

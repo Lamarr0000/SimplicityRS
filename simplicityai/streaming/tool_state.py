@@ -10,6 +10,7 @@ from session_tools import export_conversation,sample_cpu
 from windows_baseline import BASELINE_TOOLS,inspect_windows
 from troubleshooting import guidance
 from findings import table_view,table_text
+from task_agenda import conversation_export_request
 
 TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+[
     tool('get_tool_capabilities','Read the actual connected ThemHands capabilities and target. No desktop action or diagnostic.')]
@@ -52,6 +53,8 @@ class ToolState(State):
 
     def execute(self,call):
         name=call.get('function',{}).get('name');args=call.get('function',{}).get('arguments',{})
+        if name=='create_desktop_text' and conversation_export_request(self.chat.current_user or ''):
+            raise ValueError('Conversation exports must use export_conversation; model-written transcript copies are refused.')
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()

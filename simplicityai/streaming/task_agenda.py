@@ -22,8 +22,23 @@ def requested_url(text):
     return value if value.lower().startswith('https://') else 'https://'+value
 
 
+def conversation_export_request(text):
+    if re.search(r"\b(?:don't|do not|never)\s+(?:save|export|copy|create)\b",text,re.I):return False
+    return bool(re.search(r'\b(?:conversation|session|chat(?:\s*session|cession)?)\b',text,re.I)
+                and re.search(r'\b(?:document|file|export|save|copy)\b',text,re.I))
+
+
+def driver_backup_request(text):
+    return bool(re.search(r'\bdrivers?\b',text,re.I) and re.search(r'\b(?:back\s*up|backup|copy|export)\b',text,re.I)
+                and not re.search(r"\b(?:don't|do not|never)\s+(?:back\s*up|copy|export)\b",text,re.I))
+
+DRIVER_BACKUP_LIMIT=('Driver-package backup is not connected in this build; no driver backup files were created. '
+                     'Device Manager and SFC do not back up driver packages. I have not selected or run a third-party backup tool.')
+
+
 def export_filename(text):
     match=re.search(r'\b(?:name it|named|call it|(?:with )?(?:the )?name)\s+(.{1,95})$',text,re.I)
+    if not match:match=re.search(r'\b(?:desktop|des\s*top|destap)\s+as\s+(.{1,95})$',text,re.I)
     if not match:return None
     value=re.sub(r'\s+please[.!?]*$','',match[1],flags=re.I).strip(' .!?\"')
     return value if value.lower().endswith('.txt') else value+'.txt'

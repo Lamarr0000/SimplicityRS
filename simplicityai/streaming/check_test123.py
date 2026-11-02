@@ -105,6 +105,30 @@ class ReportedTests(unittest.TestCase):
         self.assertIn('recognized text',' '.join(spoken))
         self.assertNotIn('not to test',' '.join(spoken))
 
+    def test_spoken_session_export_uses_recorded_transcript_not_model_file(self):
+        from task_agenda import conversation_export_request,export_filename
+        prompt='CREATED COPY OF THIS ENTIRE CHATCESSION SAVE IN ALL MY DES TOP AS FIVE SIX SEVENTY EIGHT'
+        self.assertTrue(conversation_export_request(prompt))
+        self.assertEqual(export_filename(prompt),'FIVE SIX SEVENTY EIGHT.txt')
+        self.assertFalse(conversation_export_request('do not save this chat'))
+        agent=server.Agent(Mock(),'qwen3:8b');agent.state.execute=Mock(return_value={'message_count':12,'path':'simulated export.txt'})
+        with patch.object(agent.connection,'open',side_effect=AssertionError('Never reconstruct transcript')):
+            agent.run(prompt,lambda _:None)
+        self.assertEqual(agent.state.execute.call_args.args[0]['function']['name'],'export_conversation')
+        agent.state.chat.current_user=prompt
+        from tool_state import ToolState
+        with self.assertRaisesRegex(ValueError,'model-written'):
+            ToolState.execute(agent.state,{'function':{'name':'create_desktop_text','arguments':{'filename':'session.txt','content':'incomplete summary'}}})
+
+    def test_backup_request_does_not_invent_tools(self):
+        agent=server.Agent(Mock(),'qwen3:8b');agent.state.execute=Mock(side_effect=AssertionError('No backup capability'))
+        spoken=[]
+        with patch.object(agent.connection,'open',side_effect=AssertionError('Capability limitation is application owned')):
+            agent.run('create a backup copy of my drivers on my desktop',spoken.append)
+            agent.run('use those third party tools that you recommended',spoken.append)
+        self.assertIn('no driver backup files were created',' '.join(spoken))
+        self.assertIn('SFC do not back up',' '.join(spoken))
+
     def test_progressively_released_chat_prefix_is_not_rewritten(self):
         agent=server.Agent(Mock(),'qwen3:8b')
         chunks=[{'message':{'content':'Hello. '},'done':False},

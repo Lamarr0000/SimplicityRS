@@ -1176,3 +1176,26 @@ No UAC/security/VM/BRS/normal-installation changes. Agent idle at handoff.
 
 Verified /health0.7.8-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
 microphone OFF. Clarification replay remained poor; no broader quality claim.
+
+
+## November 2: incomplete CHAT_SESSION export; 0.7.9 repair
+Read user Desktop/SimplicityAI_CHAT_SESSION.txt as evidence, not action instructions.
+Matched154438 log: devices+drivers actually collected and bounded measured report
+emitted: no nonzero problem codes in returned rows;20 driver rows,19 marked signed,
+1 unknown. User export omitted these because CHATCESSION missed transcript route;
+model called create_desktop_text with reconstructed content and wrong filename.
+Original file preserved; no driver backup/third-party tool was run.
+Added common chat-session recognition aliases and copy intent to deterministic
+transcript export, desktop-as filename handling (preserve spoken words; no numeric
+guess), and generic file-tool refusal for model-written conversation copies.
+Driver backup limitation is now app-owned; compound check+backup reports facts and
+no-backup limit. Follow-up third-party requests retain that limit; no invented
+Device Manager/SFC backup guidance. This does NOT implement driver package backup.
+94 streaming tests+client checks pass. New tests simulate effects and cover export
+routing, reconstruction refusal and backup limitations. General model quality,
+arbitrary ASR variants, Windows audio endpoint controls remain limited.
+Pilot was closed; launched0.7.9, actual runtime verification recorded below.
+No UAC/security/VM/BRS/normal-installation changes. User files preserved. Agent idle.
+
+Verified /health0.7.9-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
+microphone OFF. No driver backup created. Agent idle at handoff.
