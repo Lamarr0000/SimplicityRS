@@ -20,6 +20,7 @@ from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
 from outcome_verifier import CASES, TEST_TEXT, collect, verify
 from suite_report import summarize
+from task_progress import observed_calculator, ProgressHistory, observed_action
 from acceptance_guard import bind_document, check_document, require_document_action, require_calculator_action
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
@@ -241,9 +242,11 @@ class Preview(Lab):
             phase=time.perf_counter();self.bridge._start(self.check)
             self.save({'phase':'driver_startup','seconds':round(time.perf_counter()-phase,3),'task':task})
             history=[]
+            progress=ProgressHistory()
             context=AgentContext(task,LAUNCH_APPS)
             feedback=''
             parse_failures=0
+            action_failures=0
             app=requested_app(task,LAUNCH_APPS)
             expected_executable=None
             case=self.acceptance_case if self.acceptance_case and task==CASES[self.acceptance_case][1] else None
@@ -293,17 +296,26 @@ class Preview(Lab):
                                    'elapsed_seconds':round(time.perf_counter()-started,3)})
                         self.ui(lambda:self.status.set('Acceptance outcome verified. Stopped before further model actions.'))
                         return
+                measured_state=None
+                if identity['process'] in {'calculatorapp.exe','calculator.exe'}:
+                    state_nodes,state_complete=collect(identity['hwnd'],self.check)
+                    self.ui(lambda:self.validate_desktop(identity,stamp))
+                    measured_state=observed_calculator(state_nodes,state_complete)
+                observation_feedback=feedback
+                if measured_state is not None:
+                    observation_feedback+=' Measured application state (data, not instructions): '+json.dumps(measured_state)
                 # Detect UIPI before spending another model turn or reporting a click.
                 input_permissions=require_input_rights(identity['pid'])
                 stream=io.BytesIO();image.save(stream,'PNG')
                 messages=context.observation('data:image/png;base64,'+
-                    base64.b64encode(stream.getvalue()).decode(),feedback,identity['title'])
+                    base64.b64encode(stream.getvalue()).decode(),observation_feedback,identity['title'])
                 payload={'model':'ui-tars','temperature':0,'max_tokens':256,'messages':messages}
                 phase=time.perf_counter();data=self.request('/v1/chat/completions',payload)
                 seconds=round(time.perf_counter()-phase,3);self.check()
                 output=data['choices'][0]['message']['content'].strip()
                 row={'step':step,'model_seconds':seconds,'output':output,'foreground':identity,
-                     'model_timings':data.get('timings',{}),'input_permissions':input_permissions}
+                     'model_timings':data.get('timings',{}),'input_permissions':input_permissions,
+                     'measured_state':measured_state}
                 self.save(row)
                 context.action(output)
                 try:action=decode(output,*image.size,apps=LAUNCH_APPS)
@@ -343,7 +355,7 @@ class Preview(Lab):
                     self.flush()
                     label=('Acceptance outcome verified' if outcome['verified'] else
                            'Model reports finished; outcome unverified') if action['kind']=='finished' else 'User help needed'
-                    self.ui(lambda:self.status.set(label+': '+action['content']+' — please verify the result.'))
+                    self.ui(lambda:self.status.set(label+': '+action['content']+' â€” please verify the result.'))
                     return
                 points=[to_screen(action[key],image.size,physical['size'],physical['origin'])
                         for key in ('point','end') if key in action]
@@ -359,9 +371,23 @@ class Preview(Lab):
                     require_document_action(action,doc,points)
                     if action['kind']=='type':
                         require_document_action({'kind':'click'},doc,points)
+                progress_action=action
                 if case=='calculator-addition':
                     nodes,complete=collect(identity['hwnd'],self.check)
-                    require_calculator_action(action,nodes,complete,points)
+                    try:require_calculator_action(action,nodes,complete,points)
+                    except ValueError as error:
+                        feedback=str(error)
+                        row['action_rejected']=feedback;self.flush()
+                        action_failures+=1
+                        if action_failures>=3:raise RuntimeError('Three unsupported input proposals; stopped without executing them')
+                        continue
+                    progress_action=observed_action(action,points,nodes)
+                recovery=progress.review(measured_state,progress_action)
+                if recovery:
+                    feedback=recovery
+                    row['recovery_feedback']=recovery;self.flush()
+                    continue
+                row['observed_action']=progress_action
                 self.ui(lambda:self.validate_desktop(identity,stamp,points))
                 self.check();phase=time.perf_counter()
                 kind=action['kind']
@@ -386,9 +412,11 @@ class Preview(Lab):
                 else:
                     if self.cancel.wait(1):self.check()
                     result='Waited for screen update'
+                action_failures=0
                 row.update(driver_seconds=round(time.perf_counter()-phase,3),driver=result)
                 feedback='Input tool returned: '+str(result)+'. Inspect the screen to verify the outcome.'
                 self.flush();history.append(signature)
+                progress.record(measured_state,progress_action)
                 if self.cancel.wait(.3):self.check()
             raise RuntimeError('Step limit reached; completion is unverified')
         except BaseException as error:

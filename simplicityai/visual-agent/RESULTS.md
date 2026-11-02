@@ -221,3 +221,35 @@ state if resuming. Main Voice Pilot/normal app/VM/BRS not modified. Test Calcula
 and Task Manager windows left; no user files saved/deleted. Next priority is model/
 harness loop detection and planning/state reliability, varied cases before voice
 integration; not more Task Manager prompt patches. No further live test this turn.
+
+
+## November 2: measured-state history and bounded loop recovery retested
+
+User authorized next work and retained direct-preview launch permission. Inspected
+Calculator loop evidence and controller context. Prior context retained speculative
+assistant thoughts but replaced historical tool feedback with Earlier observation.
+Changed bounded history to retain actual action requests and observed results,
+without old speculative thoughts. Full model output remains in evidence logs.
+Added task_progress.py: measured Calculator display/expression from real UIA;
+state/action repetition gets one no-input recovery prompt, then stops if repeated.
+No next action or digit sequence is computed by the controller. Final source also
+normalizes coordinate jitter using a unique observed button ID (unit-tested).
+
+Calculator unsupported-button proposals are now recoverable ValueError feedback,
+up to3 before stop. Missing mode/permissions remain hard stops. First live retest
+105333 proposed title-icon click and stopped before input. Second live retest
+105445 made8 model decisions,6 actual clicks,38.512s inference and one recovery
+prompt, then stopped at Repeated state/action after recovery feedback. Previous
+trial used24 clicks/160.079s inference. Model still repeated1/3/clear and DID NOT
+complete137+29. This validates bounded failure/recovery, NOT better arithmetic or
+general planning. Final semantic-button normalization has no separate live rerun.
+36 tests + compilation pass. No scripted arithmetic fast path or hidden click plan.
+
+Report C:/SimplicityAI-Lab/VisualAgent/planning-retest-20261102.md. Detailed log
+ desktop-preview-20261102-105445-1.json and acceptance-suite-20261102-105445.json.
+Existing Task Manager results reused, not retested or claimed as new evidence.
+Preview Exit used after trial; owned model stopped (verify listener/GPU on resume).
+No new UAC, microphone or security change; normal app/Voice Pilot/VM/BRS preserved.
+Next substantial work: evaluate an explicit planner/executor approach with measured
+state and a varied acceptance set, rather than more per-task wording patches or
+voice integration of this unreliable executor. No live test pending for the user.

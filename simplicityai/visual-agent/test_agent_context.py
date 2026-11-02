@@ -3,6 +3,16 @@ from agent_context import AgentContext
 
 
 class ContextContract(unittest.TestCase):
+    def test_observed_results_survive_without_speculative_reasoning(self):
+        context=AgentContext('Complete requested task')
+        context.observation('first','Actual display is 1','Calculator')
+        context.action("Thought: This correct intermediate value is wrong.\nAction: click(start_box='(1,2)')")
+        messages=context.observation('second','Actual display is 13','Calculator')
+        self.assertIn('Actual display is 1',str(messages[1]['content']))
+        self.assertIn('Actual display is 13',str(messages[-1]['content']))
+        self.assertEqual(messages[2]['content'],"Action: click(start_box='(1,2)')")
+        self.assertNotIn('correct intermediate value is wrong',str(messages))
+
     def test_preserves_system_active_task_and_two_recent_images(self):
         context=AgentContext('Type the test. Do not close the app.')
         for index in range(10):

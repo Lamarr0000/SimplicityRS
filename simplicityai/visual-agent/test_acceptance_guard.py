@@ -14,7 +14,7 @@ class DocumentBoundary(unittest.TestCase):
                                       ({'kind':'hotkey','shortcut':'ctrl+m'},True,[]),
                                       ({'kind':'type','content':'137+29'},True,[]),
                                       ({'kind':'click'},False,[[15,25]])]:
-            with self.assertRaises(InterruptedError):require_calculator_action(action,nodes,complete,point)
+            with self.assertRaises((InterruptedError,ValueError)):require_calculator_action(action,nodes,complete,point)
         nodes[0]['name']='Scientific'
         with self.assertRaises(InterruptedError):require_calculator_action({'kind':'click'},nodes,True,[[15,25]])
 

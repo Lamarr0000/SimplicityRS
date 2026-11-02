@@ -260,3 +260,20 @@ administrator controller remains inaccessible to a medium-integrity Computer Use
 helper; a user may need to approve UAC or Exit that controller, but reports can be
 read directly without UI input. The normal-permission preview can be operated by
 the helper. No security exclusion is needed for this workflow.
+
+
+## Measured progress and recovery - November 2
+
+Task context now keeps bounded actual tool observations and action requests;
+old speculative thoughts remain in evidence logs but are not replayed as context.
+Real Calculator display/expression observations accompany screenshots. Repeating
+the same observed state/action gets one no-input recovery prompt; repeating it
+again stops instead of spending the entire24-step budget. Control-ID normalization
+handles click-coordinate jitter when exactly one observed button matches.
+
+This does not choose a next button or calculate the answer. Supported click
+proposals still come from the model. Unsupported arithmetic-button input gets
+explicit no-input feedback (max3 proposals); wrong mode/permissions still stop.
+Measured live retest failed the arithmetic after8 decisions/6 clicks/38.512s
+inference, versus prior24 clicks/160.079s.36 tests pass. No claim of successful
+planning, general autonomy or voice integration. See external planning-retest report.

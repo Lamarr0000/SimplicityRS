@@ -63,4 +63,4 @@ def require_calculator_action(action, nodes, complete, points):
                 left,top,right,bottom=node['rect']
                 if left<=x<right and top<=y<bottom:
                     return
-    raise InterruptedError('Calculator test permits only observed arithmetic/clear buttons; no input sent')
+    raise ValueError('No input was sent. Calculator test permits only observed arithmetic/clear buttons. Inspect the foreground screenshot and choose a supported button.')
