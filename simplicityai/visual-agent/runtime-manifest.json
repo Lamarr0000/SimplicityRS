@@ -1,0 +1,24 @@
+{
+  "status": "experimental, not integrated",
+  "model": "ByteDance-Seed/UI-TARS-1.5-7B",
+  "conversion_repository": "mradermacher/UI-TARS-1.5-7B-GGUF",
+  "files": [
+    {"name": "UI-TARS-1.5-7B.Q4_K_M.gguf", "bytes": 4683073856, "sha256": "3233f143243135ef458a3e18894c4d6883d384abcef23367a538a3a78003009b"},
+    {"name": "UI-TARS-1.5-7B.mmproj-f16.gguf", "bytes": 1354162880, "sha256": "45fff9aa4ee4dcab82ad668e681b5ce0e061eb52a7dca26ddb8922435c567a8f"}
+  ],
+  "runtime": {
+    "repository": "ggml-org/llama.cpp",
+    "release": "b12032",
+    "commit_prefix": "dde879bc4",
+    "archives": [
+      {"name": "llama-b12032-bin-win-cuda-12.4-x64.zip", "sha256": "36c7e24ad048cceabf00c1b49d0f0411b954c6a410a7ff4300af8721a94fd00a"},
+      {"name": "cudart-llama-bin-win-cuda-12.4-x64.zip", "sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"}
+    ]
+  },
+  "endpoint": "http://127.0.0.1:8772",
+  "context_tokens": 4096,
+  "parallel_slots": 1,
+  "cpu_threads": 6,
+  "image_min_tokens": 1024,
+  "cloud_inference": false
+}

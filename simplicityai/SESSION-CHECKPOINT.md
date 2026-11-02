@@ -628,3 +628,22 @@ Added isolated Windows-MCP stdio bridge, observed-control click/type/scroll/swit
 Read-only driver probe verified seven actual tools, protection enabled/balanced/1.5-second idle; real UIA snapshot returned 100 controls. 28 boundary/regression checks pass. Model routing checks are synthetic, not live desktop evidence. Initial Lazesoft model answer invented limitations; catalog is now injected automatically for relevant requests. Live user test is next: Exit/reopen Voice Pilot, open Google and inspect actual page, then create Simplicity Test.txt. No running pilot was restarted and no user desktop input was issued in these checks. See streaming/DESKTOP-CONTROL.md.
 
 Follow-up: existing seven diagnostic and five desktop model replays also pass. Calculator foreground activation is attempted only for the exact HWND returned by its verified tool, with ordinary APIs and an explicit failure report; not live-tested here. Speech preparation strips Markdown emphasis/link formatting without altering arithmetic operators. No window-management live actions occurred.
+
+## November 1: isolated offline UI-TARS visual-agent gate
+
+User reconfirmed fully offline support; online Codex integration is out of scope.
+Installed UI-TARS-1.5-7B community Q4_K_M + f16 projector and llama.cpp b12032
+CUDA 12.4 under C:\SimplicityAI-Lab\VisualAgent. All asset SHA256 checks passed.
+Owned loopback test server was stopped after testing; working app/speech/VM unchanged.
+
+Final image grounding passed 3 layouts at 2.1–2.4 seconds warm. A simulated
+screenshot feedback task recovered from an injected missed click and moved target,
+then verified visible report completion (1.8–2.4 seconds/decision). Cold first image
+request was 53.8 seconds; measured GPU allocation approximately 6.3–6.6 GB.
+Corrected initial adapter coordinate mismatch against upstream 1.5 pixel-space guide.
+These are synthetic UI fixtures, not live desktop control or diagnostic validation.
+No cloud inference used; networking was not physically disconnected for this test.
+
+Source and measured limits: simplicityai/visual-agent/RESULTS.md. Next: bounded real
+Windows visual-control benchmark, foreground/DPI mapping, cancellation and outcomes,
+then integrate only if it passes. Do not replace the current pilot based on fixtures.
