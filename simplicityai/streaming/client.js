@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id), token=location.hash.slice(1);
 history.replaceState(null,'',location.pathname);
 const ws=new WebSocket(`ws://${location.host}/session`);
 let ready=false,listening=false,muted=false,sound=true,stream,context,capture,source,currentTurn=0,answer,busy=false;
+let transportPaused=false;
 const activity=[],evidence=[];
 function send(value){if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(value));}
 function status(text){$('status').textContent=text;}
@@ -29,12 +30,16 @@ class Playback {
 }
 const playback=new Playback();
 async function microphone(enabled){
-  if(!enabled){listening=false;send({type:'listen',enabled:false});if(stream)stream.getTracks().forEach(t=>t.stop());if(capture)capture.disconnect();if(source)source.disconnect();if(context)await context.close();stream=context=capture=source=null;}
+  if(!enabled){listening=false;transportPaused=false;send({type:'listen',enabled:false});if(stream)stream.getTracks().forEach(t=>t.stop());if(capture)capture.disconnect();if(source)source.disconnect();if(context)await context.close();stream=context=capture=source=null;}
   else {
     await playback.unlock();stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     context=new AudioContext({sampleRate:16000});if(context.sampleRate!==16000)throw Error('16 kHz capture unavailable. Type instead.');
     await context.audioWorklet.addModule('/pcm-worklet.js');source=context.createMediaStreamSource(stream);capture=new AudioWorkletNode(context,'simplicity-capture');
-    capture.port.onmessage=event=>{if(listening&&!muted&&ws.readyState===WebSocket.OPEN){if(ws.bufferedAmount>128000){microphone(false);status('Audio transport fell behind. Type or retry Talk.');return;}ws.send(event.data);}};
+    capture.port.onmessage=event=>{if(listening&&!muted&&ws.readyState===WebSocket.OPEN){
+      if(ws.bufferedAmount>128000){if(!transportPaused){transportPaused=true;send({type:'listen',enabled:false});send({type:'client_event',event:'audio_backpressure'});status('Audio delayed — keeping voice on; please repeat after it resumes.');}return;}
+      if(transportPaused){if(ws.bufferedAmount>16000)return;transportPaused=false;send({type:'listen',enabled:true});send({type:'client_event',event:'audio_resumed'});status('Listening resumed — please repeat the last phrase.');}
+      ws.send(event.data);
+    }};
     send({type:'listen',enabled:true});listening=true;muted=false;source.connect(capture);capture.connect(context.destination);await context.resume();
   }
   $('talk').textContent=listening?'Stop talking':'Talk';$('talk').setAttribute('aria-pressed',String(listening));$('mute').disabled=!listening;$('mute').textContent='Mute mic';status(listening?'Listening — you can speak now.':'Voice off. You can type.');
@@ -45,12 +50,13 @@ ws.onmessage=event=>{
   if(kind!=='audio'){activity.push(value);if(/timing|activity|review/.test(kind))evidence.push(value);}
   if(kind==='ready'){ready=true;$('talk').disabled=$('send').disabled=false;status(value.text);}
   else if(kind==='status')status(value.text);
+  else if(kind==='activity'&&['action','status'].includes(value.activity_kind))status(value.text);
   else if(kind==='transcript.partial'){$('partial').textContent=voiceDisplay(value.text);scroll();}
   else if(kind==='transcript.final')$('partial').textContent='';
   else if(kind==='voice.pause'){playback.pause();send({type:'playback',retained:playback.queue.length>0});}
   else if(kind==='voice.resume')playback.resume();
   else if(kind==='audio.clear')playback.clear();
-  else if(kind==='voice.stop'){playback.clear();microphone(false);}
+  else if(kind==='voice.stop'){playback.clear();if(value.listening===false)microphone(false);else status('Reply stopped. Listening — you can speak now.');}
   else if(kind==='turn.start'){currentTurn=value.turn;busy=true;playback.clear();message(value.source==='voice'?voiceDisplay(value.text):value.text,'user');answer=message('','assistant');status('Thinking…');}
   else if(kind==='text.delta'&&value.turn===currentTurn){answer.querySelector('span').textContent+=value.text;status('Replying…');scroll();}
   else if(kind==='audio'&&value.turn===currentTurn)playback.add(value);
@@ -59,7 +65,7 @@ ws.onmessage=event=>{
   else if(kind==='error'){busy=false;playback.clear();status(value.text);}
   else if(kind==='chat.reset'){$('messages').replaceChildren();$('partial').textContent='';answer=null;activity.length=evidence.length=0;status('New chat ready.');}
 };
-ws.onclose=()=>{ready=false;microphone(false);playback.clear();$('talk').disabled=$('send').disabled=true;status('Session closed.');};
+ws.onclose=async()=>{ready=false;await microphone(false);playback.clear();$('talk').disabled=$('send').disabled=true;status('Session closed. Reopen the pilot to reconnect.');};
 $('talk').onclick=()=>microphone(!listening).catch(async error=>{await microphone(false);status(error.message);});
 $('mute').onclick=()=>{muted=!muted;stream?.getAudioTracks().forEach(t=>t.enabled=!muted);send({type:'listen',enabled:!muted});$('mute').textContent=muted?'Unmute mic':'Mute mic';$('mute').setAttribute('aria-pressed',String(muted));status(muted?'Microphone muted.':'Listening — you can speak now.');};
 $('sound').onclick=async()=>{sound=!sound;if(sound)await playback.unlock();else playback.clear();send({type:'sound',enabled:sound});$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',String(sound));};

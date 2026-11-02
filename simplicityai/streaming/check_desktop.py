@@ -8,11 +8,42 @@ import server
 from desktop_tools import DesktopTools,create_text,launch_app
 from tool_state import ToolState
 from target_scope import TargetConversation
+from desktop_workflow import desktop_request,unfinished_draft,search_result_observed
 
 TREE='Focused Window: Microsoft Edge\nOpened Windows: Microsoft Edge\nUI Tree:\n (123,456) edit "Address and search bar" [action: fill]\n (33,66) button "Search" [action: click]'
 
 
 class DesktopTests(unittest.TestCase):
+    def test_authorized_work_does_not_end_with_permission_or_promises(self):
+        self.assertTrue(desktop_request('HEY CAN YOU OPEN UP A WET BROWSER AND NAVIGATE THE GOOGEL'))
+        for text in ['Would you like me to proceed?','Let me proceed.',"I'll type the search query.",'Could you tell me where the search box is located?']:
+            self.assertTrue(unfinished_draft(text),text)
+        self.assertFalse(unfinished_draft('Google shows search results for computer speed test.'))
+        self.assertFalse(unfinished_draft('The tool failed: the search field was not accessible.'))
+        self.assertFalse(desktop_request('Explain the difference between RAM and storage.'))
+
+    def test_search_requires_observed_destination(self):
+        self.assertFalse(search_result_observed('Google homepage is ready: https://www.google.com/'))
+        self.assertTrue(search_result_observed('Address: https://www.google.com/search?q=computer+speed+test'))
+        self.assertTrue(search_result_observed('Address: https://www.bing.com/search?q=computer+speed+test'))
+
+    def test_permission_draft_is_not_spoken_and_launch_is_observed(self):
+        import io
+        agent=server.Agent(lambda *a,**kw:None,'qwen3:8b');calls=[];spoken=[]
+        def execute(call):
+            calls.append(call['function']['name'])
+            if calls[-1]=='desktop_observe':return {'observations':'Edge foreground. Google homepage https://www.google.com/'}
+            return {'launch_requested':True,'completion_verified':False}
+        agent.state.execute=execute
+        def response(message):
+            return io.BytesIO((json.dumps({'message':message,'done':True,'done_reason':'stop'})+'\n').encode())
+        replies=[response({'content':'Would you like me to proceed?'}),
+                 response({'tool_calls':[{'function':{'name':'open_desktop_app','arguments':{'app':'edge','url':'https://www.google.com'}}}]}),
+                 response({'content':'Google is visible in Edge.'})]
+        with patch.object(agent.connection,'open',side_effect=replies):agent.run('Open Edge and navigate to Google.',spoken.append)
+        self.assertEqual(calls,['open_desktop_app','desktop_observe'])
+        self.assertNotIn('Would you like',''.join(spoken))
+        self.assertIn('Google is visible',''.join(spoken))
     def state(self):
         state=ToolState();state.chat=TargetConversation();state.emit=Mock()
         return state

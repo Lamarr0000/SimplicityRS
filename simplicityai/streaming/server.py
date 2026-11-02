@@ -28,6 +28,7 @@ from protocol import Segments
 from target_scope import TargetConversation
 from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
 from browser_tools import browser_report
+from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, CONTINUE
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -92,6 +93,8 @@ class Agent:
         self.state.chat=TargetConversation()
         self.state.emit=lambda kind,text,**extra:emit('activity',activity_kind=kind,text=text)
         self.connection=ModelConnection(LEGACY)
+        self.desktop_task=False
+        self.desktop_search_pending=False
         if self.connection.remote:raise ValueError('This offline host prototype requires the local loopback model service')
     def run(self,prompt,segment):
         state=self.state;state.check_stop();messages,start=state.chat.begin(prompt)
@@ -99,6 +102,12 @@ class Agent:
             'arbitrary commands, drive unlocking or general desktop controls are connected.',
             'arbitrary commands or drive unlocking are connected. Desktop assistance is available through the tools listed below.')
         messages[0]['content']+='\n'+INSTRUCTIONS
+        if desktop_request(prompt):
+            self.desktop_task=True
+            self.desktop_search_pending=bool(re.search(r'\bsearch\s+for\b',prompt,re.I))
+        elif not re.search(r'\b(yes|please|proceed|continue|permission|authority|control|ask|search|type|stop|cancel)\b',prompt,re.I):self.desktop_task=False
+        desktop_task=self.desktop_task
+        if desktop_task:messages[0]['content']+='\n'+CONTINUE
         state.messages=messages
         if re.search(r'\b(?:lazesoft|lay\s*soft|simplicity\s+launcher)\b',prompt,re.I):
             catalog=state.execute({'function':{'name':'get_recovery_tool_catalog','arguments':{}}})
@@ -109,7 +118,7 @@ class Agent:
             self.emit('activity',activity_kind='report_source',text='Connected ThemHands capability facts from the application registry; no diagnostic or model call.')
             for text in Segments().feed(explanation,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
-        simulation_labelled=False
+        simulation_labelled=False;draft_retries=0;desktop_evidence=False;tool_failed=False
         for step in range(16):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
             payload={'model':self.model,'messages':messages,'tools':TOOLS,'stream':True,
@@ -125,7 +134,7 @@ class Agent:
                     raw+=message.get('content','')
                     if len(raw)>4000:raise ValueError('Model reply exceeded limit')
                     if raw and first is None:first=time.monotonic()-started
-                    if not calls:
+                    if not calls and not desktop_task:
                         for text in parts.feed(raw):
                             if reply_issues(raw):raise ValueError('Unsupported advice withheld from the reply stream')
                             self.emit('text.delta',text=text+' ');segment(text)
@@ -141,11 +150,28 @@ class Agent:
                     try:result=state.execute(call)
                     except InterruptedError:raise
                     except Exception as error:result={'ok':False,'error':str(error)}
+                    tool_failed=isinstance(result,dict) and bool(result.get('error'))
+                    name=call.get('function',{}).get('name')
+                    args=call.get('function',{}).get('arguments',{})
+                    if name=='create_desktop_text' and isinstance(result,dict) and result.get('content_verified'):desktop_evidence=True
+                    if name=='desktop_observe' and isinstance(result,dict) and search_result_observed(result.get('observations','')):self.desktop_search_pending=False
                     if isinstance(result,dict) and result.get('simulation') is True and not simulation_labelled:
                         label='SIMULATION ONLY — no live desktop action was performed. '
                         self.emit('text.delta',text=label);segment(label);simulation_labelled=True
                     messages.append({'role':'tool','tool_name':call.get('function',{}).get('name',''),
                                      'content':json.dumps(result)})
+                    if call.get('function',{}).get('name') in {'open_desktop_app','desktop_interact','desktop_switch'} and isinstance(result,dict) and not result.get('error'):
+                        # A mutating action is never a completion signal. Always collect its
+                        # real result before allowing another model decision or spoken claim.
+                        follow={'function':{'name':'desktop_observe','arguments':{}}}
+                        state.check_stop()
+                        try:observed=state.execute(follow)
+                        except InterruptedError:raise
+                        except Exception as error:observed={'ok':False,'error':str(error)}
+                        desktop_evidence=not observed.get('error')
+                        if search_result_observed(observed.get('observations','')):self.desktop_search_pending=False
+                        messages.append({'role':'assistant','content':'','tool_calls':[follow]})
+                        messages.append({'role':'tool','tool_name':'desktop_observe','content':json.dumps(observed)})
                 if len(calls)==1 and calls[0].get('function',{}).get('name')=='open_browser_window':
                     report=browser_report(result)
                     self.emit('activity',activity_kind='report_source',text='Browser outcome generated directly from ThemHands window evidence; no web-access claim.')
@@ -154,9 +180,21 @@ class Agent:
                     state.check_stop();state.chat.finish(messages,start);return
                 continue
             if not raw.strip():raise ValueError('The local model returned no usable answer')
+            if desktop_task and desktop_evidence and not self.desktop_search_pending:
+                # Drop an unsolicited offer after a completed ordinary task, rather
+                # than make the user approve a task that already finished.
+                raw=re.sub(r'\bWould you like[^?]*\?','',raw,flags=re.I).strip()
+            if desktop_task and (unfinished_draft(raw) or (self.desktop_search_pending and not tool_failed)):
+                if draft_retries>=2:raise ValueError('The model did not complete the authorized task; no further action was verified')
+                draft_retries+=1
+                self.emit('activity',activity_kind='status',text='Continuing the authorized desktop task; permission-only/planning draft withheld.')
+                messages.append({'role':'assistant','content':raw})
+                messages.append({'role':'system','content':CONTINUE})
+                continue
             if reply_issues(raw):raise ValueError('Reply failed reporting checks')
             for text in parts.feed(raw,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':raw})
+            self.desktop_task=False
             state.check_stop();state.chat.finish(messages,start);return
         raise ValueError('Tool limit reached; task completion is unverified')
 
@@ -215,7 +253,9 @@ class Session:
                             self.paused=False;await self.send('voice.resume');continue
                         if text.lower().strip('.!?') in {'stop','cancel','stop talking','stop listening'}:
                             self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
-                            await self.set_listening(False);await self.send('voice.stop');continue
+                            listening=text.lower().strip('.!?')!='stop listening'
+                            if not listening:await self.set_listening(False)
+                            await self.send('voice.stop',listening=listening,reason='recognized voice command');continue
                         await self.submit(text,source='voice')
         except asyncio.CancelledError:pass
         except Exception as error:
@@ -269,7 +309,13 @@ class Session:
             if not self.closed:await self.send('error',text='Audio stream stopped: '+str(error))
     async def control(self,value):
         kind=value.get('type')
-        if kind=='listen':await self.set_listening(bool(value.get('enabled')))
+        if kind=='listen':
+            await self.set_listening(bool(value.get('enabled')))
+            await self.send('activity',activity_kind='voice_state',text='Microphone capture '+('enabled' if self.listening else 'paused/off')+' by client control.')
+        elif kind=='client_event':
+            event=value.get('event')
+            if event not in {'audio_backpressure','audio_resumed'}:raise ValueError('Unknown client diagnostic')
+            await self.send('activity',activity_kind='voice_transport',text=event)
         elif kind=='chat':await self.submit(value.get('text'))
         elif kind=='cancel':self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel();await self.send('audio.clear')
         elif kind=='sound':
@@ -280,6 +326,7 @@ class Session:
         elif kind=='reset':
             if self.actor and not self.actor.done():raise ValueError('Stop the active task before New chat')
             self.agent.state.chat=TargetConversation();self.turn+=1;self.speaker.cancel()
+            self.agent.desktop_task=False;self.agent.desktop_search_pending=False
             await self.send('audio.clear');await self.send('chat.reset')
         elif kind=='close':await self.ws.close()
         else:raise ValueError('Unknown session control')
@@ -328,7 +375,10 @@ def create_app(model='gpt-oss:20b'):
                             if not session.listening:continue
                             if len(message.data)!=1024:raise ValueError('Invalid PCM frame size')
                             try:session.frames.put_nowait((session.capture,message.data))
-                            except asyncio.QueueFull:raise ValueError('Audio processing fell behind; stop and retry')
+                            except asyncio.QueueFull:
+                                await session.set_listening(True)
+                                session.frames.put_nowait((session.capture,message.data))
+                                await session.send('status',text='Audio processing caught a backlog. Voice remains on; please repeat the last phrase.')
                         elif message.type==WSMsgType.TEXT:
                             value=json.loads(message.data)
                             if not isinstance(value,dict):raise ValueError('Expected session control object')

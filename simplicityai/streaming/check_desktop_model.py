@@ -9,15 +9,25 @@ def run():
            ('Create a new text document on my desktop named Simplicity Test.txt containing Hello from SimplicityAI.',
             {'create_desktop_text'}),
            ('What can the Lazesoft tools in the Simplicity launcher do? Do not run them.',
-            {'get_recovery_tool_catalog'})]
+            {'get_recovery_tool_catalog'}),
+           ('HEY CAN YOU OPEN UP A WET BROWSER FOR ME AND NAVIGATE THE GOOGEL AND SEARCH FOR COMPUTER SPEE TEST',
+            {'open_desktop_app','desktop_observe','desktop_interact'})]
     reports=[]
     for prompt,expected in cases:
-        calls=[];chunks=[];agent=server.Agent(lambda *a,**kw:None,'qwen3:8b')
+        calls=[];chunks=[];submitted=[];typed=[];arguments=[];agent=server.Agent(lambda *a,**kw:None,'qwen3:8b')
         original=agent.state.execute
         def simulated(call):
             name=call['function']['name'];calls.append(name)
             if name=='open_desktop_app':return {'simulation':True,'launch_requested':True,'completion_verified':False,'next':'Observe actual page'}
-            if name=='desktop_observe':return {'simulation':True,'snapshot':'fixture','observations':'Microsoft Edge foreground. Address and search bar: https://www.google.com/ . Page heading: Google. Search field visible.'}
+            if name=='desktop_observe':return {'simulation':True,'snapshot':'fixture','observations':
+                'Microsoft Edge foreground. Address: https://www.google.com/search?q=computer+speed+test . Page heading: computer speed test - Google Search. Search results visible.' if submitted else
+                'Microsoft Edge foreground. Address: https://www.google.com/ . Page heading: Google. [control 11] (100,100) edit "Search" [action: fill] [value: "'+(typed[-1] if typed else '')+'"]. [control 12] (150,150) button "Google Search" [action: click].'}
+            if name=='desktop_interact':
+                args=call['function']['arguments']
+                arguments.append(args)
+                if args.get('action')=='type':typed.append(args.get('text',''))
+                if args.get('enter') or (args.get('action')=='click' and args.get('element')==12):submitted.append(typed[-1] if typed else args.get('text',''))
+                return {'simulation':True,'completion_verified':False,'result':'Typed into observed control; inspect result'}
             if name=='create_desktop_text':return {'simulation':True,'created':True,'content_verified':True,'path':'SIMULATED Desktop/Simplicity Test.txt'}
             if name=='get_recovery_tool_catalog':return original(call)
             raise ValueError('Unexpected tool blocked in synthetic test: '+name)
@@ -26,7 +36,11 @@ def run():
             agent.run(prompt,chunks.append)
             reply=''.join(chunks)
             labelled=not (expected & {'open_desktop_app','create_desktop_text'}) or 'simulat' in reply.lower()
-            reports.append({'expected':sorted(expected),'called':calls,'passed':expected<=set(calls) and labelled,'reply':reply})
+            complete='desktop_interact' not in expected or bool(submitted)
+            reports.append({'expected':sorted(expected),'called':calls,'passed':expected<=set(calls) and labelled and complete,'reply':reply})
+        except Exception as error:
+            reports.append({'expected':sorted(expected),'called':calls,'passed':False,'error':str(error),
+                            'arguments':arguments,'drafts':[message.get('content') for message in agent.state.messages if message.get('role')=='assistant' and message.get('content')]})
         finally:agent.state.close()
     print(json.dumps({'simulation_only':True,'cases':reports},ensure_ascii=True))
     if not all(report['passed'] for report in reports):raise SystemExit(1)
