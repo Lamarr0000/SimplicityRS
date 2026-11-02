@@ -55,7 +55,7 @@ class ToolState(State):
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()
-            local_actions={'desktop_observe','desktop_switch','desktop_interact','open_desktop_app','search_web','create_desktop_text','export_conversation'}
+            local_actions={'desktop_observe','desktop_switch','desktop_interact','open_desktop_app','search_web','create_desktop_text','export_conversation','list_windows','manage_window'}
             from target_scope import OTHER
             explicitly_other=OTHER.search(self.chat.current_user or '')
             if self.chat.target=='other' and name not in {'get_recovery_tool_catalog','get_recent_findings'} and (name not in local_actions or explicitly_other or not self.chat.current_user):raise ValueError('The affected Windows is not connected. Current recovery-environment checks would not diagnose that installation.')
@@ -79,6 +79,12 @@ class ToolState(State):
                 self.chat.transcript.append({'id':len(self.chat.transcript),'role':'assistant','kind':'measured_facts','content':table_text(view)})
                 self.emit('findings',json.dumps(view))
             self.emit('observation',json.dumps(result));return result
+        if name=='calculate_in_calculator' and self.chat.target=='other':
+            from target_scope import OTHER
+            if OTHER.search(self.chat.current_user):raise ValueError('Another computer is not connected')
+            self.chat.target='current'
+            try:return super().execute(call)
+            finally:self.chat.target='other'
         if name not in {'open_browser_window','get_tool_capabilities'}:return super().execute(call)
         if not isinstance(args,dict) or args:raise ValueError('This tool takes no arguments')
         self.check_stop()

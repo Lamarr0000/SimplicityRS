@@ -3,7 +3,7 @@ import re
 
 
 def desktop_request(text):
-    return bool(re.search(r'\b(open|launch|navigate|search|create|click|type|save|write)\b',text,re.I)
+    return bool(re.search(r'\b(open|launch|close|minimize|minimise|navigate|search|create|click|type|save|write)\b',text,re.I)
                 and re.search(r'\b(browser|edge|google|goog el|googel|desktop|document|notepad|explorer|copilot|(?:task|device)\s*(?:manager|major)|disk\s*management|event\s*viewer|settings|app|file|web\s*page)\b',text,re.I))
 
 
@@ -12,6 +12,15 @@ def requested_app(text):
     if re.search(r"\b(?:do not|don't|never)\s+(?:open|launch)\b",text,re.I):return None
     for name in ['device_manager','disk_management','event_viewer','task_manager','system_information','reliability_monitor','notepad','explorer','calculator','settings']:
         if re.search(r'\b'+name.replace('_',r'\s*')+r'\b',text,re.I):return name
+    # High-confidence spelling variation over registered two-word utilities.
+    # Original recognized text remains unchanged in the transcript.
+    from difflib import SequenceMatcher
+    words=re.findall(r'[a-z]+',text.lower());scores=[]
+    for name in ['device_manager','disk_management','event_viewer','task_manager','system_information','reliability_monitor']:
+        score=max((SequenceMatcher(None,' '.join(words[i:i+2]),name.replace('_',' ')).ratio() for i in range(len(words)-1)),default=0)
+        scores.append((score,name))
+    scores.sort(reverse=True)
+    if scores[0][0]>=.88 and scores[0][0]-scores[1][0]>=.1:return scores[0][1]
     return None
 
 

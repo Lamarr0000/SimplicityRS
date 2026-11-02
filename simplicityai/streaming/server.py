@@ -25,13 +25,14 @@ from kokoro_speech import KokoroSpeech
 from model_connection import ModelConnection
 from voice import _guard_process
 from protocol import Segments
-from target_scope import TargetConversation
+from target_scope import TargetConversation,CURRENT
 from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
 from browser_tools import browser_report
 from desktop_workflow import desktop_request, unfinished_draft, search_result_observed, web_search_request, requested_app, CONTINUE
 from troubleshooting import guidance,requested_checks,completed_report,diagnostic_report_issue
 from evidence_context import model_evidence,model_messages
-from findings import clean_reply,table_view,table_text
+from findings import clean_reply,spoken_text,table_view,table_text
+from intent_control import cancelled,continuation,arithmetic,diagnostic_request,repeated_target_question,window_request
 
 TOKEN=secrets.token_urlsafe(32)
 INSTRUCTIONS=('Keep spoken answers to one or two brief sentences unless detail is requested. '
@@ -106,6 +107,8 @@ class Agent:
         self.connection=ModelConnection(LEGACY)
         self.desktop_task=False
         self.desktop_search_pending=False
+        self.diagnostic_pending=False
+        self.actions_paused=False
         if self.connection.remote:raise ValueError('This offline host prototype requires the local loopback model service')
     def emit(self,kind,**data):
         if kind=='text.delta':self.turn_reply+=data.get('text','')
@@ -113,12 +116,21 @@ class Agent:
     def run(self,prompt,segment):
         self.turn_reply=''
         state=self.state;state.check_stop();messages,start=state.chat.begin(prompt)
+        if cancelled(prompt):
+            self.desktop_task=False;self.desktop_search_pending=False;self.diagnostic_pending=False;self.actions_paused=True
+            report='Stopped. Completed measurements remain available in this session.'
+            self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         messages[0]['content']=messages[0]['content'].replace(
             'arbitrary commands, drive unlocking or general desktop controls are connected.',
             'arbitrary commands or drive unlocking are connected. Desktop assistance is available through the tools listed below.')
         messages[0]['content']+='\n'+INSTRUCTIONS
         messages[0]['content']+='\n'+guidance(prompt)
         required_checks=requested_checks(prompt);completed_checks=set()
+        if desktop_request(prompt) or required_checks or requested_app(prompt) or arithmetic(prompt) or diagnostic_request(prompt) or window_request(prompt):self.actions_paused=False
+        if diagnostic_request(prompt):self.diagnostic_pending=True
+        if self.diagnostic_pending and state.chat.target=='current':
+            required_checks.update({'system','storage','devices','events'})
+            if re.search(r'start|boot',state.chat.original_issue,re.I):required_checks.add('startup')
         if desktop_request(prompt) or required_checks:
             self.desktop_task=True
             self.desktop_search_pending=bool(re.search(r'\bsearch\s+for\b',prompt,re.I))
@@ -126,6 +138,11 @@ class Agent:
         desktop_task=self.desktop_task
         if desktop_task:messages[0]['content']+='\n'+CONTINUE
         state.messages=messages
+        binding_reply=state.chat.target=='current' and (CURRENT.search(prompt) or re.search(r'\bthis computer\b',prompt,re.I)) and not re.search(r'\b(run|check|inspect|review|verify|open|launch|list)\b',prompt,re.I)
+        if binding_reply and not self.diagnostic_pending:
+            report='The Windows running SimplicityAI is confirmed; no further target confirmation is needed.'
+            if re.search(r'start|boot',state.chat.original_issue,re.I):report+=' The measurements alone do not establish a startup cause. What is the last screen or error message you see?'
+            self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         if re.search(r'\btable\b',prompt,re.I):self.table_requested=True
         recall=bool(re.search(r'\btable\b|just (?:posted|checked|said)|earlier (?:results|findings)|this information',prompt,re.I))
         export_request=bool(re.search(r'\b(conversation|session|chat)\b',prompt,re.I) and re.search(r'\b(document|file|export|save)\b',prompt,re.I))
@@ -149,6 +166,21 @@ class Agent:
             messages.append({'role':'assistant','content':report});state.chat.finish(messages,start)
             self.desktop_task=False;self.desktop_search_pending=False
             return
+        window_action=window_request(prompt)
+        if window_action:
+            windows=state.execute({'function':{'name':'list_windows','arguments':{}}})
+            args={'action':'minimize_others'}
+            if window_action=='close_browser':
+                candidates=[row for row in windows.get('windows',[]) if row.get('process','').lower() in {'msedge.exe','chrome.exe','firefox.exe'}]
+                if re.search(r'\bfast\b',prompt,re.I):candidates=[row for row in candidates if 'fast' in row.get('title','').lower()]
+                if len(candidates)!=1:
+                    report='I found more than one browser window; which one should I close?' if candidates else 'No matching browser window was found.'
+                    self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
+                args={'action':'close','window_id':candidates[0]['id']}
+            result=state.execute({'function':{'name':'manage_window','arguments':args}})
+            report=('Closed the browser window.' if window_action=='close_browser' else 'Minimized the other application windows and kept SimplicityAI open.') if result.get('all_verified') else 'The requested window action did not fully complete. A window may require your attention; I did not force it closed.'
+            if result.get('simulation'):report='SIMULATION ONLY. '+report
+            self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         if re.search(r'\b(?:lazesoft|lay\s*soft|simplicity\s+launcher)\b',prompt,re.I):
             catalog=state.execute({'function':{'name':'get_recovery_tool_catalog','arguments':{}}})
             messages[0]['content']+='\nAuthoritative recovery-tool inventory for this question: '+json.dumps(catalog)
@@ -158,6 +190,22 @@ class Agent:
             self.emit('activity',activity_kind='report_source',text='Connected ThemHands capability facts from the application registry; no diagnostic or model call.')
             for text in Segments().feed(explanation,final=True):self.emit('text.delta',text=text+' ');segment(text)
             messages.append({'role':'assistant','content':explanation});state.check_stop();state.chat.finish(messages,start);return
+        expression=arithmetic(prompt)
+        if expression:
+            result=state.execute({'function':{'name':'calculate_in_calculator','arguments':{'expression':expression}}})
+            state.check_stop()
+            if not result.get('simulation') and type(result.get('window_handle')) is int:
+                import win32gui,win32con
+                try:
+                    win32gui.ShowWindow(result['window_handle'],win32con.SW_RESTORE)
+                    win32gui.SetForegroundWindow(result['window_handle'])
+                    result['foreground_verified']=win32gui.GetForegroundWindow()==result['window_handle']
+                except Exception:result['foreground_verified']=False
+                state.emit('observation',json.dumps({'tool':'calculate_in_calculator','foreground_verified':result['foreground_verified']}))
+            report=f"Calculator shows {result.get('display','an unverified result')} for {expression}." if result.get('display') is not None else 'Calculator did not return a verified display.'
+            if result.get('foreground_verified') is False:report+=' Windows did not bring its window to the foreground.'
+            if result.get('simulation'):report='SIMULATION ONLY. '+report
+            self.emit('text.delta',text=report);segment(report);messages.append({'role':'assistant','content':report});state.chat.finish(messages,start);return
         simulation_labelled=False;draft_retries=0;desktop_evidence=False;tool_failed=False
         search_query=web_search_request(prompt)
         app=requested_app(prompt)
@@ -197,6 +245,7 @@ class Agent:
             messages.append({'role':'tool','tool_name':'inspect_windows','content':model_evidence(result,max(1500,6000//max(1,len(required_checks))))})
             if tool_failed:break
         if required_checks and required_checks<=completed_checks:
+            self.diagnostic_pending=False
             messages[0]['content']+='\nThe requested diagnostic categories have now been collected. Report their findings and uncertainty. Do not repeat a completed collector, promise another check, or ask permission for the checks already requested. Empty driver records mean the query found no matching record, not proof of hardware failure. A further recommendation is a recommendation, not an action you performed.'
         for step in range(16):
             state.check_stop();raw='';parts=Segments();first=None;started=time.monotonic();final={};calls=[]
@@ -213,7 +262,7 @@ class Agent:
                     raw+=clean_reply(message.get('content',''))
                     if len(raw)>4000:raise ValueError('Model reply exceeded limit')
                     if raw and first is None:first=time.monotonic()-started
-                    if not calls and not desktop_task:
+                    if not calls and not desktop_task and state.chat.target!='current':
                         for text in parts.feed(raw):
                             if reply_issues(raw):raise ValueError('Unsupported advice withheld from the reply stream')
                             self.emit('text.delta',text=text+' ');segment(text)
@@ -226,7 +275,9 @@ class Agent:
                 messages.append({'role':'assistant','content':raw,'tool_calls':calls})
                 for call in calls:
                     state.check_stop()
-                    try:result=state.execute(call)
+                    try:
+                        if self.actions_paused and call.get('function',{}).get('name') in {'open_desktop_app','desktop_interact','desktop_switch','search_web','create_desktop_text','calculate_in_calculator','manage_window'}:raise ValueError('The previous action was cancelled. No new desktop action was requested.')
+                        result=state.execute(call)
                     except InterruptedError:raise
                     except Exception as error:result={'ok':False,'error':str(error)}
                     tool_failed=isinstance(result,dict) and bool(result.get('error'))
@@ -262,6 +313,9 @@ class Agent:
                     state.check_stop();state.chat.finish(messages,start);return
                 continue
             if not raw.strip():raise ValueError('The local model returned no usable answer')
+            if state.chat.target=='current' and repeated_target_question(raw):
+                if draft_retries>=2:raise ValueError('The model repeated an already confirmed target; no new diagnosis was verified')
+                draft_retries+=1;messages.append({'role':'system','content':'The target is already confirmed: Windows running SimplicityAI. Do not ask which Windows or VM again. Use collected findings or the connected read-only tools for the requested work.'});continue
             report_issue=diagnostic_report_issue(raw,completed_checks)
             if report_issue:
                 if draft_retries>=2:raise ValueError('Diagnostic report exceeded its evidence; measured facts remain in the evidence log')
@@ -295,6 +349,7 @@ class Session:
         self.listening=False;self.capture=0;self.output=True;self.closed=False
         self.pending=None;self.actor=None;self.paused=False;self.retained_audio=False;self.audio_serial=0
         self.tasks=[]
+        self.cancelled_turns=set();self.last_voice_request='';self.last_voice_at=0
     async def send(self,kind,**data):
         if self.closed:return
         event={'type':kind,**data}
@@ -341,6 +396,7 @@ class Session:
                             self.paused=False;await self.send('voice.resume');continue
                         if text.lower().strip('.!?') in {'stop','cancel','stop talking','stop listening'}:
                             self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
+                            self.agent.desktop_task=False;self.agent.diagnostic_pending=False;self.agent.actions_paused=True
                             listening=text.lower().strip('.!?')!='stop listening'
                             if not listening:await self.set_listening(False)
                             await self.send('voice.stop',listening=listening,reason='recognized voice command');continue
@@ -354,6 +410,20 @@ class Session:
         self.frames.put_nowait((self.capture,None))
     async def submit(self,text,source='typed'):
         if not isinstance(text,str) or not text.strip() or len(text)>4000:raise ValueError('Enter a message up to4000 characters')
+        if cancelled(text):
+            self.cancelled_turns.add(getattr(self.agent,'running_turn',self.turn));self.pending=None
+            self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
+            self.agent.desktop_task=False;self.agent.desktop_search_pending=False;self.agent.diagnostic_pending=False;self.agent.actions_paused=True
+            self.last_voice_request=''
+            reply='Stopped. I will not continue that task unless you ask again.'
+            chat=self.agent.state.chat
+            for role,content in [('user',text),('assistant',reply)]:chat.transcript.append({'id':len(chat.transcript),'role':role,'content':content})
+            chat.turns.append([{'role':'user','content':text},{'role':'assistant','content':reply}]);chat.turns=chat.turns[-5:]
+            await self.send('task.cancelled',text=text,source=source,reply=reply);return
+        if source=='voice':
+            now=time.monotonic()
+            if self.last_voice_request and now-self.last_voice_at<10 and continuation(self.last_voice_request,text):text=self.last_voice_request+' '+text
+            self.last_voice_request=text;self.last_voice_at=now
         self.pending=(text,source);self.agent.state.cancel.set()
         if not self.actor or self.actor.done():self.actor=asyncio.create_task(self.turn_loop())
     async def turn_loop(self):
@@ -368,7 +438,8 @@ class Session:
                 asyncio.run_coroutine_threadsafe(self.segments.put((turn,text)),self.loop).result(timeout=30)
             try:await asyncio.to_thread(self.agent.run,prompt,segment)
             except InterruptedError:
-                if self.agent.turn_reply.strip():self.agent.state.chat.fail(self.agent.turn_reply.strip()+'\n[Response interrupted.]')
+                if turn in self.cancelled_turns:self.cancelled_turns.discard(turn)
+                elif self.agent.turn_reply.strip():self.agent.state.chat.fail(self.agent.turn_reply.strip()+'\n[Response interrupted.]')
                 else:
                     # Preserve the interrupted request when the next utterance
                     # is a continuation such as "and what should I do next?".
@@ -385,7 +456,7 @@ class Session:
                 turn,text=await self.segments.get()
                 if turn!=self.turn or not self.output:continue
                 started=time.monotonic()
-                text=clean_reply(text).strip()
+                text=spoken_text(text)
                 if not text:continue
                 try:audio=await asyncio.to_thread(self.speaker.synthesize,text)
                 except ValueError:
@@ -414,7 +485,10 @@ class Session:
             if event not in {'audio_backpressure','audio_resumed'}:raise ValueError('Unknown client diagnostic')
             await self.send('activity',activity_kind='voice_transport',text=event)
         elif kind=='chat':await self.submit(value.get('text'))
-        elif kind=='cancel':self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel();await self.send('audio.clear')
+        elif kind=='cancel':
+            self.pending=None;self.agent.state.cancel.set();self.turn+=1;self.speaker.cancel()
+            self.agent.desktop_task=False;self.agent.diagnostic_pending=False;self.agent.actions_paused=True
+            await self.send('audio.clear')
         elif kind=='sound':
             self.output=bool(value.get('enabled'))
             if not self.output:self.speaker.cancel();await self.send('audio.clear')
@@ -425,6 +499,7 @@ class Session:
             self.agent.state.chat=TargetConversation();self.turn+=1;self.speaker.cancel()
             self.agent.desktop_task=False;self.agent.desktop_search_pending=False
             self.agent.state.recent_findings.clear();self.agent.table_requested=False
+            self.agent.diagnostic_pending=False;self.agent.actions_paused=False;self.last_voice_request=''
             await self.send('audio.clear');await self.send('chat.reset')
         elif kind=='close':await self.ws.close()
         else:raise ValueError('Unknown session control')

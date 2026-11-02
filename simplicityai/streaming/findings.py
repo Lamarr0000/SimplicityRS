@@ -7,6 +7,15 @@ EMOJI=re.compile('[\U0001F1E6-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]')
 def clean_reply(text):return EMOJI.sub('',text)
 
 
+def spoken_text(text):
+    text=clean_reply(text)
+    text=re.sub(r'\*\*([^*]+)\*\*|__([^_]+)__',lambda match:match[1] or match[2],text)
+    text=re.sub(r'`([^`]+)`',r'\1',text)
+    text=re.sub(r'\[([^\]]+)\]\([^)]+\)',r'\1',text)
+    text=re.sub(r'^\s*#{1,6}\s*','',text)
+    return re.sub(r'^\s*\*\*|\*\*\s*$','',text).strip()
+
+
 def table_view(result):
     area=result.get('area','diagnostic');sections=result.get('sections',[])
     note='Measured in the Windows running SimplicityAI. This does not inspect another/offline Windows installation.'

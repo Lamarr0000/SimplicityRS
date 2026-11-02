@@ -64,6 +64,7 @@ ws.onmessage=event=>{
   else if(kind==='voice.resume')playback.resume();
   else if(kind==='audio.clear')playback.clear();
   else if(kind==='voice.stop'){playback.clear();if(value.listening===false)microphone(false);else status('Reply stopped. Listening — you can speak now.');}
+  else if(kind==='task.cancelled'){playback.clear();busy=false;message(value.source==='voice'?voiceDisplay(value.text):value.text,'user');copyButton(message(value.reply,'assistant'));status(listening?'Task stopped. Listening.':'Task stopped.');}
   else if(kind==='turn.start'){currentTurn=value.turn;busy=true;playback.clear();message(value.source==='voice'?voiceDisplay(value.text):value.text,'user');answer=message('','assistant');status('Thinking…');}
   else if(kind==='text.delta'&&value.turn===currentTurn){answer.querySelector('span').textContent+=value.text;status('Replying…');scroll();}
   else if(kind==='audio'&&value.turn===currentTurn)playback.add(value);

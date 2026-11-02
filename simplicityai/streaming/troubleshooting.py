@@ -51,7 +51,7 @@ def guidance(prompt):
 
 def requested_checks(prompt):
     if re.search(r"\b(?:do not|don't|no need to)\s+(?:check|inspect|review|find|verify|look)\b",prompt,re.I):return set()
-    if not re.search(r'\b(check|inspect|review|find|verify|look)\b',prompt,re.I):
+    if not re.search(r'\b(check|inspect|review|find|verify|look|list)\b',prompt,re.I):
         if re.search(r'\b(?:my|this)\b',prompt,re.I):
             if re.search(r'out of (?:disk )?space|running low on space|disk (?:is )?full|drive (?:is )?full',prompt,re.I):return {'storage'}
             if re.search(r'computer (?:is |has been |keeps )?(?:slow|freezing|crashing)|pc (?:is )?slow',prompt,re.I):return {'system','storage','events'}

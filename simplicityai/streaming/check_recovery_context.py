@@ -4,7 +4,7 @@ from unittest.mock import Mock,patch
 import server
 from target_scope import TargetConversation
 from tool_state import ToolState
-from findings import clean_reply,table_view,table_text
+from findings import clean_reply,spoken_text,table_view,table_text
 from troubleshooting import diagnostic_report_issue
 
 RECOVERY='I put this recovery image into my computer and booted from it because Windows will not start.'
@@ -41,6 +41,8 @@ class RecoveryTests(unittest.TestCase):
 
     def test_emoji_removed_without_changing_math(self):
         self.assertEqual(clean_reply('4 × 8 = 32 😊'),'4 × 8 = 32 ')
+        self.assertEqual(spoken_text('**CPU** is busy.'),'CPU is busy.')
+        self.assertEqual(spoken_text('7*7 = 49'),'7*7 = 49')
 
     def test_driver_inventory_does_not_establish_update_availability(self):
         self.assertIsNotNone(diagnostic_report_issue('Your drivers are mostly up to date and properly signed.',{'drivers'}))

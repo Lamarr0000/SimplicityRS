@@ -222,3 +222,20 @@ Fixed viewer requests have an app-owned launch/observe route. Normal Popen eleva
 Removed assistant emoji at generation and speech boundaries; preserved arithmetic symbols. Driver reports cannot infer up-to-date from installed records. Conversation exports honor explicit requested filenames without overwriting. Primary issue no longer sticks to a greeting.
 
 54 Python regression checks and client voice/table/copy checks pass. Seven baseline, five desktop and three recovery-scope local-model cases pass using simulated observations. They do not certify general reasoning. No app restarted. Next user: Exit/reopen Voice Pilot; collect current-Windows storage/device facts and ask for the drive table again after an interruption. Offline Windows diagnosis remains a major missing capability; do not hide it with recovery-OS results.
+
+
+## November 1: live multi-turn controller regressions
+
+User's new conversation exposed repeated target/permission loops, cancelled actions resuming, incomplete spoken fragments replacing tasks, taskbar controls mistaken for app controls, and fragile close/minimize behavior. This was a coverage gap in the earlier isolated scenario tests. New regression source is the actual multi-turn sequence, not just short independent prompts.
+
+Target binding now accepts Windows installation that is running Simplicity A I, computer that's running it, and explicit this computer when no offline target is selected; negatives/outside targets remain blocked. General diagnostic requests route to the baseline after confirmation instead of asking permission repeatedly. A plain confirmation gets an app-owned acknowledgement and useful startup follow-up; a model cannot re-ask the confirmed target indefinitely. Greeting-only introductions no longer become the original fault.
+
+Cancellation (never mind/forget it/don't even worry about it) is handled before model/tool execution, clears pending plans and pauses mutating tool actions until a new explicit request. Voice continuations within a short window retain the original incomplete request. Basic spoken/numeric two-operand arithmetic routes directly to the existing real-Calculator verified-button/display tool; multi-operation expressions are not partially evaluated.
+
+Added observed-window identity tools: list_windows and manage_window, normal WM_CLOSE/minimize only, no process killing or unsaved-prompt dismissal. Exact pilot runtime executable identifies the real SimplicityAI window, rather than the VMware window with a similar title. Missing/ambiguous identity prevents action. Explicit close-browser and minimize-others workflows use these primitives and verify outcomes. UIA control IDs are now restricted to the foreground application tree; background Taskbar buttons cannot masquerade as Calculator controls. Semantic fingerprints ignore tree-drawing prefixes while still checking coordinates/control details and foreground state.
+
+64 Python regression checks and existing voice/table client checks pass. Nine-step simulated replay covers startup issue -> this-computer confirmation -> explicit diagnostic -> cancel -> browser open/close -> minimize others -> 1+1. No live window was closed/minimized during development; read-only enumeration saw no pilot native process (user had closed it), so minimize/close live verification remains for user. No app restarted. Normal Windows/security/VM/BRS settings unchanged.
+
+Next action: reopen Voice Pilot and retry a normal multi-step conversation. Do not call this production-ready based on a simulated replay; collect the next live log. Offline Windows inspection remains outside this pilot.
+
+Follow-up: existing seven diagnostic and five desktop model replays also pass. Calculator foreground activation is attempted only for the exact HWND returned by its verified tool, with ordinary APIs and an explicit failure report; not live-tested here. Speech preparation strips Markdown emphasis/link formatting without altering arithmetic operators. No window-management live actions occurred.
