@@ -355,7 +355,7 @@ class Preview(Lab):
                     self.flush()
                     label=('Acceptance outcome verified' if outcome['verified'] else
                            'Model reports finished; outcome unverified') if action['kind']=='finished' else 'User help needed'
-                    self.ui(lambda:self.status.set(label+': '+action['content']+' â€” please verify the result.'))
+                    self.ui(lambda:self.status.set(label+': '+action['content']+'  -  please verify the result.'))
                     return
                 points=[to_screen(action[key],image.size,physical['size'],physical['origin'])
                         for key in ('point','end') if key in action]
