@@ -744,3 +744,34 @@ The user retry verified taskmgr.exe foreground and matching High integrity (RID 
 
 ## Latest administrator Task Manager trial — completion reported, not independently verified
 User evidence: driver startup 3.215s; catalog launch and requested-app observation passed; both tokens High RID 12288. Four model calls 4.323, 6.312, 6.086, 5.683s (22.404s total), three clicks 1.202, 0.569, 0.575s. First model thought falsely described the foreground Task Manager as minimized and clicked an irrelevant point. Next it expanded navigation, selected Performance, then returned finished() describing Performance data. No stop/error in supplied log; independent_verification=false. Subsequent read-only Computer Use list_windows found no Task Manager window, so final view could not be independently confirmed. Record as model-reported completion, not a verified pass. No new code changes or repeat trial required solely to inspect this log. Next development priority: automated outcome verification and broader small acceptance set, not more Task Manager-specific prompt patches.
+
+
+## November 2: independent acceptance outcomes prepared
+
+Resumed from both handoffs. Source clean at 01a2e1e before work; unrelated BRS
+changes preserved. No model/app/relay/VM processes or known listeners observed;
+GPU compute idle. Both UI-TARS asset SHA256 values reverified. Latest disk preview
+log desktop-preview-20261101-215305-1.json is a browser speed-test request stopped
+at No interactive window before inference, distinct from the user-supplied Task
+Manager report. No prior Task Manager verified pass established.
+
+Added explicit two-case acceptance selector/CLI and independent read-only Windows
+UIA outcome predicates. Exact visible Notepad document text, or selected Task
+Manager Performance plus CPU/Memory labels required. Fresh bound foreground is
+checked before/after. Missing/incomplete/unsupported evidence remains unverified;
+custom/edited tasks cannot gain a verification pass. Outcome-only checks do not
+certify every prior action or task constraint. English UI and accessibility support
+remain live-validation limits. No model self-grading. Collector is cooperatively
+bounded; an individual UIA call can exceed its budget.
+
+Admin launcher now chooses task-manager-performance. Explicit catalog launches
+skip unrelated prior-window activation, then use existing launch observation.
+20 automated tests, compilation and VBS syntax validation pass. No app/model
+launched, microphone opened, UAC approved or desktop input sent this turn. Main
+Voice Pilot, normal installation, VM/shared package and BRS unchanged.
+
+NEXT: user opens existing SimplicityAI Desktop Preview (Admin), approves UAC,
+waits Ready, Start task with task-manager-performance selected, Copy evidence.
+Then blank Notepad exact-text and Stop-during-inference acceptance cases. No
+integration into Voice Pilot until live outcomes and cancellation pass. Agent
+idle awaiting this user-invoked elevated test; not silently running tests.

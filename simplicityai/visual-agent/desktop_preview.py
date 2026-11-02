@@ -8,6 +8,7 @@ import os
 import threading
 import time
 import tkinter as tk
+from tkinter import ttk
 
 import psutil
 from PIL import ImageGrab
@@ -17,6 +18,7 @@ from desktop_actions import decode, to_screen, requested_app, action_context_err
 from agent_context import AgentContext
 from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
+from outcome_verifier import CASES, verify
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
 LAUNCH_APPS=next(tool['function']['parameters']['properties']['app']['enum']
@@ -53,7 +55,8 @@ def window_identity(hwnd):
 
 
 class Preview(Lab):
-    def __init__(self, task=None):
+    def __init__(self, task=None, acceptance_case=None):
+        self.acceptance_case=acceptance_case
         super().__init__()
         self.window.title('SimplicityAI Desktop Preview - offline')
         self.canvas.pack_forget()
@@ -62,6 +65,11 @@ class Preview(Lab):
         for child in self.window.winfo_children():
             if isinstance(child,tk.Label) and 'Test area only' in str(child.cget('text')):
                 child.configure(text='Offline primary-desktop control. Stop or move the mouse to take over. UAC remains yours.')
+        self.case_choice=ttk.Combobox(self.window,state='readonly',width=35,
+            values=['Custom task',*CASES])
+        self.case_choice.pack(before=self.start_button.master,padx=18,pady=4)
+        self.case_choice.set(acceptance_case or 'Custom task')
+        self.case_choice.bind('<<ComboboxSelected>>',self.choose_case)
         self.taskbox=tk.Text(self.window,height=3,width=90,font=('Segoe UI',-18),wrap='word')
         self.taskbox.pack(before=self.start_button.master,fill='x',padx=18,pady=10)
         if task:
@@ -69,10 +77,17 @@ class Preview(Lab):
             self.taskbox.insert('1.0',task)
         self.start_button.configure(text='Start task')
         self.window.resizable(True,False)
-        self.window.geometry('1000x290')
+        self.window.geometry('1000x340')
         for child in self.window.winfo_children()[0].winfo_children():
             if isinstance(child,tk.Label):child.configure(text='SimplicityAI | Offline Desktop Preview')
         self.bridge=DesktopBridge(allowed=ALLOWED|{'Move'})
+
+    def choose_case(self,event=None):
+        case=self.case_choice.get()
+        self.acceptance_case=case if case in CASES else None
+        if self.acceptance_case:
+            self.taskbox.delete('1.0','end')
+            self.taskbox.insert('1.0',CASES[case][1])
 
     def set_ready(self):
         self.ready=True
@@ -102,7 +117,8 @@ class Preview(Lab):
             except (InterruptedError,psutil.Error,OSError):pass
             target=user32.GetWindow(target,2)
         else:target=None
-        if not target:
+        explicit_launch=bool(requested_app(task,LAUNCH_APPS))
+        if not target and not explicit_launch:
             self.start_button.configure(state='normal')
             self.status.set('Open the application you want to use before starting this preview.')
             return
@@ -110,7 +126,7 @@ class Preview(Lab):
         self.worker=threading.Thread(target=self.run_desktop,args=(task,),daemon=True)
         def begin():
             if self.closed.is_set():return
-            if not user32.SetForegroundWindow(target):
+            if not explicit_launch and not user32.SetForegroundWindow(target):
                 self.status.set('Windows did not activate the target application. No actions started.')
                 self.show_controller()
                 return
@@ -230,9 +246,20 @@ class Preview(Lab):
                     raise RuntimeError('Repeated action loop detected; stopped')
                 if action['kind'] in {'finished','call_user'}:
                     row['completion_claim']=action['kind']=='finished'
-                    row['independent_verification']=False
+                    outcome={'verified':False,'reason':'No independent verifier for this task'}
+                    if action['kind']=='finished' and self.acceptance_case:
+                        if task != CASES[self.acceptance_case][1]:
+                            outcome={'verified':False,'reason':'Acceptance task was edited; verifier does not apply'}
+                        else:
+                            outcome=verify(self.acceptance_case,identity,window_identity,
+                                           user32.GetForegroundWindow,self.check)
+                    self.check()
+                    row['outcome_verification']=outcome
+                    row['independent_verification']=outcome['verified']
+                    row['elapsed_seconds']=round(time.perf_counter()-started,3)
                     self.flush()
-                    label='Model reports finished' if action['kind']=='finished' else 'User help needed'
+                    label=('Acceptance outcome verified' if outcome['verified'] else
+                           'Model reports finished; outcome unverified') if action['kind']=='finished' else 'User help needed'
                     self.ui(lambda:self.status.set(label+': '+action['content']+' — please verify the result.'))
                     return
                 points=[to_screen(action[key],image.size,physical['size'],physical['origin'])
@@ -280,7 +307,7 @@ class Preview(Lab):
 
     def show_controller(self):
         self.start_button.configure(state='normal')
-        self.window.geometry('1000x290')
+        self.window.geometry('1000x340')
         self.window.deiconify()
 
     def flush(self):
@@ -292,5 +319,8 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser()
     parser.add_argument('--task',help='Prepopulate a task; does not start desktop control')
+    parser.add_argument('--acceptance-case',choices=sorted(CASES),help='Use an explicit task with independent outcome checks')
+    args=parser.parse_args()
+    if args.task and args.acceptance_case:parser.error('Choose --task or --acceptance-case')
     ROOT.mkdir(parents=True,exist_ok=True)
-    Preview(parser.parse_args().task).window.mainloop()
+    Preview(CASES[args.acceptance_case][1] if args.acceptance_case else args.task,args.acceptance_case).window.mainloop()

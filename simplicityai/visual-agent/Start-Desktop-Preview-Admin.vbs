@@ -12,7 +12,6 @@ If Not fs.FileExists(python) Or Not fs.FileExists(script) Then
     MsgBox "The preview runtime or source is missing.", 16, "SimplicityAI"
     WScript.Quit 1
 End If
-arguments = Chr(34) & script & Chr(34) & " --task " & Chr(34) & _
-    "Open Task Manager and select its Performance tab. Do not end any processes or change settings. Finish when the Performance view is visible." & Chr(34)
+arguments = Chr(34) & script & Chr(34) & " --acceptance-case task-manager-performance"
 Set app = CreateObject("Shell.Application")
 app.ShellExecute python, arguments, root, "runas", 1

@@ -118,8 +118,44 @@ also prevents input. Semantic action signatures now bound repeated-action loops.
 uses normal Windows `runas`/UAC and changes no UAC settings. For this experiment it
 elevates the whole preview, including child input/model processes. The user must
 approve UAC. A production build should separate the privileged input broker from
-the reasoning process. No administrator test has yet been performed.
+the reasoning process. Administrator trials have since run; the latest reported completion was not independently verified. See the session checkpoint.
 
 References:
 - https://github.com/bytedance/UI-TARS-desktop/blob/main/apps/ui-tars/src/main/agent/prompts.ts
 - https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput
+
+
+## Independent acceptance outcomes — November 2
+
+The preview now offers Custom task, `notepad-text`, and
+`task-manager-performance` in a selector. Selecting a case fills its exact task;
+editing that task disables its verifier. The existing Admin shortcut selects the
+Task Manager case through `--acceptance-case task-manager-performance`.
+
+At model completion, a separate read-only UI Automation traversal checks the
+same foreground HWND/process identity before and after collection. Notepad
+requires the exact test sentence in a visible editable document. Task Manager
+requires a selected Performance item and visible CPU and Memory labels. Missing,
+unsupported, incomplete or changed-window evidence remains unverified. Custom
+tasks remain model claims. No model is asked to grade its own answer.
+
+Collection is limited to 400 controls, depth 16 and a three-second cooperative
+budget. Individual Windows accessibility calls can exceed that budget. Checks
+currently expect English control names. They verify the final outcome only:
+they do not prove no other tab was touched or no setting was changed earlier.
+The evidence log records the predicate result and control count, not document
+contents. Live accessibility compatibility and selector layout are pending.
+
+Small live acceptance set (user-started, one model at a time):
+1. Open the existing Admin preview shortcut, approve normal UAC, wait Ready,
+   leave `task-manager-performance` selected, then Start task and Copy evidence.
+2. For `notepad-text`, first open a new blank Notepad tab yourself. Select the
+   case and Start task. Leave that test tab unsaved; do not use a personal document.
+3. Repeat either case and press Stop/Esc while the model is thinking. Evidence
+   must show cancellation without later input or a verified completion.
+
+No live case was run for this November 2 implementation. Twenty automated tests,
+Python compilation and administrator-launcher syntax validation pass. Explicit
+catalog launches now proceed directly to launch/foreground observation rather
+than depending on an unrelated window behind the controller. This does not add
+freeform browser launch routing, universal task verification or voice integration.
