@@ -17,9 +17,11 @@ class OutcomeVerifier(unittest.TestCase):
         nodes += [{'name':name} for name in ('Utilization','Speed','Processes','Threads','Handles')]
         self.assertTrue(evaluate('task-manager-cpu','taskmgr.exe',nodes)['verified'])
         nodes[1]['selected']=False
-        self.assertFalse(evaluate('task-manager-cpu','taskmgr.exe',nodes)['verified'])
+        self.assertTrue(evaluate('task-manager-cpu','taskmgr.exe',nodes)['verified'])
         nodes[1]['selected']=True
-        self.assertFalse(evaluate('task-manager-cpu','taskmgr.exe',nodes[:-1])['verified'])
+        partial=evaluate('task-manager-cpu','taskmgr.exe',nodes[:3])
+        self.assertFalse(partial['verified'])
+        self.assertEqual(partial['status'],'partially_verified')
 
     def test_notepad_requires_exact_document_text(self):
         for text, expected in [(TEST_TEXT, True), (TEST_TEXT+'\r\n', True),

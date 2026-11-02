@@ -8,6 +8,8 @@ class DocumentBoundary(unittest.TestCase):
     def test_calculator_blocks_memory_history_keys_and_unknown_modes(self):
         nodes=[{'name':'Standard'}, {'type':'ButtonControl','automation_id':'num1Button','rect':[10,20,30,40]}]
         require_calculator_action({'kind':'click'},nodes,True,[[15,25]])
+        nodes[0]['name']='Standard Calculator mode'
+        require_calculator_action({'kind':'click'},nodes,True,[[15,25]])
         for action,complete,point in [({'kind':'click'},True,[[100,100]]),
                                       ({'kind':'hotkey','shortcut':'ctrl+m'},True,[]),
                                       ({'kind':'type','content':'137+29'},True,[]),

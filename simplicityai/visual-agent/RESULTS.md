@@ -172,3 +172,52 @@ and a three-invalid-action stop. No UAC approval, token modification or security
 setting change was automated. Administrator retest remains pending user approval.
 Preview/server closed; Task Manager remains open. Do not claim its Performance task
 passed. Next required action is the Admin shortcut and normal Windows UAC approval.
+
+
+## November 2: consolidated suite executed; CPU confirmed, Calculator planning failed
+User requested less repeated cut/paste and explicitly authorized preview launch;
+also offered manual UAC approval. Computer Use skill read and used for preview
+lifecycle/independent screenshots. Medium helper could not control administrator
+preview. User approved UAC and later closed the elevated previews when requested.
+No UAC/security dialog automated and no security settings changed.
+
+Implemented Run acceptance suite, --batch/--suite-cases and separate
+Start-Acceptance-Suite-Admin.vbs. Sequential Performance/CPU/Calculator runs save
+acceptance-suite-*.json summaries, full per-case logs and last model screenshot.
+Stop/user takeover ends remaining suite cases; other failures are recorded and
+next cases run. Notepad excluded by default to preserve user documents. Preview
+height increased to show status. 31 tests and compilation pass.
+
+CPU independent check now accepts selected Performance + CPU heading + >=3 of5
+CPU-detail labels; optional CPU selection state recorded, not required. Insufficient
+matching evidence is partially_verified, missing evidence unverified. Saved real
+CPU screenshot independently inspected and visibly confirms CPU utilization,
+speed, processes, threads, handles. Earlier strict selection flag was false despite
+the correct screen. This is alternative independent evidence, not model self-grading.
+
+Consolidated elevated report acceptance-suite-20261102-103226.json:
+- Performance verified, one real click, model4.537s.
+- CPU page verified immediately, five labels+heading; zero additional actions
+  because prior case left CPU selected. Do NOT call separate deeper navigation pass.
+- Calculator initially blocked by foreground identification; no input then.
+
+Fixed actual compatibility causes before isolated Calculator rerun: top-level
+ApplicationFrameHost owns Calculator on this build. Resolve only one actual
+Calculator child process, preserve host_pid, check actual child's input integrity.
+Normal foreground recovery requests newest observed matching app without bypass.
+Calculator's observed UIA Header is Standard Calculator mode; accept that label.
+Read-only real UIA probe:89 controls, complete, actual arithmetic button IDs/rects.
+
+Final Calculator report acceptance-suite-20261102-103759.json:24 real model-chosen
+button clicks,160.079s inference, then step limit. Repeated1/3/clear loop; no137+29=
+or166. Independent final Computer Use screenshot visibly0. Launch/input capability
+passed; arithmetic/planning failed. No structured Calculator fast path substituted.
+No more user copying needed; evidence read directly from disk. Full consolidated
+report C:/SimplicityAI-Lab/VisualAgent/consolidated-acceptance-20261102.md + .json.
+Preserve earlier failures/evidence. _wmi signing issue remains separate/unresolved.
+
+Preview Exit used to stop owned service after testing; verify final listener/GPU
+state if resuming. Main Voice Pilot/normal app/VM/BRS not modified. Test Calculator
+and Task Manager windows left; no user files saved/deleted. Next priority is model/
+harness loop detection and planning/state reliability, varied cases before voice
+integration; not more Task Manager prompt patches. No further live test this turn.

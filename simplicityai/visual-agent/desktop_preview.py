@@ -19,6 +19,7 @@ from agent_context import AgentContext
 from windows_integrity import require_input_rights
 from window_wait import wait_for_launch
 from outcome_verifier import CASES, TEST_TEXT, collect, verify
+from suite_report import summarize
 from acceptance_guard import bind_document, check_document, require_document_action, require_calculator_action
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
@@ -46,17 +47,60 @@ def window_identity(hwnd):
     user32.GetWindowTextW.argtypes=[wintypes.HWND,wintypes.LPWSTR,ctypes.c_int]
     user32.GetWindowTextW(hwnd,title,len(title))
     name=process.name().lower()
+    host_pid=None
+    if name=='applicationframehost.exe':
+        import win32gui
+        hosted={}
+        def child_process(child,_):
+            child_pid=wintypes.DWORD()
+            user32.GetWindowThreadProcessId(child,ctypes.byref(child_pid))
+            try:
+                item=psutil.Process(child_pid.value)
+                if item.name().lower() in {'calculatorapp.exe','calculator.exe'}:
+                    hosted[item.pid]=item
+            except psutil.Error:pass
+        win32gui.EnumChildWindows(hwnd,child_process,None)
+        if len(hosted)==1:
+            host_pid=pid.value
+            process=next(iter(hosted.values()))
+            pid.value=process.pid
+            name=process.name().lower()
     if name in BLOCKED or any(label in title.value.lower() for label in
             ('user account control','windows security','choose a passkey','password manager')):
         raise InterruptedError('Protected application/dialog: return control to the user')
     rect=wintypes.RECT()
     user32.GetWindowRect(hwnd,ctypes.byref(rect))
     return {'hwnd':int(hwnd),'pid':pid.value,'created':process.create_time(),'process':name,
-            'title':title.value,'rect':(rect.left,rect.top,rect.right,rect.bottom)}
+            'title':title.value,'rect':(rect.left,rect.top,rect.right,rect.bottom),'host_pid':host_pid}
+
+
+def activate_requested_window(expected):
+    """Normal foreground request for the newest observed matching app; no focus bypass."""
+    import win32gui
+    expected={expected} if isinstance(expected,str) else set(expected)
+    candidates=[]
+    def visit(hwnd,_):
+        if not user32.IsWindowVisible(hwnd):return
+        try:
+            identity=window_identity(hwnd)
+            if identity['process'] in expected and identity['title']:
+                candidates.append((identity['created'],hwnd))
+        except (InterruptedError,psutil.Error,OSError):pass
+    win32gui.EnumWindows(visit,None)
+    if candidates:
+        newest=max(created for created,hwnd in candidates)
+        matches=[hwnd for created,hwnd in candidates if created==newest]
+        if len(matches)==1:user32.SetForegroundWindow(matches[0])
 
 
 class Preview(Lab):
-    def __init__(self, task=None, acceptance_case=None):
+    def __init__(self, task=None, acceptance_case=None, batch=False, suite_cases=None):
+        self.batch_active=False
+        self.batch_pending=[]
+        self.batch_results=[]
+        self.batch_report=None
+        self.auto_batch=batch
+        self.suite_cases=suite_cases or ['task-manager-performance','task-manager-cpu','calculator-addition']
         self.acceptance_case=acceptance_case
         super().__init__()
         self.window.title('SimplicityAI Desktop Preview - offline')
@@ -77,8 +121,10 @@ class Preview(Lab):
             self.taskbox.delete('1.0','end')
             self.taskbox.insert('1.0',task)
         self.start_button.configure(text='Start task')
+        self.suite_button=tk.Button(self.start_button.master,text='Run acceptance suite',command=self.start_suite,state='disabled')
+        self.suite_button.pack(side='left',padx=5)
         self.window.resizable(True,False)
-        self.window.geometry('1000x340')
+        self.window.geometry('1100x500')
         for child in self.window.winfo_children()[0].winfo_children():
             if isinstance(child,tk.Label):child.configure(text='SimplicityAI | Offline Desktop Preview')
         self.bridge=DesktopBridge(allowed=ALLOWED|{'Move'})
@@ -92,6 +138,10 @@ class Preview(Lab):
 
     def set_ready(self):
         self.ready=True
+        self.suite_button.configure(state='normal')
+        if self.auto_batch:
+            self.auto_batch=False
+            self.window.after(1500,self.start_suite)
         self.start_button.configure(state='normal')
         self.status.set('Ready. Describe a desktop task. Start minimizes this controller while the agent works.')
 
@@ -104,6 +154,7 @@ class Preview(Lab):
         self.run_id+=1
         self.log_path=ROOT/f'desktop-preview-{time.strftime("%Y%m%d-%H%M%S")}-{self.run_id}.json'
         self.start_button.configure(state='disabled')
+        self.suite_button.configure(state='disabled')
         self.status.set('Working on the requested desktop task. Restore this controller or move the mouse to take over.')
         self.window.update_idletasks()
         self.hwnd=user32.GetAncestor(self.window.winfo_id(),2)
@@ -204,11 +255,13 @@ class Preview(Lab):
                 self.check();phase=time.perf_counter()
                 result=launch_app(app)
                 expected_executable=os.path.basename(result['executable']).lower()
+                launch_expected=('calculatorapp.exe','calculator.exe') if app=='calculator' else expected_executable
                 self.save({'phase':'requested_app_launch','app':app,'result':result,
                            'seconds':round(time.perf_counter()-phase,3),
                            'selection':'explicit user request + existing catalog; not model inference'})
-                observed=wait_for_launch(os.path.basename(result['executable']).lower(),before,
-                    user32.GetForegroundWindow,user32.IsWindow,window_identity,self.check)
+                observed=wait_for_launch(launch_expected,before,
+                    user32.GetForegroundWindow,user32.IsWindow,window_identity,self.check,
+                    activate=lambda:self.ui(lambda:activate_requested_window(launch_expected)))
                 self.save({'phase':'requested_app_observed','foreground':observed})
                 feedback='The requested app launch tool returned: '+json.dumps(result)+'. Inspect the current window before continuing.'
             for step in range(24):
@@ -216,6 +269,7 @@ class Preview(Lab):
                 if time.perf_counter()-started>240:raise TimeoutError('Four-minute task limit reached')
                 image,physical,identity,stamp=self.ui(self.observe_desktop)
                 if case:
+                    image.save(self.log_path.with_suffix('.png'))
                     expected_processes={'calculatorapp.exe','calculator.exe'} if case=='calculator-addition' else {CASES[case][0]}
                     if identity['process'] not in expected_processes:
                         raise InterruptedError('Acceptance test requires its requested application in foreground; no input sent')
@@ -346,10 +400,45 @@ class Preview(Lab):
         finally:
             self.ui(self.show_controller)
 
+    def start_suite(self):
+        if not self.ready or (self.worker and self.worker.is_alive()):return
+        self.cancel.clear()
+        self.batch_active=True
+        self.batch_pending=list(self.suite_cases)
+        self.batch_results=[]
+        self.batch_report=ROOT/f'acceptance-suite-{time.strftime("%Y%m%d-%H%M%S")}.json'
+        self.next_suite_case()
+
+    def next_suite_case(self):
+        if self.worker and self.worker.is_alive():
+            self.window.after(100,self.next_suite_case);return
+        if self.cancel.is_set() or not self.batch_pending:
+            self.batch_pending=[]
+            self.batch_active=False
+            self.suite_button.configure(state='normal')
+            self.status.set('Suite stopped.' if self.cancel.is_set() else 'Suite complete. Report: '+str(self.batch_report))
+            return
+        case=self.batch_pending.pop(0)
+        self.acceptance_case=case
+        self.case_choice.set(case)
+        self.taskbox.delete('1.0','end');self.taskbox.insert('1.0',CASES[case][1])
+        self.start()
+
+    def stop(self):
+        self.batch_pending=[]
+        super().stop()
+
     def show_controller(self):
+        if self.batch_active:
+            self.batch_results.append(summarize(self.acceptance_case,self.records,str(self.log_path)))
+            self.batch_report.write_text(json.dumps({'cases':self.batch_results},indent=2),encoding='utf-8')
+            if any('control returned to the user' in row.get('reason','').lower() for row in self.records):
+                self.cancel.set()
+        self.suite_button.configure(state='normal' if not self.batch_pending else 'disabled')
         self.start_button.configure(state='normal')
-        self.window.geometry('1000x340')
+        self.window.geometry('1100x500')
         self.window.deiconify()
+        if self.batch_active:self.window.after(800,self.next_suite_case)
 
     def flush(self):
         self.log_path.write_text(json.dumps({'scope':'primary Windows desktop preview',
@@ -361,7 +450,9 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--task',help='Prepopulate a task; does not start desktop control')
     parser.add_argument('--acceptance-case',choices=sorted(CASES),help='Use an explicit task with independent outcome checks')
+    parser.add_argument('--batch',action='store_true',help='Run bounded acceptance cases once the model is ready')
+    parser.add_argument('--suite-cases',nargs='+',choices=sorted(CASES),help='Optional subset for batch runs')
     args=parser.parse_args()
     if args.task and args.acceptance_case:parser.error('Choose --task or --acceptance-case')
     ROOT.mkdir(parents=True,exist_ok=True)
-    Preview(CASES[args.acceptance_case][1] if args.acceptance_case else args.task,args.acceptance_case).window.mainloop()
+    Preview(CASES[args.acceptance_case][1] if args.acceptance_case else args.task,args.acceptance_case,args.batch,args.suite_cases).window.mainloop()

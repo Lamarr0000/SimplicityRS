@@ -50,7 +50,7 @@ def require_document_action(action, doc, points):
 
 
 def require_calculator_action(action, nodes, complete, points):
-    if not complete or not any(n.get('name') in {'Standard','Standard Calculator'} for n in nodes):
+    if not complete or not any(n.get('name') in {'Standard','Standard Calculator','Standard Calculator mode'} for n in nodes):
         raise InterruptedError('Calculator test requires an observable Standard-mode window; no input sent')
     if action['kind'] in {'wait','finished','call_user'}:
         return

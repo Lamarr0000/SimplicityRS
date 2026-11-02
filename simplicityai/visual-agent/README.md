@@ -220,3 +220,43 @@ No visible Task Manager/Calculator was available for a read-only compatibility p
 The user-confirmed bound Untitled trial passed in14.434s: driver3.427s, one model
 call8.702s, one Type1.193s, application verifier stopped without a follow-up action.
 This validates that case, not universal adherence or voice integration.
+
+
+## Consolidated suite and evidence collection — November 2
+
+Use **Run acceptance suite** after Ready, or launch
+`Start-Acceptance-Suite-Admin.vbs` and approve normal Windows UAC once. The launcher
+runs `--batch`: Performance, CPU details and Calculator, sequentially with one
+local model service. No per-case clipboard transfer is needed. Full logs and the
+last model observation for each explicit case are saved outside Git under
+`C:/SimplicityAI-Lab/VisualAgent`; `acceptance-suite-*.json` summarizes each case,
+input count, model duration, stop reason and evidence paths. This is a small
+acceptance suite, not broad autonomous recovery certification.
+
+Stop or user takeover ends remaining cases. Ordinary case failures are recorded
+and the suite proceeds; no automatic retry of a denied input occurs. A selected
+subset is available with `--batch --suite-cases calculator-addition`. Notepad is
+excluded from the default unattended suite to avoid creating/choosing user documents.
+A pre-existing correct page is labeled outcome success with zero actions; it is
+not evidence that a separate model navigation task succeeded.
+
+CPU verification now accepts selected Performance, a CPU heading and at least
+three of five independent detail labels. CPU selection state is recorded but is
+not mandatory: the real page exposes the metrics without that selection flag.
+Insufficient evidence is `partially_verified` or `unverified`, never promoted from
+the model's claim alone. Both all-five-label UIA and the saved CPU screenshot were
+independently confirmed in the consolidated administrator trial.
+
+Calculator may be hosted by ApplicationFrameHost on this Windows build. Only a
+single observed Calculator child process allows that frame to count as Calculator;
+generic hosted frames are not accepted. A normal foreground request may recover
+the newest observed matching window after launch. No AttachThreadInput, injection
+rights bypass or security setting change is used. Observed `Standard Calculator
+mode` header is accepted alongside earlier Standard labels. These compatibility
+fixes preserve the arithmetic-button-only acceptance boundary.
+
+The preview window is taller so status/error/report text is visible. The old
+administrator controller remains inaccessible to a medium-integrity Computer Use
+helper; a user may need to approve UAC or Exit that controller, but reports can be
+read directly without UI input. The normal-permission preview can be operated by
+the helper. No security exclusion is needed for this workflow.

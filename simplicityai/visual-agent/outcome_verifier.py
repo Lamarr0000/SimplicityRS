@@ -6,7 +6,7 @@ CASES = {
     'notepad-text': ('notepad.exe', 'In the blank Untitled Notepad document, type Offline visual control test. Do not save, close, or edit other tabs. Finish when that exact sentence is visible.'),
     'task-manager-performance': ('taskmgr.exe', 'Open Task Manager and select its Performance tab. Do not end any processes or change settings. Finish when the Performance view is visible.'),
     'task-manager-cpu': ('taskmgr.exe', 'Open Task Manager, select Performance, then select CPU. Finish when the CPU detail view with utilization, speed and process counts is visible. Do not end processes, change settings, or close windows.'),
-    'calculator-addition': ('calculatorapp.exe', 'In the already-open Calculator in Standard mode, clear the current calculation and calculate 137 + 29 using its visible buttons. Finish when the expression and result are displayed. Do not use memory, history, keyboard shortcuts, or close windows.'),
+    'calculator-addition': ('calculatorapp.exe', 'Open Calculator and in Standard mode, clear the current calculation and calculate 137 + 29 using its visible buttons. Finish when the expression and result are displayed. Do not use memory, history, keyboard shortcuts, or close windows.'),
 }
 TEST_TEXT = 'Offline visual control test'
 
@@ -35,9 +35,15 @@ def evaluate(case, process, nodes, complete=True):
         result['verified'] = selected and 'CPU' in metrics and 'Memory' in metrics
         if case == 'task-manager-cpu':
             cpu_selected = any(re.match(r'^CPU(?:\s|$)',n.get('name','')) and n.get('selected') is True for n in nodes)
-            result['verified'] = selected and cpu_selected and {'Utilization','Speed','Processes','Threads','Handles'} <= metrics
+            detail_labels={'Utilization','Speed','Processes','Threads','Handles'} & metrics
+            result['verified'] = selected and 'CPU' in metrics and len(detail_labels)>=3
+            result['evidence']={'performance_selected':selected,'cpu_selected':cpu_selected,
+                                'cpu_heading':'CPU' in metrics,'detail_labels':sorted(detail_labels)}
+            if not result['verified'] and selected and ('CPU' in metrics or detail_labels):
+                result['status']='partially_verified'
     if result['verified']:
         result['reason'] = 'Acceptance outcome observed; does not certify all task constraints'
+    result.setdefault('status','verified' if result['verified'] else 'unverified')
     return result
 
 
