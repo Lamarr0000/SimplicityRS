@@ -128,6 +128,18 @@ class Lab:
     def load_model(self):
         try:
             if self.closed.is_set(): return
+            # Refuse an already competing GPU model instead of silently paging two
+            # multi-GB agents through this host's 8 GB GPU. Read-only preflight.
+            try:
+                with self.opener.open('http://127.0.0.1:11434/api/ps',timeout=2) as response:
+                    residents = json.load(response).get('models',[])
+                competing = [model.get('name','unknown') for model in residents
+                             if model.get('size_vram',0)>1024**3]
+            except (OSError,ValueError):
+                competing = []
+            if competing:
+                raise RuntimeError('Another GPU model is loaded ('+', '.join(competing)+
+                    '). Close regular SimplicityAI and unload that Ollama model before opening this lab.')
             with socket.socket() as probe:
                 probe.bind(('127.0.0.1',8772))
             env = dict(os.environ, LLAMA_API_KEY=self.key)
@@ -256,15 +268,20 @@ class Lab:
             'records':self.records},indent=2),encoding='utf-8')
 
     def run(self,task,target):
+        run_started = time.perf_counter()
         try:
             # Initialize the existing local Windows-MCP driver before the first observation.
+            phase = time.perf_counter()
             self.bridge._start(self.check)
+            self.save({'phase':'driver_startup','seconds':round(time.perf_counter()-phase,3)})
             history = []
             deadline = time.monotonic()+180
             for step in range(12):
                 self.check()
                 if time.monotonic()>deadline: raise TimeoutError('Task time limit reached')
+                phase = time.perf_counter()
                 image,rectangle,revision = self.ui(self.capture)
+                capture_seconds = round(time.perf_counter()-phase,3)
                 page_before = self.ui(lambda:self.page)
                 image.save(ROOT/f'windows-lab-latest.png')
                 stream = io.BytesIO();image.save(stream,'PNG')
@@ -283,7 +300,10 @@ class Lab:
                 elapsed = round(time.perf_counter()-started,3)
                 self.check()
                 output = data['choices'][0]['message']['content'].strip()
-                row = {'step':step,'seconds':elapsed,'output':output,'page_before':page_before}
+                row = {'step':step,'seconds':elapsed,'model_seconds':elapsed,
+                       'capture_seconds':capture_seconds,'output':output,'page_before':page_before,
+                       'model_timings':data.get('timings',{}),
+                       'elapsed_seconds':round(time.perf_counter()-run_started,3)}
                 if output in ('Action: finished()', 'finished()'):
                     verified = self.ui(lambda:self.page==target)
                     row['verified_complete'] = verified
@@ -295,8 +315,10 @@ class Lab:
                 point = parse_click(output,*image.size)
                 screen = self.ui(lambda:self.validate_click(point,rectangle,revision))
                 self.check()
+                phase = time.perf_counter()
                 observation = self.bridge.call('Click',{'loc':screen,'button':'left','clicks':1},self.check)
-                row.update(point=point,driver=observation,page_after=self.ui(lambda:self.page))
+                row.update(point=point,driver=observation,driver_seconds=round(time.perf_counter()-phase,3),
+                           page_after=self.ui(lambda:self.page))
                 self.flush()
                 history.append(output)
                 time.sleep(.35)

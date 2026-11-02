@@ -86,3 +86,25 @@ User entry point: desktop shortcut **SimplicityAI Visual Agent Lab**. The lab is
 closed at handoff; opening the shortcut starts its own local model. Keep it visible
 while a test runs. All displayed diagnostic values are sample data. It is not yet
 connected to speech or general conversation, and cannot act outside its test area.
+
+## User timing investigation
+
+Latest user run `windows-lab-20261101-201419-1.json` completed correctly but model
+requests took 19.935, 21.223 and 20.590 seconds. Server timing attributes roughly
+19.5–20.7 seconds to prompt/image processing; output generation was only 0.09–0.42 s.
+This is a real slowdown versus the earlier isolated test, not established driver delay.
+
+Read-only Ollama inspection afterward reported qwen3:8b loaded with size_vram
+6,194,766,806 bytes. Alongside the visual model's measured ~6.6 GB, reported demand
+exceeds this 8 GB GPU. Memory contention/paging is a leading hypothesis; a controlled
+isolated rerun is still needed. Current Windows GPU usage alone cannot reconstruct
+historical physical residency.
+
+Added read-only startup preflight rejecting a resident Ollama model >1 GiB, plus
+separate driver startup, capture, model, driver-call and elapsed timings. This check
+does not detect every runtime or prevent another application loading a model later.
+The input-driver duration includes its handoff/click path, not a separate measurement
+of every release-indicator transition. No driver policy or user takeover was removed.
+
+The attempted Qwen unload + isolated-test command was rejected by automatic policy
+review. It was not retried by another route, and the isolated rerun remains pending.
