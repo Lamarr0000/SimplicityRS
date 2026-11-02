@@ -300,7 +300,10 @@ class Preview(Lab):
                 if self.cancel.wait(.3):self.check()
             raise RuntimeError('Step limit reached; completion is unverified')
         except BaseException as error:
-            self.save({'stopped':True,'reason':str(error)})
+            details={'stopped':True,'reason':str(error)}
+            if error.__cause__ is not None:
+                details['driver_cause']=str(error.__cause__)[:2000]
+            self.save(details)
             self.ui(lambda error=error:self.status.set(str(error)))
         finally:
             self.ui(self.show_controller)

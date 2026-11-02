@@ -775,3 +775,22 @@ waits Ready, Start task with task-manager-performance selected, Copy evidence.
 Then blank Notepad exact-text and Stop-during-inference acceptance cases. No
 integration into Voice Pilot until live outcomes and cancellation pass. Agent
 idle awaiting this user-invoked elevated test; not silently running tests.
+
+
+## November 2: first acceptance run stopped by desktop-control boundary
+User evidence: driver startup 5.826s; Task Manager launch and observed foreground
+passed, preview/target both High RID12288. First model decision 4.450s falsely
+called the visibly foreground app minimized and proposed click (73,238). No driver
+success was recorded; stop: Desktop control returned to the user; no automatic
+retry. Screenshot still shows Processes. No completion claim or verifier run.
+Do not blame user movement: exact trigger not established by supplied log.
+
+Read-only CodeIntegrity events 3033/3077 at 07:38:46/49 confirm managed pythonw.exe
+was denied loading its DLLs/_wmi.pyd under signing policy. This is a real runtime
+issue, but no causal link to the takeover stop established. No exclusions, security
+settings, runtime files or protection policy changed. Preserve takeover protections.
+Added underlying exception cause to preview stop evidence (when available), because
+bridge currently replaces specific takeover error with generic user-control text.
+20 tests and compilation pass; no new model/UI/input test. Next investigation:
+exact driver takeover reason and runtime provenance/compatible signed dependencies;
+do not repeat Task Manager prompts as if they repair either issue.
