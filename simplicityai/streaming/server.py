@@ -24,7 +24,7 @@ from conversation import CHAT_TOOLS, reply_issues
 from kokoro_speech import KokoroSpeech
 from model_connection import ModelConnection
 from voice import _guard_process
-from protocol import Segments
+from protocol import Segments,internal_output
 from target_scope import TargetConversation,CURRENT
 from tool_state import ToolState, TOOLS, CAPABILITIES, capability_reply
 from browser_tools import browser_report
@@ -324,10 +324,8 @@ class Agent:
                     raw+=clean_reply(message.get('content',''))
                     if len(raw)>4000:raise ValueError('Model reply exceeded limit')
                     if raw and first is None:first=time.monotonic()-started
-                    if not calls and not desktop_task and state.chat.target!='current' and not state.recent_findings:
-                        for text in parts.feed(raw):
-                            if reply_issues(raw):raise ValueError('Unsupported advice withheld from the reply stream')
-                            self.emit('text.delta',text=text+' ');segment(text)
+                    # Hold model prose until tool-call and internal-output checks finish.
+                    # A later chunk may reveal that a partial reply is a control dump.
                     if item.get('done'):final=item
             self.emit('model.timing',seconds=time.monotonic()-started,first_text_seconds=first,
                       metrics={k:final.get(k) for k in ('load_duration','prompt_eval_duration','eval_count','eval_duration')})
@@ -372,6 +370,10 @@ class Agent:
                         messages.append({'role':'assistant','content':'','tool_calls':[follow]})
                         messages.append({'role':'tool','tool_name':follow['function']['name'],'content':json.dumps(observed)})
                 continue
+            if internal_output(raw,control_task=desktop_task):
+                self.emit('activity',activity_kind='withheld_internal_output',text='Internal control data withheld from chat and speech.')
+                self.report(messages,start,'I could not produce a reliable task reply. Internal control data was withheld; task completion is unverified.',segment)
+                return
             if not parts.released:raw=re.sub(r'\bIs there anything else[^?]*\?','',raw,flags=re.I).strip()
             if not raw.strip():raise ValueError('The local model returned no usable answer')
             if state.chat.target=='current' and repeated_target_question(raw):
@@ -612,7 +614,7 @@ def create_app(model='gpt-oss:20b'):
         return web.FileResponse(ROOT/name,headers={'Cache-Control':'no-store'})
     async def health(request):
         if not permitted(request):raise web.HTTPForbidden()
-        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.4-prototype'})
+        return web.json_response({'app':'SimplicityAI-streaming','version':'0.7.5-prototype'})
     async def socket(request):
         if not permitted(request):raise web.HTTPForbidden()
         ws=web.WebSocketResponse(max_msg_size=16000,heartbeat=20);await ws.prepare(request)

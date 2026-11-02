@@ -1093,3 +1093,23 @@ requested Firefox selection and spoken export-name recognition remain unresolved
 Source health version is0.7.4; running pilot was NOT reloaded/interrupted in this turn.
 Do not claim these source fixes are live or broad reliability achieved. No UAC,
 security/VM/BRS/normal-installation changes. Agent idle at handoff.
+
+
+## November 2: internal control-data leakage fixed; 0.7.5 loaded
+User reports code pasted into chat during desktop tasks. Logs confirm prior model
+replies copied UI trees, [control N], [action: click], coordinates and fenced dumps.
+Added internal-output checks for observed tree markers, tool-protocol shapes/tokens
+and control-task code fences. Plain model prose is buffered through full-turn checks
+before chat/speech release, preventing late-chunk leaks and late tool-call mixtures.
+Detected internal output yields an honest completion-unverified report; it is never
+interpreted as executable tool instructions and no action is replayed. Pattern guard
+is not a semantic proof against every possible internal-data paraphrase. Tradeoff:
+first model sentence waits for the full model reply. Ordinary code explanations
+remain supported outside control tasks. 88 streaming regression tests pass, including
+late control-dump withholding and no execution. No new live model/desktop benchmark.
+
+Pilot was closed; launched updated source (includes prepared0.7.4 routing fixes).
+/health0.7.5-prototype and independent native UI Ready verified, Mute mic disabled.
+Pilot OPEN, microphone OFF. No UAC needed. Normal installation, VM, BRS and security
+settings unchanged. Existing exports/logs preserved. Speech recognition, stale model
+context and missing Windows endpoint mute/volume tool remain unresolved. Agent idle.

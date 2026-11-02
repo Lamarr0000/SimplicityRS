@@ -77,6 +77,26 @@ class ReportedTests(unittest.TestCase):
                 self.assertIn('cannot read or change',' '.join(spoken))
                 self.assertNotIn('confirmed',' '.join(spoken))
 
+    def test_late_control_dump_is_neither_spoken_nor_executed(self):
+        spoken=[];events=[]
+        agent=server.Agent(lambda kind,**data:events.append((kind,data)),'qwen3:8b')
+        agent.state.execute=Mock(side_effect=AssertionError('Text is never a tool call'))
+        chunks=[{'message':{'content':'Let me explain what I see. '},'done':False},
+                {'message':{'content':'[control 98] (2912,36) button "Minimize" [action: click]'},'done':True}]
+        response=io.BytesIO(('\n'.join(json.dumps(x) for x in chunks)+'\n').encode())
+        with patch.object(agent.connection,'open',return_value=response):agent.run('help with this window',spoken.append)
+        visible=' '.join(data.get('text','') for kind,data in events if kind=='text.delta')
+        self.assertNotIn('[control',visible);self.assertNotIn('Let me explain',visible)
+        self.assertNotIn('[action',' '.join(spoken));self.assertIn('unverified',visible)
+        agent.state.execute.assert_not_called()
+
+    def test_output_guard_preserves_ordinary_explanations(self):
+        from protocol import internal_output
+        self.assertFalse(internal_output('Calculator shows 49.'))
+        self.assertFalse(internal_output('Example Python: ```print(49)```'))
+        self.assertTrue(internal_output('```click(42)```',control_task=True))
+        self.assertTrue(internal_output('{"function": {"name": "desktop_interact", "arguments": {}}}'))
+
     def test_progressively_released_chat_prefix_is_not_rewritten(self):
         agent=server.Agent(Mock(),'qwen3:8b')
         chunks=[{'message':{'content':'Hello. '},'done':False},
