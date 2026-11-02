@@ -18,6 +18,8 @@ URL = 'http://127.0.0.1:8772/v1/chat/completions'
 def parse_click(text, width, height):
     """UI-TARS 1.5 coordinates use the resized image's pixel space (upstream guide)."""
     actions = re.findall(r'^Action:\s*(.+)$', text, re.M)
+    if not actions and len(text.strip().splitlines()) == 1:
+        actions = [text.strip()]
     if len(actions) != 1:
         raise ValueError('Expected exactly one Action line')
     call = ast.parse(actions[0].strip(), mode='eval').body

@@ -647,3 +647,22 @@ No cloud inference used; networking was not physically disconnected for this tes
 Source and measured limits: simplicityai/visual-agent/RESULTS.md. Next: bounded real
 Windows visual-control benchmark, foreground/DPI mapping, cancellation and outcomes,
 then integrate only if it passes. Do not replace the current pilot based on fixtures.
+
+## November 1: native offline visual-agent lab ready for user test
+
+Added simplicityai/visual-agent/desktop_lab.py and desktop shortcut SimplicityAI
+Visual Agent Lab. Real Windows screenshot pixels -> local UI-TARS -> Windows-MCP
+mouse input -> real changed app screen -> independent completion verification.
+Restricted to owned sample-data canvas; no arbitrary app control or diagnostic claims.
+Per-launch local bearer auth, owned model process/job, Stop/Esc and actual Exit.
+
+Live drive and network tasks passed in 3 decisions, about 1.9–2.5 s/decision at
+250% host display scaling. Device details passed but took 9 decisions with redundant
+backtracking; not ready to replace the main agent. Stop during pending response
+prevented further input. Exit freed GPU and closed listener. Parser/boundary tests pass.
+Corrected bare-action formatting adapter issue; no real input occurred on that failure.
+
+Lab closed at handoff. User next: open desktop shortcut, wait Ready, select a test,
+Start visual test, keep window visible. Stop/Esc ends actions; Exit stops owned service.
+No speech integration yet. Working SimplicityAI/VM/BRS preserved. Next development
+is non-lab Windows validation and reliability, not broad integration based on these tests.

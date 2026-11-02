@@ -41,3 +41,25 @@ layouts, real Windows control, stop behavior, and repeat with external networkin
 `feedback_probe.py` now exercises screenshot feedback, a simulated missed click,
 target movement and independently checked completion. See RESULTS.md for measured
 results and limits. Run probes using the existing ThemHands venv Python (Pillow).
+
+## Native Windows lab
+
+Run `Start-Visual-Agent-Lab.cmd`, or the desktop shortcut **SimplicityAI Visual
+Agent Lab**. Wait for Ready; choose Drive report, Device details or Network report;
+click Start visual test and keep the window visible. Stop or Esc prevents further
+input; a pending inference can finish before another test becomes available.
+Exit closes this app and its owned model server. It does not stop Ollama or the
+working SimplicityAI installation. Do not run two GPU models during comparisons.
+
+This is a real Tk Windows window with sample diagnostic screens, not a PC health
+assessment. The model sees only a cropped screen capture, chooses coordinates,
+and Windows-MCP sends actual Windows mouse input. Navigation changes the real UI;
+completion is checked against application state. It cannot click outside its test
+canvas, type, open other applications, or repair anything. Native foreground,
+window geometry, screen bounds, occlusion sample points, revision and destination
+checks reject stale/covered targets. This prototype is not a hardened general
+desktop driver: foreground/occlusion can change in the interval before input.
+
+Loopback model requests use a per-launch random bearer credential, inherited only
+by the owned model process; no cloud account/token is involved. Runtime logs and
+bounded-canvas captures stay under the external VisualAgent folder, outside Git.

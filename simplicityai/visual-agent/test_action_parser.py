@@ -8,6 +8,7 @@ class ActionBoundary(unittest.TestCase):
         self.assertEqual(parse_click(
             "Action: click(start_box='<|box_start|>(500,500)<|box_end|>')", 1000, 600),
             (500, 500))
+        self.assertEqual(parse_click("click(start_box='(300,250)')",1000,600),(300,250))
 
     def test_rejects_executable_and_ambiguous_output(self):
         for text in [

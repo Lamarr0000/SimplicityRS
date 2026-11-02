@@ -49,3 +49,40 @@ Do not replace the current Qwen pilot solely because these fixture tests passed.
 Local evidence: `grounding-results.json`, `feedback-results.json`, generated PNGs,
 initial mismatch results and runtime logs under `C:\SimplicityAI-Lab\VisualAgent`.
 Test server is stopped at this checkpoint to free GPU memory.
+
+## Native Windows lab follow-up
+
+Built a separate Tk Windows app and connected real screen captures to UI-TARS and
+the existing local Windows-MCP input driver. App controls are canvas-rendered, so
+the model receives pixels, not labels, DOM, accessibility coordinates or hidden state.
+Application state is used only for independent completion checks.
+
+Live results on the host at 250% scaling:
+
+- Drive report: two real Windows clicks and verified finish, decisions 2.358,
+  2.191 and 1.850 seconds.
+- Device details: reached and independently verified the requested details, but
+  required eight clicks plus finish (nine decisions, roughly 1.9–2.5 s each).
+  Repeated/backtracking clicks are a reliability concern, not a clean efficiency pass.
+- Network report: two real clicks and verified finish, decisions 2.463,
+  2.180 and 1.868 seconds.
+- Stop clicked during a pending response: saved cancellation and discarded the
+  pending result after two already completed clicks. It did not report completion
+  or send additional input afterward. Stop does not undo already completed input.
+- Exit closed the owned model server, removed the loopback listener and freed GPU
+  allocation. The regular SimplicityAI installation was not restarted or edited.
+
+The first live attempt rejected the model's action formatting before sending input.
+The adapter now accepts a single literal click with or without the Action prefix;
+multiple actions and executable expressions remain rejected. Raw action output is
+saved before parsing, including on later failure.
+
+Parser and window-boundary tests pass. They cover cancellation, foreground change,
+changed revision, covered destination, out-of-area points and coordinate mapping.
+These unit checks are distinct from live tests; foreground/occlusion race hardening
+and real non-lab application control remain outstanding.
+
+User entry point: desktop shortcut **SimplicityAI Visual Agent Lab**. The lab is
+closed at handoff; opening the shortcut starts its own local model. Keep it visible
+while a test runs. All displayed diagnostic values are sample data. It is not yet
+connected to speech or general conversation, and cannot act outside its test area.
