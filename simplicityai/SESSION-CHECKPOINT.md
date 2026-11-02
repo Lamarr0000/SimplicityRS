@@ -735,3 +735,6 @@ NEXT USER ACTION: open Admin shortcut, approve UAC, wait Ready, click Start task
 prefilled read-only Task Manager/Performance request; paste Copy evidence. No process
 termination or settings changes requested. Work is paused at this required manual UAC
 step, not silently continuing. Announce explicitly that the agent is idle awaiting test.
+
+## Foreground activation retry fix — 2026-11-01
+User's administrator test launched Task Manager but stopped with No interactive window before model inference or input. The launch polling called window_identity on a temporarily absent foreground HWND. Added bounded polling that tolerates null/invalid HWNDs and requires the requested executable, rather than accepting any changed window. Added three regression checks; all 15 visual-agent tests pass. Live administrator retry remains pending; no Task Manager success claimed. Reopen the existing Admin shortcut, approve UAC, Start task, then Copy evidence.

@@ -16,6 +16,7 @@ from desktop_bridge import DesktopBridge, ALLOWED
 from desktop_actions import decode, to_screen, requested_app
 from agent_context import AgentContext
 from windows_integrity import require_input_rights
+from window_wait import wait_for_launch
 from desktop_tools import DESKTOP_TOOLS,launch_app
 
 LAUNCH_APPS=next(tool['function']['parameters']['properties']['app']['enum']
@@ -185,19 +186,9 @@ class Preview(Lab):
                 self.save({'phase':'requested_app_launch','app':app,'result':result,
                            'seconds':round(time.perf_counter()-phase,3),
                            'selection':'explicit user request + existing catalog; not model inference'})
-                deadline=time.monotonic()+8
-                while time.monotonic()<deadline:
-                    self.check()
-                    current=user32.GetForegroundWindow()
-                    same_requested_exe=False
-                    if result.get('executable'):
-                        expected=os.path.basename(result['executable']).lower()
-                        # Shared MMC hosts still need a new observed window.
-                        same_requested_exe=(expected!='mmc.exe' and
-                            window_identity(current)['process']==expected)
-                    if current!=before or same_requested_exe:break
-                    time.sleep(.1)
-                else:raise InterruptedError('Launch requested, but no new foreground window was observed; no visual input sent')
+                observed=wait_for_launch(os.path.basename(result['executable']).lower(),before,
+                    user32.GetForegroundWindow,user32.IsWindow,window_identity,self.check)
+                self.save({'phase':'requested_app_observed','foreground':observed})
                 feedback='The requested app launch tool returned: '+json.dumps(result)+'. Inspect the current window before continuing.'
             for step in range(24):
                 self.check()
