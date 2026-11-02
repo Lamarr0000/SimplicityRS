@@ -17,7 +17,7 @@ def document_state(identity, nodes, complete):
 
 def bind_document(identity, nodes, complete):
     tab, doc = document_state(identity, nodes, complete)
-    if identity['title'].lstrip('*') != 'Untitled - Notepad' or tab['name'].lstrip('*') != 'Untitled':
+    if identity['title'].lstrip('*') != 'Untitled - Notepad' or tab['name'] not in {'Untitled', 'Untitled. Unmodified.'}:
         raise InterruptedError('Notepad test requires a new Untitled tab. No document was edited.')
     if doc['text'].rstrip('\r\n'):
         raise InterruptedError('Notepad test requires an empty document. No document was edited.')

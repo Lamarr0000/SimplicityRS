@@ -10,6 +10,13 @@ class DocumentBoundary(unittest.TestCase):
         self.nodes=[{'type':'TabItemControl','name':'Untitled','selected':True,'runtime_id':[1]},
                     {'type':'DocumentControl','text':'','runtime_id':[2],'rect':[10,20,100,200]}]
 
+    def test_observed_notepad_accessibility_label(self):
+        self.nodes[0]['name']='Untitled. Unmodified.'
+        self.assertEqual(bind_document(self.identity,self.nodes,True)['tab'],[1])
+        for name in ('Untitled.txt. Unmodified.','Untitled. Modified.','Other Untitled'):
+            self.nodes[0]['name']=name
+            with self.assertRaises(InterruptedError):bind_document(self.identity,self.nodes,True)
+
     def test_rejects_actual_named_document_regression(self):
         self.identity['title']='New Text Document.txt - Notepad'
         with self.assertRaises(InterruptedError):bind_document(self.identity,self.nodes,True)

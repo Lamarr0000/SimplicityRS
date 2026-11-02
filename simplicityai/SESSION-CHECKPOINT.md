@@ -824,3 +824,16 @@ Pilot, BRS/VM/security unchanged. NEXT USER: Exit/reopen preview, choose notepad
 open a new blank Untitled Notepad tab, Start task, Copy evidence. Expect binding,
 type, then application verification without redundant model action. Named document
 should be refused before input. Agent idle awaiting live result; no silent work.
+
+
+## November 2: Untitled accessibility-label mismatch corrected
+User suspected UAC after document guard stopped. Read-only real Notepad probe
+found window Untitled - Notepad, selected UIA tab Untitled. Unmodified., empty
+Text editor document. Exact tab-name guard was too strict; not an input-rights
+failure. Accept only Untitled or this observed Untitled. Unmodified. label while
+retaining exact window title, empty document and runtime identity requirements.
+Regression rejects Untitled.txt. Unmodified., modified/other labels. 25 tests and
+compilation pass; read-only binding against current real blank Notepad passes.
+No UI input, app restart or security change. User next: Exit/reopen preview to
+load fix, select notepad-text, keep existing blank Untitled document active,
+Start task, Copy evidence. Agent idle awaiting live test.
