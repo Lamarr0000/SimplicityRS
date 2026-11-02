@@ -47,4 +47,3 @@ def window_identity(hwnd):
     user32.GetWindowRect(hwnd,ctypes.byref(rect))
     return {'hwnd':int(hwnd),'pid':pid.value,'created':process.create_time(),'process':name,
             'title':title.value,'rect':(rect.left,rect.top,rect.right,rect.bottom),'host_pid':host_pid}
-
