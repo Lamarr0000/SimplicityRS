@@ -980,3 +980,42 @@ backend functional but not main-app integrated. Do not describe full voice/brows
 integration as complete. Preserve all previous failure evidence.
 
 Final check:42 tests pass, including no replay after a post-action verifier error.
+
+
+## November 2: Voice Pilot shared controls integrated, running0.7.1 and Ready
+User requested proceeding and explicit UAC/idle notices. Implemented named native
+control tool and controlled-browser routing in streaming, retaining existing speech,
+Windows diagnostics/Calculator tools and legacy desktop paths. Details in
+streaming/SHARED-CONTROL.md. Current source uses shared native WindowsAdapter;
+read-only identity extracted into visual-agent/desktop_identity.py without UI/model
+imports. desktop_observe offers structured controls, desktop_click_control consumes
+snapshot, re-resolves/guards identity/readiness, uses protected Windows-MCP click.
+
+OwnedBrowser client launches isolated Playwright worker over private bounded JSON
+pipes, job owns browser descendants; no personal Edge profile/debug port. Tools
+browser_open/observe/act and ordinary search_web route there. Forced relevant
+observation follows native/browser mutations. Scope, cancelled-action gating and
+model instructions updated. Snapshot/page binding, no replay, Stop/New chat/Exit
+cleanup and desktop ownership monitoring included. HTTPS/blank only, credential URLs
+and password/file/hidden fields rejected; consequential/account controls refused.
+Not a hardened sandbox or general planning certification. No-input refusals preserve
+context for a fresh observation, unknown-action failures/cancel close it. Observation
+cannot silently reopen it. No auth/security prompts automatically handled.
+
+70 streaming +42 visual/shared tests pass. Real new Voice Pilot desktop path verified
+clear/Seven/clear and rejected consumed snapshot reuse. Real browser-worker/router
+integration with actual ownership checks and offline fixture passed fill/click,
+unsafe URL/consequential refusal, context retention, cancellation and owned-child
+cleanup. Reports under C:/SimplicityAI-Lab/ControlAdapter. No new live model planning
+benchmark or microphone/audio capture test.
+
+Started known Ollama with original loopback/model path, cloud disabled; version/tags
+checks passed (qwen3:8b present). No relay/firewall/power changes. Launched updated
+Voice Pilot: /health0.7.1-prototype; independent UI observation said Ready. Type a
+message or click Talk. Talk inactive and Mute mic disabled. HOST VOICE PILOT IS OPEN
+AND READY, user owns microphone activation/permission. No UAC needed. Normal app,
+VM/shared installer/BRS unchanged. Do not close pilot/model service under an old idle
+checkpoint. Agent goes idle at handoff; user may try natural browser/Windows task.
+Read saved logs directly rather than requesting clipboard exports. General model
+planning and arbitrary-site behavior still need live validation; no broad readiness
+claim. Preserve _wmi signing issue as separate unresolved item, no security changes.

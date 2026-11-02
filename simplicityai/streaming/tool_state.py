@@ -26,7 +26,8 @@ CAPABILITIES={
                  'export app-recorded conversation, both speakers, without model reconstruction',
                  'launch Task Manager; read-only sampled per-process CPU ranking',
                  'focused system/storage/device/driver/service/event/update/security/startup diagnostics',
-                 'launcher/Lazesoft reference catalog'],
+                 'launcher/Lazesoft reference catalog','named Windows control lookup/readiness checks',
+                 'owned temporary Edge context with Playwright structured page controls'],
     'not_connected':['visual interpretation of inaccessible/custom controls','validated Lazesoft recovery workflows',
                      'repairs','another/offline Windows installation'],
     'desktop_driver':'Local stdio Windows-MCP; lazy initialization verifies actual tool registration; failure is reported, never simulated',
@@ -55,7 +56,7 @@ class ToolState(State):
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()
-            local_actions={'desktop_observe','desktop_switch','desktop_interact','open_desktop_app','search_web','create_desktop_text','export_conversation','list_windows','manage_window'}
+            local_actions={'desktop_observe','desktop_switch','desktop_interact','desktop_click_control','browser_open','browser_observe','browser_act','open_desktop_app','search_web','create_desktop_text','export_conversation','list_windows','manage_window'}
             from target_scope import OTHER
             explicitly_other=OTHER.search(self.chat.current_user or '')
             if self.chat.target=='other' and name not in {'get_recovery_tool_catalog','get_recent_findings'} and (name not in local_actions or explicitly_other or not self.chat.current_user):raise ValueError('The affected Windows is not connected. Current recovery-environment checks would not diagnose that installation.')
@@ -94,7 +95,8 @@ class ToolState(State):
             result['troubleshooting_approach']=guidance('')
             result['desktop_runtime']={'initialized':self.desktop.bridge.client is not None,
                                        'loaded_tools':sorted(self.desktop.bridge.names),
-                                       'last_observation':self.desktop.snapshot}
+                                       'last_observation':self.desktop.snapshot,
+                                       'owned_browser_running':self.desktop.browser.process is not None and self.desktop.browser.process.poll() is None}
             self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
             self.emit('observation',json.dumps(result));return result
         if self.chat.target=='other':raise ValueError('That computer is not connected. No browser was opened.')

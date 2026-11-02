@@ -47,9 +47,9 @@ get_by_role; generic control ID maps to the page's data-testid. An owned page/
 context must be supplied by the caller. No personal browser profile, existing
 browser account, arbitrary model-authored JavaScript or persistent remote-debug
 port is opened by this adapter. Page permissions/navigation policy belong to that
-caller. It is not yet routed from the Voice Pilot or attached to arbitrary user
-Edge windows. This is the working browser backend for future controlled-browser
-routing, not a claim that main-app browser integration is complete.
+caller. The Voice Pilot now routes these operations through its owned-browser worker;
+it does not attach to arbitrary user Edge windows. See streaming/SHARED-CONTROL.md
+for the current integration, permission boundaries and lifecycle checks.
 
 Optional dependencies are pinned in requirements-browser.txt. Installed isolated
 runtime: C:/SimplicityAI-Lab/ControlAdapter/.venv. Existing voice dependencies and
@@ -84,3 +84,6 @@ Playwright is used for browser operations; its architecture informs the Windows
 contract. The existing Windows-MCP MIT source supplies UIA inspection and guarded
 input, with its existing notices preserved. No Playwright implementation was copied
 into the Windows adapter.
+
+
+Voice Pilot integration has since passed the checks documented in ../streaming/SHARED-CONTROL.md.

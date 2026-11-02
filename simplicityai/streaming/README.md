@@ -239,3 +239,9 @@ Added observed-window identity tools: list_windows and manage_window, normal WM_
 Next action: reopen Voice Pilot and retry a normal multi-step conversation. Do not call this production-ready based on a simulated replay; collect the next live log. Offline Windows inspection remains outside this pilot.
 
 Follow-up: existing seven diagnostic and five desktop model replays also pass. Calculator foreground activation is attempted only for the exact HWND returned by its verified tool, with ordinary APIs and an explicit failure report; not live-tested here. Speech preparation strips Markdown emphasis/link formatting without altering arithmetic operators. No window-management live actions occurred.
+
+
+## Shared controls in host pilot0.7.1
+
+See SHARED-CONTROL.md for connected named Windows controls, owned Playwright browser
+routing, Stop/New chat/Exit behavior, runtime preparation and verification limits.

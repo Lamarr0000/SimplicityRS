@@ -85,10 +85,11 @@ class BaselineTests(unittest.TestCase):
         from desktop_tools import DesktopTools
         from urllib.parse import urlsplit,parse_qs
         query='computer speed & storage test'
-        with patch('desktop_tools.launch_app',return_value={'launch_requested':True}) as launch:
-            DesktopTools().execute('search_web',{'query':query},lambda:None)
-        app,url=launch.call_args.args
-        self.assertEqual(app,'edge');self.assertEqual(parse_qs(urlsplit(url).query)['q'],[query])
+        desktop=DesktopTools()
+        with patch.object(desktop,'browser_call',return_value={'opened':True}) as launch:
+            desktop.execute('search_web',{'query':query},lambda:None)
+        op,arguments,_=launch.call_args.args
+        self.assertEqual(op,'open');url=arguments['url'];self.assertEqual(parse_qs(urlsplit(url).query)['q'],[query])
 
     def test_search_workflow_routes_explicit_request_not_negation(self):
         self.assertEqual(web_search_request('Can you open a browser and search for speed tests googal search please'),'speed tests')
