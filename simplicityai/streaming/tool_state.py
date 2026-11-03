@@ -1,6 +1,7 @@
 """Pilot-only extension of existing guarded ThemHands tools."""
 import json
 import re
+from pathlib import Path
 from app import State
 from conversation import CHAT_TOOLS, tool
 from browser_tools import open_browser
@@ -11,8 +12,9 @@ from windows_baseline import BASELINE_TOOLS,inspect_windows
 from troubleshooting import guidance
 from findings import table_view,table_text
 from task_agenda import conversation_export_request
+from driver_packages import DRIVER_TOOLS,DriverPackages,verify_backup,requested_source,offline_request,CONFIRM_EXPORT
 
-TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+[
+TOOLS=CHAT_TOOLS+DESKTOP_TOOLS+BASELINE_TOOLS+DRIVER_TOOLS+[
     tool('get_tool_capabilities','Read the actual connected ThemHands capabilities and target. No desktop action or diagnostic.')]
 
 CAPABILITIES={
@@ -27,9 +29,11 @@ CAPABILITIES={
                  'launch Task Manager; read-only sampled per-process CPU ranking',
                  'focused system/storage/device/driver/service/event/update/security/startup diagnostics',
                  'launcher/Lazesoft reference catalog','named Windows control lookup/readiness checks',
-                 'owned temporary Edge context with Playwright structured page controls'],
+                 'owned temporary Edge context with Playwright structured page controls',
+                 'third-party driver inventories and reviewed package export from running or explicitly selected mounted offline Windows',
+                 'SHA256 manifests and later driver-backup integrity checks'],
     'not_connected':['visual interpretation of inaccessible/custom controls','validated Lazesoft recovery workflows',
-                     'repairs','another/offline Windows installation'],
+                     'repairs','general offline Windows diagnosis, mounting/unlocking drives, driver install/removal, or access outside a VM'],
     'desktop_driver':'Local stdio Windows-MCP; lazy initialization verifies actual tool registration; failure is reported, never simulated',
     'browser_launch_is_not_internet_test':True}
 
@@ -47,14 +51,42 @@ def capability_reply(text):
 
 class ToolState(State):
     def __init__(self):
-        super().__init__();self.desktop=DesktopTools();self.recent_findings={}
+        super().__init__();self.desktop=DesktopTools();self.recent_findings={};self.driver_packages=DriverPackages()
 
-    def close(self):self.desktop.close()
+    def close(self):self.driver_packages.clear();self.desktop.close()
 
     def execute(self,call):
         name=call.get('function',{}).get('name');args=call.get('function',{}).get('arguments',{})
         if name=='create_desktop_text' and conversation_export_request(self.chat.current_user or ''):
             raise ValueError('Conversation exports must use export_conversation; model-written transcript copies are refused.')
+        driver_schema=next((entry['function']['parameters'] for entry in DRIVER_TOOLS if entry['function']['name']==name),None)
+        if driver_schema is not None:
+            validate(args,driver_schema);self.check_stop();text=self.chat.current_user or ''
+            if name in {'prepare_driver_export','inspect_driver_packages'}:
+                source=args['source']
+                if source.lower()=='online':
+                    if (self.chat.target=='other' and requested_source(text)!='online') or offline_request(text):raise ValueError('Select the mounted offline Windows path explicitly; running-Windows tools cannot inspect a VM host.')
+                elif not requested_source(text) or Path(requested_source(text)).resolve()!=Path(source).resolve():
+                    raise ValueError('Offline driver source must be explicitly selected by path in the user request.')
+            if name=='prepare_driver_export' and args.get('destination_parent') and args['destination_parent'].lower() not in text.lower():
+                raise ValueError('Custom destination parent must be explicitly named by the user.')
+            if name=='export_driver_packages' and not CONFIRM_EXPORT.fullmatch(text):
+                raise ValueError('Review the source/destination plan, then say export drivers.')
+            if name=='verify_driver_backup' and args['folder'].lower() not in text.lower() and args['folder']!=self.driver_packages.last_backup:
+                raise ValueError('Select a backup path explicitly or verify the last backup from this session.')
+            self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
+            try:
+                if name=='list_driver_sources':result=self.driver_packages.discover()
+                elif name=='inspect_driver_packages':result=self.driver_packages.inventory(args['source'],self.check_stop)
+                elif name=='prepare_driver_export':result=self.driver_packages.prepare(args['source'],args.get('destination_parent'),self.check_stop)
+                elif name=='export_driver_packages':
+                    result=self.driver_packages.export(args['plan_id'],self.check_stop)
+                    self.driver_packages.last_backup=result['destination']
+                else:result=verify_backup(args['folder'],self.check_stop)
+            except InterruptedError:raise
+            except Exception as error:
+                self.emit('observation',json.dumps({'tool':name,'ok':False,'error':str(error)}));raise
+            self.emit('observation',json.dumps(result));return result
         schema=next((entry['function']['parameters'] for entry in DESKTOP_TOOLS+BASELINE_TOOLS if entry['function']['name']==name),None)
         if schema is not None:
             validate(args,schema);self.check_stop()

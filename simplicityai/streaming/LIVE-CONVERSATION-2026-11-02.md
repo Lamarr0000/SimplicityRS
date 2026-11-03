@@ -243,3 +243,44 @@ installation changes. Existing user files/logs preserved. Agent idle at handoff.
 
 Verified /health0.7.10-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
 microphone OFF. Agent idle at handoff.
+
+
+## November 3: driver-package export feature implemented; 0.8.0
+User explicitly requested running-Windows backup and recovery/export from mounted
+non-operational Windows, plus related tasks. Implemented fixed DISM commands only:
+Driver-Packages.ps1 uses Get-WindowsDriver/Export-WindowsDriver, no install/remove,
+registry loading, mounts, unlocks, repair or external-host access. New tool registry:
+list_driver_sources, inspect_driver_packages, prepare_driver_export,
+export_driver_packages, verify_driver_backup. Narrow offline exception does not
+change broad host/offline diagnosis boundary. Built-in inventory/backup capabilities
+and prompt updated; obsolete unavailable-backup canned response removed.
+
+Explicit offline source path required; no inferred source or automatic drive choice.
+Admin preflight, existing destination parent, separate volume for offline export,
+local paths only/no reparses, source/parent identity and inventory recheck, unique
+new destination. Reviewed plan expires10min, consumed before dispatch; exact export
+drivers confirmation, no plain yes/model-only authorization. Cancellation/new tasks/
+Newchat clear plans, no replay of partial/unknown exports. Partial status/logs retained,
+INF coverage/count checked; SHA256 manifest generated+reread and can be checked later.
+File integrity is not authenticity, functionality, compatibility or tested restore.
+Docs: streaming/DRIVER-EXPORT.md; developer live helper check_driver_live.py.
+
+112 streaming tests +voice/table client checks pass. Synthetic/temp tests cover
+source/destination validation, markers, changed inventory/source, expiry, existing
+destination, cancellation, missing/changed/extra files, traversal and selection/
+confirmation boundaries. PowerShell parser passed; real nonadmin provider returned
+administrator-required blocker as expected. No live export report exists yet.
+Requested one Windows UAC for launch_admin.py --validate, which would export online
+packages to unique ControlAdapter folder then open elevated pilot. ShellExecute
+returned declined-or-failed. No retry performed, no driver files exported, no elevated
+pilot launched. Pending user action: be available to approve a fresh UAC attempt;
+only retry on user direction. Offline export has NOT been tested on real installation.
+
+Normal pilot reopened0.8.0; final health/UI verification recorded below. Not elevated,
+so real inventories/export remain blocked until administrator launch. No normal app,
+VM/BRS/security changes; no personal Desktop driver backup created. Agent idle while
+waiting for manual UAC availability; implementation ready, live acceptance incomplete.
+
+Final runtime verified: /health0.8.0-prototype, native UI Ready, Mute mic disabled.
+Pilot OPEN at normal permission, microphone OFF. UAC launch failed/declined; no live
+export performed. Source implements feature; live acceptance awaits manual elevation.

@@ -32,9 +32,6 @@ def driver_backup_request(text):
     return bool(re.search(r'\bdrivers?\b',text,re.I) and re.search(r'\b(?:back\s*up|backup|copy|export)\b',text,re.I)
                 and not re.search(r"\b(?:don't|do not|never)\s+(?:back\s*up|copy|export)\b",text,re.I))
 
-DRIVER_BACKUP_LIMIT=('Driver-package backup is not connected in this build; no driver backup files were created. '
-                     'Device Manager and SFC do not back up driver packages. I have not selected or run a third-party backup tool.')
-
 
 def export_filename(text):
     match=re.search(r'\b(?:name it|named|call it|(?:with )?(?:the )?name)\s+(.{1,95})$',text,re.I)

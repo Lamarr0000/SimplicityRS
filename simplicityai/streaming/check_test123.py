@@ -120,14 +120,14 @@ class ReportedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'model-written'):
             ToolState.execute(agent.state,{'function':{'name':'create_desktop_text','arguments':{'filename':'session.txt','content':'incomplete summary'}}})
 
-    def test_backup_request_does_not_invent_tools(self):
-        agent=server.Agent(Mock(),'qwen3:8b');agent.state.execute=Mock(side_effect=AssertionError('No backup capability'))
-        spoken=[]
-        with patch.object(agent.connection,'open',side_effect=AssertionError('Capability limitation is application owned')):
+    def test_backup_request_prepares_a_plan_without_claiming_export(self):
+        agent=server.Agent(Mock(),'qwen3:8b');spoken=[]
+        agent.state.execute=Mock(return_value={'plan_id':'p','source':'online','scope':'running Windows','package_count':3,'destination':'C:/backup'})
+        with patch.object(agent.connection,'open',side_effect=AssertionError('Application owns backup planning')):
             agent.run('create a backup copy of my drivers on my desktop',spoken.append)
-            agent.run('use those third party tools that you recommended',spoken.append)
-        self.assertIn('no driver backup files were created',' '.join(spoken))
-        self.assertIn('SFC do not back up',' '.join(spoken))
+        self.assertEqual(agent.state.execute.call_args.args[0]['function']['name'],'prepare_driver_export')
+        self.assertIn('No backup created yet',' '.join(spoken))
+
 
     def test_export_name_does_not_depend_on_recognizing_desktop(self):
         from task_agenda import export_filename
