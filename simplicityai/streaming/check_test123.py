@@ -129,6 +129,12 @@ class ReportedTests(unittest.TestCase):
         self.assertIn('no driver backup files were created',' '.join(spoken))
         self.assertIn('SFC do not back up',' '.join(spoken))
 
+    def test_export_name_does_not_depend_on_recognizing_desktop(self):
+        from task_agenda import export_filename
+        self.assertEqual(export_filename('CAN YOU MAKE A COPY OF THIS WHOLE CONVERSATION AND SAVE IT ON MY DUST TOP AS EIGHT'),'EIGHT.txt')
+        self.assertEqual(export_filename('MAKE AN ENTIRE COPY OF THE CHAP SESSION SAVE IT ON MY DUST UP AS THREE SEVEN SIX'),'THREE SEVEN SIX.txt')
+        self.assertIsNone(export_filename('save this driver package as eight'))
+
     def test_progressively_released_chat_prefix_is_not_rewritten(self):
         agent=server.Agent(Mock(),'qwen3:8b')
         chunks=[{'message':{'content':'Hello. '},'done':False},
@@ -140,9 +146,9 @@ class ReportedTests(unittest.TestCase):
 class ExitTests(unittest.IsolatedAsyncioTestCase):
     async def test_exit_is_explicit_and_uses_session_event_without_model_or_window_guessing(self):
         from intent_control import exit_request
-        for text in ['Close yourself','please close yourself','quit this app','exit SimplicityAI','Turn yourself off please','Turn yourself off','switch yourself off']:
+        for text in ['Close yourself','please close yourself','quit this app','exit SimplicityAI','Turn yourself off please','Turn yourself off','switch yourself off','can you turn yourself off please','YE A M CAN YOU TURN YOURSELF OFF PLEASE','could you please close this app now']:
             self.assertTrue(exit_request(text))
-        for text in ['do not close yourself','close Calculator','explain how to close yourself','Said they','close yourself and delete my files']:
+        for text in ['do not close yourself','close Calculator','explain how to close yourself','Said they','close yourself and delete my files','you can turn yourself off you have done it before','can you explain how to turn yourself off','please do not turn yourself off','if I say turn yourself off']:
             self.assertFalse(exit_request(text))
         ws=Mock();ws.send_json=__import__('unittest.mock',fromlist=['AsyncMock']).AsyncMock()
         session=server.Session(ws,'qwen3:8b',io.StringIO())

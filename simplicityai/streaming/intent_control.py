@@ -60,4 +60,7 @@ def retry_arithmetic(text,transcript):
 
 
 def exit_request(text):
-    return bool(re.fullmatch(r"\s*(?:please\s+)?(?:close yourself|exit yourself|shut yourself down|turn yourself off|switch yourself off|(?:close|exit|quit) (?:simplicity\s*ai|this app|the app))(?:\s+please)?[.!?\s]*",text,re.I))
+    # Limited polite prefixes, never arbitrary text before an exit-shaped fragment.
+    prefix=r"\s*(?:(?:yes|yeah|ye|a|m|um|uh|okay|ok|well|hey)[,\s]+){0,4}(?:(?:can|could|would) you\s+)?(?:please\s+)?"
+    command=r"(?:close yourself|exit yourself|shut yourself down|turn yourself off|switch yourself off|(?:close|exit|quit) (?:simplicity\s*ai|this app|the app))"
+    return bool(re.fullmatch(prefix+command+r"(?:\s+(?:please|now)){0,2}[.!?\s]*",text,re.I))

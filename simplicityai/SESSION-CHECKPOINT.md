@@ -1199,3 +1199,25 @@ No UAC/security/VM/BRS/normal-installation changes. User files preserved. Agent 
 
 Verified /health0.7.9-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
 microphone OFF. No driver backup created. Agent idle at handoff.
+
+
+## November 3: morning log review; polite exit and export names; 0.7.10
+User-referenced Desktop/Conversation-20261103-073531-623748.txt absent; matching
+stream-20261103-072008.jsonl contains the conversation and export receipt. Do not
+claim file body was read. Drivers/read-only limits, backup-unavailable response and
+Google blocker worked. VM host boundary was correctly explained; no external-host
+inspection exists. No recovery operations/driver backup were run from quoted text.
+Polite can-you-turn-yourself-off-please (+recognized YE A M filler) missed anchored
+exit regex and yielded false capability refusals; final plain command exited.
+Exit now accepts bounded polite prefixes and please/now suffixes, preserving exact
+anchoring and refusals for negation/explanation/conditional/compound instructions.
+Export filename parser now accepts save/export ... as NAME in recognized transcript
+export requests without depending on Desktop pronunciation. EIGHT.txt remains words,
+not guessed8.txt. Also covers prior DUST UP AS THREE SEVEN SIX. No file renamed.
+95 streaming tests+client checks pass; changed cases tested with simulated effects.
+Speech recognition/model clarification limitations remain. Pilot was closed; loaded
+0.7.10. Actual health/UI verification recorded below. No UAC/security/VM/BRS/normal
+installation changes. Existing user files/logs preserved. Agent idle at handoff.
+
+Verified /health0.7.10-prototype and native UI Ready, Mute mic disabled. Pilot OPEN,
+microphone OFF. Agent idle at handoff.

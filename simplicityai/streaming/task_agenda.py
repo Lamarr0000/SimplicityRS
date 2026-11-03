@@ -39,6 +39,7 @@ DRIVER_BACKUP_LIMIT=('Driver-package backup is not connected in this build; no d
 def export_filename(text):
     match=re.search(r'\b(?:name it|named|call it|(?:with )?(?:the )?name)\s+(.{1,95})$',text,re.I)
     if not match:match=re.search(r'\b(?:desktop|des\s*top|destap)\s+as\s+(.{1,95})$',text,re.I)
+    if not match and conversation_export_request(text):match=re.search(r'\b(?:save|export)\b.{0,100}?\bas\s+(.{1,95})$',text,re.I)
     if not match:return None
     value=re.sub(r'\s+please[.!?]*$','',match[1],flags=re.I).strip(' .!?\"')
     return value if value.lower().endswith('.txt') else value+'.txt'
