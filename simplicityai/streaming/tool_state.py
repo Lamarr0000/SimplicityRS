@@ -75,6 +75,7 @@ class ToolState(State):
             if name=='verify_driver_backup' and args['folder'].lower() not in text.lower() and args['folder']!=self.driver_packages.last_backup:
                 raise ValueError('Select a backup path explicitly or verify the last backup from this session.')
             self.emit('tool_request',json.dumps({'name':name,'arguments':args}))
+            self.emit('action','Driver packages: '+name.replace('_',' ')+'. Windows inventory/export can take several minutes; no driver installation or removal is requested.')
             try:
                 if name=='list_driver_sources':result=self.driver_packages.discover()
                 elif name=='inspect_driver_packages':result=self.driver_packages.inventory(args['source'],self.check_stop)

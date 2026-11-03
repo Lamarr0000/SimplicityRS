@@ -16,14 +16,17 @@ def main():
     result={'simulation':False,'source':'online','offline_export_tested':False,'install_or_remove_requested':False}
     service=DriverPackages()
     try:
-        inventory=service.inventory('online',lambda:None)
-        result['inventory_count']=inventory['count']
+        result['phase']='inventory'
         if args.export:
             plan=service.prepare('online',str(root),lambda:None)
+            result['inventory_count']=plan['package_count']
+            result['phase']='export'
             result['export']=service.export(plan['plan_id'],lambda:None)
             result['verification']=verify_backup(result['export']['destination'],lambda:None)
             result['passed']=bool(result['verification']['verified'])
-        else:result['passed']=True
+        else:
+            result['inventory_count']=service.inventory('online',lambda:None)['count']
+            result['passed']=True
     except Exception as error:result.update(passed=False,error=str(error))
     finally:
         with report.open('x',encoding='utf-8') as output:json.dump(result,output,indent=2)

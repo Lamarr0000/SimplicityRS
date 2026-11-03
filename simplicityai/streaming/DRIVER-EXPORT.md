@@ -67,3 +67,8 @@ check and starts the updated elevated pilot afterward, microphone off.
 Sources:
 - https://learn.microsoft.com/en-us/powershell/module/dism/export-windowsdriver
 - https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-driver-servicing-command-line-options-s14
+
+Live validation note: the first elevated inventory exceeded the original 90-second
+limit while DISM was checking large driver signatures, before any export folder
+was created. Inventory now allows 300 seconds; export allows 900. The live helper
+uses planning inventory rather than repeating an extra initial inventory.

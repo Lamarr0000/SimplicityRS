@@ -83,7 +83,7 @@ def run_dism(operation,source,destination,check_stop):
     check_stop()
     process=subprocess.Popen([str(executable),'-NoProfile','-NonInteractive','-EncodedCommand',base64.b64encode(command.encode('utf-16le')).decode('ascii')],
         env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,creationflags=subprocess.CREATE_NO_WINDOW)
-    deadline=time.monotonic()+(900 if operation=='export' else 90)
+    deadline=time.monotonic()+(900 if operation=='export' else 300)
     try:
         from server_job import guard_server
         guard=guard_server(process)

@@ -284,3 +284,21 @@ waiting for manual UAC availability; implementation ready, live acceptance incom
 Final runtime verified: /health0.8.0-prototype, native UI Ready, Mute mic disabled.
 Pilot OPEN at normal permission, microphone OFF. UAC launch failed/declined; no live
 export performed. Source implements feature; live acceptance awaits manual elevation.
+
+
+## November 3: user requested UAC retry; elevation accepted, inventory timed out
+Fresh launch_admin.py --validate succeeded through UAC. Elevated live report
+ControlAdapter/driver-live-20261103-081547-811302.json records inventory timeout
+at the old 90-second limit, before an export destination was created. DISM log
+showed signature progress (large NVIDIA package); no driver backup exists yet.
+A separate normal-permission inventory diagnostic produced081627 report with the
+expected administrator-required error; do not confuse it with elevated validation.
+Raised inventory timeout to300 seconds (export remains900), removed redundant
+initial inventory in live helper, and added driver action status during long calls.
+112 streaming tests pass. These corrections are source only, not loaded in the
+currently open elevated pilot (0.8.0, Ready/mic off after failed check).
+Computer-use helper explicitly reports higher target integrity; cannot operate
+that elevated window. Asked user to click Exit and reply closed. Required next:
+wait for that action, verify8770 free, launch_admin.py --validate again and let user
+approve UAC. No automatic retry of a dispatched export. No live offline export test.
+Current state: administrator pilot OPEN, manual Exit pending. Agent waiting on user.
